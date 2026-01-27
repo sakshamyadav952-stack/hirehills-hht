@@ -1,0 +1,43 @@
+
+@keyframes rotateWheel {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-wheel {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 3px solid gold;
+  background: conic-gradient(
+    red 0deg 60deg,
+    blue 60deg 120deg,
+    green 120deg 180deg,
+    yellow 180deg 240deg,
+    orange 240deg 300deg,
+    purple 300deg 360deg
+  );
+  animation: rotateWheel 6s linear infinite;
+  box-shadow: 0 0 15px gold;
+  position: relative;
+  cursor: pointer;
+}
+
+.spin-wheel:hover {
+  animation: rotateWheel 2s linear infinite;
+  box-shadow: 0 0 25px #ffd700;
+}
+
+@keyframes coin-wobble {
+  0%, 100% { transform: rotateY(0deg); }
+  50% { transform: rotateY(20deg); }
+}
+
+@keyframes coin-glint {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+.coin-glint {
+  animation: coin-glint 3s ease-in-out infinite;
+}

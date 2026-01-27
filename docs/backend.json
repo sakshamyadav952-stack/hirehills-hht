@@ -1,0 +1,533 @@
+
+
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the Token Miner application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user, same as Firebase Auth UID."
+        },
+        "fullName": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "gender": {
+          "type": "string",
+          "description": "The user's gender."
+        },
+        "dob": {
+            "type": "string",
+            "description": "The user's date of birth.",
+            "format": "date"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "The date and time when the user registered.",
+          "format": "date-time"
+        },
+        "profileCode": {
+          "type": "string",
+          "description": "A unique 6-digit code for the user."
+        },
+        "profileImageUrl": {
+            "type": "string",
+            "description": "URL of the user's profile picture."
+        },
+        "referredBy": {
+            "type": "string",
+            "description": "The UID of the user who referred this user."
+        },
+        "referredByName": {
+            "type": "string",
+            "description": "The name of the user who referred this user."
+        },
+        "referrals": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "A list of user UIDs that this user has referred."
+        },
+        "airdropReferralCount": {
+          "type": "number",
+          "description": "Number of referrals made by the user during the current airdrop event."
+        },
+        "withdrawalRequests": {
+          "type": "array",
+          "description": "A list of withdrawal requests made by the user.",
+          "items": {
+            "$ref": "#/entities/WithdrawalRequest"
+          }
+        },
+        "isAdmin": {
+            "type": "boolean",
+            "description": "Indicates if the user has administrative privileges."
+        },
+        "notifications": {
+            "type": "array",
+            "description": "A list of notification messages for the user.",
+            "items": {
+                "type": "string"
+            }
+        },
+        "notes": {
+            "type": "string",
+            "description": "A string to store user's personal notes."
+        },
+        "hasRatedOnPlayStore": {
+            "type": "boolean",
+            "description": "Indicates if the user has clicked the 'Rate on Play Store' button."
+        },
+        "lastTransactionTimestamp": {
+            "type": "string",
+            "description": "The timestamp of the last coin transaction initiated by the user.",
+            "format": "date-time"
+        },
+        "lastDeviceName": {
+            "type": "string",
+            "description": "The device name from the user agent string of the last login."
+        },
+        "lastIpAddress": {
+            "type": "string",
+            "description": "The IP address of the last login."
+        },
+        "hasUnreadAdminMessage": {
+            "type": "boolean",
+            "description": "Indicates if the user has an unread message from the admin."
+        },
+        "hasUnreadUserMessage": {
+            "type": "boolean",
+            "description": "Indicates if the admin has an unread message from the user."
+        }
+      },
+      "required": [
+        "id",
+        "fullName",
+        "gender",
+        "createdAt",
+        "profileCode"
+      ]
+    },
+    "PrivateContact": {
+      "title": "PrivateContact",
+      "type": "object",
+      "description": "Stores a user's private contact information.",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "mobileNumber": {
+          "type": "string",
+          "description": "The user's mobile number."
+        }
+      }
+    },
+    "MiningSession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MiningSession",
+      "type": "object",
+      "description": "Represents a user's mining session.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the mining session."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N MiningSession)"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "The start time of the mining session.",
+          "format": "date-time"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "The end time of the mining session.",
+          "format": "date-time"
+        },
+        "minedTokens": {
+          "type": "number",
+          "description": "The number of Param tokens mined during this session."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "startTime",
+        "endTime",
+        "minedTokens"
+      ]
+    },
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents the profile information for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user profile."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:1 UserProfile)"
+        },
+        "profilePictureUrl": {
+          "type": "string",
+          "description": "URL of the user's profile picture.",
+          "format": "uri"
+        },
+        "bio": {
+          "type": "string",
+          "description": "A short biography or description of the user."
+        },
+        "location": {
+          "type": "string",
+          "description": "The user's location."
+        }
+      },
+      "required": [
+        "id",
+        "userId"
+      ]
+    },
+    "PendingTransfer": {
+        "title": "PendingTransfer",
+        "type": "object",
+        "description": "Represents a pending coin transfer from a sender to a receiver.",
+        "properties": {
+            "senderId": { "type": "string" },
+            "senderName": { "type": "string" },
+            "receiverId": { "type": "string" },
+            "receiverName": { "type": "string" },
+            "amount": { "type": "number" },
+            "status": { "type": "string", "enum": ["pending", "completed", "rejected"] },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["senderId", "senderName", "receiverId", "receiverName", "amount", "status", "createdAt"]
+    },
+    "Transaction": {
+        "title": "Transaction",
+        "type": "object",
+        "description": "Represents a completed or rejected coin transfer.",
+        "properties": {
+            "senderId": { "type": "string" },
+            "senderName": { "type": "string" },
+            "receiverId": { "type": "string" },
+            "receiverName": { "type": "string" },
+            "amount": { "type": "number" },
+            "status": { "type": "string", "enum": ["completed", "rejected", "pending"] },
+            "createdAt": { "type": "string", "format": "date-time" },
+            "completedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["senderId", "senderName", "receiverId", "receiverName", "amount", "status", "createdAt", "completedAt"]
+    },
+    "ReferralRequest": {
+        "title": "ReferralRequest",
+        "type": "object",
+        "description": "Represents a pending referral request from one user to another.",
+        "properties": {
+            "requesterId": { "type": "string" },
+            "requesterName": { "type": "string" },
+            "requesterProfileImageUrl": { "type": "string" },
+            "targetUserId": { "type": "string" },
+            "status": { "type": "string", "enum": ["pending"] },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["requesterId", "requesterName", "targetUserId", "status", "createdAt"]
+    },
+    "WithdrawalRequest": {
+      "title": "WithdrawalRequest",
+      "type": "object",
+      "description": "Represents a user's request to withdraw coins, stored within the User document.",
+      "properties": {
+        "requestId": { "type": "string" },
+        "upiId": { "type": "string" },
+        "requestedAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "completed"] },
+        "createdAt": { "type": "string",
+        "format": "date-time" },
+        "classification": {
+          "type": "string",
+          "enum": ["accepted", "rejected", "unclassified"]
+        }
+      },
+      "required": ["requestId", "upiId", "requestedAmount", "status", "createdAt"]
+    },
+     "UniversalMessage": {
+      "title": "UniversalMessage",
+      "type": "object",
+      "description": "A universal message for all users.",
+      "properties": {
+        "text": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "updatedAt"]
+    },
+    "Note": {
+      "title": "Note",
+      "type": "object",
+      "description": "A single note belonging to a user.",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "content", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "type": "object",
+      "description": "A single chat message between a user and an admin.",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "isBot": {"type": "boolean"},
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "text", "senderId", "senderName", "timestamp"]
+    },
+    "SessionConfig": {
+      "title": "SessionConfig",
+      "type": "object",
+      "description": "Global configuration for mining sessions.",
+      "properties": {
+        "durationMinutes": {
+          "type": "number",
+          "description": "The duration of a mining session in minutes."
+        }
+      },
+      "required": ["durationMinutes"]
+    },
+    "AirdropConfig": {
+      "title": "AirdropConfig",
+      "type": "object",
+      "description": "Global configuration for airdrop events.",
+      "properties": {
+        "isActive": { "type": "boolean" },
+        "headline": { "type": "string" },
+        "tagline": { "type": "string" },
+        "expiryDate": { "type": "string", "format": "date-time" },
+        "referralLimit": { "type": "number" },
+        "rewardAmount": { "type": "number" },
+        "bonusDeadline": { "type": "string", "format": "date-time" },
+        "bonusReferralTarget": { "type": "number" },
+        "bonusReward": { "type": "number" },
+        "completionBonus": { "type": "number" }
+      }
+    },
+    "Review": {
+      "title": "Review",
+      "type": "object",
+      "description": "Represents a user's review and rating for the app.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "profileCode": { "type": "string" },
+        "rating": { "type": "number" },
+        "feedback": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "wasPlayStorePrompted": { "type": "boolean"}
+      },
+      "required": ["id", "userId", "userName", "profileCode", "rating", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous",
+      "google.com"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user information. User ID is used for authentication and authorization.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ],
+           "accessControl": {
+            "reasoning": "A user can read/write to their own document. An admin can write to any user's document.",
+            "rules": [
+              "allow read: if request.auth.uid == userId;",
+              "allow write: if request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true;"
+            ]
+          }
+        }
+      },
+      {
+        "path": "/users/{userId}/private/contact",
+        "definition": {
+          "entityName": "PrivateContact",
+          "schema": { "$ref": "#/entities/PrivateContact" },
+          "description": "Stores a user's private email and mobile number."
+        }
+      },
+      {
+        "path": "/users/{userId}/notes/{noteId}",
+        "definition": {
+          "entityName": "Note",
+          "schema": { "$ref": "#/entities/Note" },
+          "description": "Stores individual notes for a user.",
+          "params": [
+            { "name": "userId", "description": "The user's ID." },
+            { "name": "noteId", "description": "The note's ID." }
+          ],
+          "accessControl": {
+            "reasoning": "A user can perform any action on their own notes, but only if they are the owner of the user document.",
+            "rules": [
+                "match /users/{userId}/notes/{noteId} {",
+                "  allow read, write: if request.auth.uid == userId;",
+                "}"
+            ]
+          }
+        }
+      },
+       {
+        "path": "/users/{userId}/chat/{messageId}",
+        "definition": {
+          "entityName": "ChatMessage",
+          "schema": { "$ref": "#/entities/ChatMessage" },
+          "description": "Stores chat messages between a user and an admin.",
+          "params": [
+            { "name": "userId", "description": "The user's ID." },
+            { "name": "messageId", "description": "The message's ID." }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/miningSessions/{miningSessionId}",
+        "definition": {
+          "entityName": "MiningSession",
+          "schema": {
+            "$ref": "#/backend/entities/MiningSession"
+          },
+          "description": "Stores mining session data for each user. Access control is based on the user ID in the path.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "miningSessionId",
+              "description": "The unique identifier for the mining session."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/userProfile/profile",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user profile information. Access control is based on the user ID in the path.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/pendingTransfers/{transferId}",
+        "definition": {
+            "entityName": "PendingTransfer",
+            "schema": { "$ref": "#/backend/entities/PendingTransfer" },
+            "description": "Stores pending transfers. Only the receiver can read/delete to accept/reject."
+        }
+      },
+      {
+        "path": "/transactions/{transactionId}",
+        "definition": {
+          "entityName": "Transaction",
+          "schema": {
+            "$ref": "#/backend/entities/Transaction"
+          },
+          "description": "Stores all completed and rejected transactions. Both sender and receiver can read their own transactions."
+        }
+      },
+       {
+        "path": "/referralRequests/{requestId}",
+        "definition": {
+          "entityName": "ReferralRequest",
+          "schema": { "$ref": "#/backend/entities/ReferralRequest" },
+          "description": "Stores pending referral requests. The requester creates the doc, and the target user can read/delete it to respond."
+        }
+      },
+      {
+        "path": "/universal_messages/current",
+        "definition": {
+          "entityName": "UniversalMessage",
+          "schema": { "$ref": "#/backend/entities/UniversalMessage" },
+          "description": "Stores the current universal message for all users.",
+          "accessControl": {
+            "reasoning": "All authenticated users can read the message, but only admins can write to it.",
+            "rules": [
+              "allow read: if request.auth != null;",
+              "allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;"
+            ]
+          }
+        }
+      },
+      {
+        "path": "/config/session",
+        "definition": {
+            "entityName": "SessionConfig",
+            "schema": { "$ref": "#/backend/entities/SessionConfig" },
+            "description": "Stores global session configuration like duration."
+        }
+      },
+      {
+        "path": "/config/airdrop",
+        "definition": {
+            "entityName": "AirdropConfig",
+            "schema": { "$ref": "#/entities/AirdropConfig" },
+            "description": "Stores global configuration for the current airdrop event."
+        }
+      },
+      {
+        "path": "/reviews/{reviewId}",
+        "definition": {
+          "entityName": "Review",
+          "schema": { "$ref": "#/entities/Review" },
+          "description": "Stores user feedback and ratings for the app."
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure data integrity, security, and scalability for the Token Miner application. It adheres to the principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs. User data and related information are stored in dedicated collections, promoting easy management and secure access. By storing roles directly in the database, we avoid the complexity and potential security risks associated with custom claims.\n\n**Authorization Independence:**\n*   The structure enforces Authorization Independence by using path-based ownership for `MiningSession` and `UserProfile` subcollections. This eliminates the need for `get()` calls in security rules, simplifying the rules and ensuring atomic operations.\n\n**QAPs Support:**\n*   The path-based ownership structure inherently supports secure `list` operations (QAPs). Security rules can efficiently filter data based on the requesting user's ID without requiring complex queries or additional filtering logic.\n\n**Rationale for Chosen Structure:**\n*   `/users/{userId}`: Stores core user information. This top-level collection enables easy user management and authentication.\n*   `/users/{userId}/notes/{noteId}`: Stores a user's individual notes in a subcollection, ensuring data is private and scalable.\n*   `/users/{userId}/miningSessions/{miningSessionId}`: Stores mining session data specific to each user, establishing a clear ownership hierarchy. No denormalization is required as access control is based on the path.\n*   `/users/{userId}/userProfile/{userProfileId}`: Stores user profile information. Because of the 1:1 relationship, the profileId can be fixed to 'profile' removing the need for a wildcard."
+  }
+}
+    
+
+    
+
+    
+
+    
+
+    

@@ -1,0 +1,171 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Secures the /users/{userId} collection, allowing only the user and admins to read/write their own document.
+     * It also specifically allows querying the collection by mobile number for user existence checks.
+     * @path /users/{userId}
+     * @allow (get, update, delete) if isSignedIn() && (isOwner(userId) || isAdmin());
+     * @allow (create) if isSignedIn() && isSelfCreation(userId);
+     * @allow (list) if request.query.where.keys().hasOnly(['mobileNumber']) || isAdmin();
+     * @deny (create) if !isSignedIn() || !isSelfCreation(userId);
+     * @principle Enforces user-ownership, admin override, and secure user existence checks.
+     */
+    match /users/{userId} {
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow list: if request.query.where.keys().hasOnly(['mobileNumber']) || isAdmin();
+      allow create: if isSignedIn() && isSelfCreation(userId);
+      allow update: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow delete: if isSignedIn() && (isOwner(userId) || isAdmin());
+    }
+
+    /**
+     * @description Secures the /users/{userId}/kuberRequests/{requestId} subcollection.
+     * @path /users/{userId}/kuberRequests/{requestId}
+     * @allow (create, delete, write) if isSignedIn() && isOwner(userId);
+     * @deny (read) if !isAdmin();
+     * @principle Allows a user to manage their own Kuber requests. Admins can read for debugging.
+     */
+    match /users/{userId}/kuberRequests/{requestId} {
+        allow read, write, create, delete: if isSignedIn() && isOwner(userId);
+    }
+
+    /**
+     * @description Secures the /users/{userId}/miningSessions/{miningSessionId} collection, allowing only the user and admins to read/write their own mining sessions.
+     * @path /users/{userId}/miningSessions/{miningSessionId}
+     * @allow (get, list, update, delete) if isSignedIn() && (isOwner(userId) || isAdmin());
+     * @allow (create) if isSignedIn() && (isOwner(userId) || isAdmin());
+     * @deny (create) if !isSignedIn() || !(isOwner(userId) || isAdmin());
+     * @principle Enforces user-ownership and admin override for mining session data.
+     */
+    match /users/{userId}/miningSessions/{miningSessionId} {
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow create: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow update: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow delete: if isSignedIn() && (isOwner(userId) || isAdmin());
+    }
+
+    /**
+     * @description Secures the /users/{userId}/userProfile/profile document, allowing only the user and admins to read/write their own profile.
+     * @path /users/{userId}/userProfile/profile
+     * @allow (get, update, delete) if isSignedIn() && (isOwner(userId) || isAdmin());
+     * @allow (create) if isSignedIn() && (isOwner(userId) || isAdmin());
+     * @deny (create) if !isSignedIn() || !(isOwner(userId) || isAdmin());
+     * @principle Enforces user-ownership and admin override for user profile data.
+     */
+    match /users/{userId}/userProfile/profile {
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow list: if false;
+      allow create: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow update: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow delete: if isSignedIn() && (isOwner(userId) || isAdmin());
+    }
+
+    /**
+     * @description Secures the /pendingTransfers/{transferId} collection, allowing only the receiver and admins to read/delete.
+     * @path /pendingTransfers/{transferId}
+     * @allow (get, delete) if isSignedIn() && (isReceiver(resource.data.receiverId) || isAdmin());
+     * @deny (create, update) if true;
+     * @deny (list) if true;
+     * @principle Restricts access to pending transfers to the intended receiver and admins.
+     */
+    match /pendingTransfers/{transferId} {
+      allow get: if isSignedIn() && (isReceiver(receiverId()) || isAdmin());
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if isSignedIn() && (isReceiver(receiverId()) || isAdmin());
+
+      function receiverId() {
+        return resource.data.receiverId
+      }
+    }
+
+    /**
+     * @description Secures the /transactions/{transactionId} collection, allowing only the sender, receiver and admins to read.
+     * @path /transactions/{transactionId}
+     * @allow (get) if isSignedIn() && (isSenderOrReceiver(resource.data.senderId, resource.data.receiverId) || isAdmin());
+     * @deny (create, update, delete, list) if true;
+     * @principle Restricts access to transactions to the sender, receiver, and admins.
+     */
+    match /transactions/{transactionId} {
+      allow get: if isSignedIn() && (isSenderOrReceiver(senderId(), receiverId()) || isAdmin());
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+
+      function senderId() {
+        return resource.data.senderId
+      }
+
+      function receiverId() {
+        return resource.data.receiverId
+      }
+    }
+
+    /**
+     * @description Secures the /referralRequests/{requestId} collection, allowing only the target user and admins to read/delete.
+     * @path /referralRequests/{requestId}
+     * @allow (get, delete) if isSignedIn() && (isTargetUser(resource.data.targetUserId) || isAdmin());
+     * @deny (create, update, list) if true;
+     * @principle Restricts access to referral requests to the target user and admins.
+     */
+    match /referralRequests/{requestId} {
+      allow get: if isSignedIn() && (isTargetUser(targetUserId()) || isAdmin());
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if isSignedIn() && (isTargetUser(targetUserId()) || isAdmin());
+
+      function targetUserId() {
+        return resource.data.targetUserId
+      }
+    }
+    
+    match /reviews/{reviewId} {
+      allow create: if isSignedIn() && isOwner(request.resource.data.userId);
+      allow read: if isSignedIn() && isAdmin();
+      allow list: if isSignedIn() && isAdmin();
+      allow update, delete: if isSignedIn() && isAdmin();
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    function isSelfCreation(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      let isSuperAdmin = request.auth.uid == 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+      let hasAdminFlag = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      return isSuperAdmin || hasAdminFlag;
+    }
+
+    function isReceiver(receiverId) {
+      return request.auth.uid == receiverId;
+    }
+
+    function isSenderOrReceiver(senderId, receiverId) {
+        return request.auth.uid == senderId || request.auth.uid == receiverId;
+    }
+
+    function isTargetUser(targetUserId) {
+        return request.auth.uid == targetUserId;
+    }
+  }
+}
