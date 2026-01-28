@@ -14,36 +14,34 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { KuberBlockItem } from '@/components/kuber-block-item';
 
 
-function FBlocCard({ kuberBlocks }: { kuberBlocks: KuberBlock[] | undefined }) {
-  const [cumulativeTBloc, setCumulativeTBloc] = useState(0);
+function LiveEarningsCard({ kuberBlocks }: { kuberBlocks: KuberBlock[] | undefined }) {
+  const [cumulativePoints, setCumulativePoints] = useState(0);
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
     if (!kuberBlocks || kuberBlocks.length === 0) {
-      setCumulativeTBloc(0);
+      setCumulativePoints(0);
       return;
     }
 
-    const tBlocRatePerMs = 0.25 / (1000 * 60 * 60);
+    const pointsRatePerMs = 0.25 / (1000 * 60 * 60);
 
     const animate = () => {
       const now = Date.now();
       let total = 0;
 
       kuberBlocks.forEach(block => {
-        // Main block's total points calculation
         const durationMs = Math.max(0, block.referralSessionEndTime - block.userSessionStartTime);
         const durationHours = durationMs / (1000 * 60 * 60);
         const totalKuberPoints = durationHours * 0.25;
         
-        // t-bloc's current points calculation
         const elapsedMsSinceStart = Math.max(0, now - block.userSessionStartTime);
-        const currentSimulatedPoints = Math.min(elapsedMsSinceStart * tBlocRatePerMs, totalKuberPoints);
+        const currentSimulatedPoints = Math.min(elapsedMsSinceStart * pointsRatePerMs, totalKuberPoints);
         
         total += currentSimulatedPoints;
       });
 
-      setCumulativeTBloc(total);
+      setCumulativePoints(total);
 
       animationFrameRef.current = requestAnimationFrame(animate);
     };
@@ -62,22 +60,22 @@ function FBlocCard({ kuberBlocks }: { kuberBlocks: KuberBlock[] | undefined }) {
       <CardHeader className="text-center">
         <CardTitle className="text-lg font-bold text-indigo-300 tracking-wider flex items-center justify-center gap-2">
             <Pyramid className="h-5 w-5" />
-            f-bloc
+            Live Network Earnings
         </CardTitle>
         <CardDescription className="text-indigo-200/80 text-xs">
-          Cumulative Network Activity
+          Points accumulating in real-time.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <p className="text-4xl font-mono font-bold text-center text-white">
-          {cumulativeTBloc.toFixed(4)}
+          {cumulativePoints.toFixed(4)}
         </p>
       </CardContent>
     </Card>
   );
 }
 
-function GBoxCard({ kuberBlocks }: { kuberBlocks: KuberBlock[] | undefined }) {
+function PotentialEarningsCard({ kuberBlocks }: { kuberBlocks: KuberBlock[] | undefined }) {
   const totalPoints = useMemo(() => {
     if (!kuberBlocks || kuberBlocks.length === 0) {
       return 0;
@@ -96,10 +94,10 @@ function GBoxCard({ kuberBlocks }: { kuberBlocks: KuberBlock[] | undefined }) {
       <CardHeader className="text-center">
         <CardTitle className="text-lg font-bold text-green-300 tracking-wider flex items-center justify-center gap-2">
           <Coins className="h-5 w-5" />
-          g-box
+          Potential Network Bonus
         </CardTitle>
         <CardDescription className="text-green-200/80 text-xs">
-          Total Potential Points
+          Total earnings from this session's overlaps.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -195,8 +193,8 @@ export default function KuberPage() {
             </TabsList>
             <TabsContent value="session-log">
                 <div className="grid md:grid-cols-2 gap-6 mt-6">
-                    <FBlocCard kuberBlocks={userProfile?.kuberBlocks} />
-                    <GBoxCard kuberBlocks={userProfile?.kuberBlocks} />
+                    <LiveEarningsCard kuberBlocks={userProfile?.kuberBlocks} />
+                    <PotentialEarningsCard kuberBlocks={userProfile?.kuberBlocks} />
                 </div>
                 <Card className="mt-6">
                     <CardHeader>
@@ -306,5 +304,6 @@ export default function KuberPage() {
     </div>
   );
 }
+
 
 
