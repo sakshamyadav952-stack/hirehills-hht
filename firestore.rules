@@ -34,16 +34,8 @@ service cloud.firestore {
         }
       }
       
-      // --- Scenario 1: Claiming coins ---
-      // Verify that minedCoins are being incremented by the exact previous unclaimedCoins value.
-      if (writeData.minedCoins > existingData.minedCoins) {
-        return writeData.minedCoins == existingData.minedCoins + existingData.unclaimedCoins
-               && writeData.unclaimedCoins == 0;
-      }
-      
       // --- Scenario 2: Finalizing a session (calculating unclaimedCoins) ---
-      // The client-side transaction calculates earnings and increments `unclaimedCoins`.
-      // The rule verifies that this only happens when a session is ending and the increment is reasonable.
+      // This MUST remain for the client to trigger session finalization.
       if (writeData.unclaimedCoins > existingData.unclaimedCoins) {
         let incrementAmount = writeData.unclaimedCoins - existingData.unclaimedCoins;
         let isEndingSession = writeData.miningStartTime == null && existingData.miningStartTime != null;

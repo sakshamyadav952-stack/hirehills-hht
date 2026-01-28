@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import type { ReactNode } from 'react';
@@ -1007,51 +1006,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   }, [user, userProfile, firestore, referrerProfile, allReferrals]);
   
-  const claimMinedCoins = useCallback(async (): Promise<number | undefined> => {
-    if (!user || !userProfile || !userProfile.unclaimedCoins || userProfile.unclaimedCoins <= 0) return;
-    
-    const claimedAmount = userProfile.unclaimedCoins;
-    
-    // Optimistic UI update
-    setUserProfile(prev => prev ? { ...prev, minedCoins: prev.minedCoins + claimedAmount, unclaimedCoins: 0, activeBoosts: [], spinWinnings: 0, spinAdWatchCount: 0, adWatchHistory: [], sessionBaseEarnings: 0, sessionReferralEarnings: 0, kuberBlocks: [] } : null);
+    const claimMinedCoins = useCallback(async (): Promise<number | undefined> => {
+        if (!user || !userProfile || !userProfile.unclaimedCoins || userProfile.unclaimedCoins <= 0) return;
 
-    const userDocRef = doc(firestore, 'users', user.uid);
-    
-    runTransaction(firestore, async (transaction) => {
-        const userDoc = await transaction.get(userDocRef);
-        if (!userDoc.exists()) {
-            throw "User document does not exist!";
+        const claimedAmount = userProfile.unclaimedCoins;
+
+        // Optimistic UI update
+        setUserProfile(prev => prev ? { ...prev, minedCoins: prev.minedCoins + claimedAmount, unclaimedCoins: 0, activeBoosts: [], spinWinnings: 0, spinAdWatchCount: 0, adWatchHistory: [], sessionBaseEarnings: 0, sessionReferralEarnings: 0, kuberBlocks: [] } : null);
+
+        try {
+            const functions = getFunctions();
+            const claimFunction = httpsCallable(functions, 'claimMinedCoins');
+            const result = await claimFunction();
+            const data = result.data as { success: boolean, claimedAmount: number };
+
+            if (!data.success) {
+                throw new Error("Cloud function reported failure.");
+            }
+
+            // The optimistic update is already done. We can show a toast here if we want.
+            return data.claimedAmount;
+
+        } catch (error) {
+            console.error("Failed to claim coins via cloud function:", error);
+            // Revert optimistic update on failure
+            setUserProfile(prev => prev ? { ...prev, minedCoins: prev.minedCoins - claimedAmount, unclaimedCoins: claimedAmount, kuberBlocks: userProfile.kuberBlocks } : null);
+            toast({ title: 'Claim Failed', description: 'Could not claim your coins. Please try again.', variant: 'destructive' });
         }
-        const profile = userDoc.data() as UserProfile;
-        const unclaimed = profile.unclaimedCoins || 0;
+    }, [user, userProfile, toast]);
 
-        const updatePayload: { [key: string]: any } = {
-            minedCoins: increment(unclaimed),
-            unclaimedCoins: 0,
-            activeBoosts: [],
-            spinWinnings: 0,
-            spinAdWatchCount: 0,
-            adWatchHistory: [],
-            sessionBaseEarnings: 0,
-            sessionReferralEarnings: 0,
-            kuberBlocks: [], // Clear kuberBlocks on claim
-        };
-
-        if (!profile.adsUnlocked) {
-            updatePayload.adsUnlocked = true;
-        }
-        
-        transaction.update(userDocRef, updatePayload);
-    }).catch((error) => {
-        console.error("Failed to claim coins:", error);
-        // Revert optimistic update
-        setUserProfile(prev => prev ? { ...prev, minedCoins: prev.minedCoins - claimedAmount, unclaimedCoins: claimedAmount, kuberBlocks: userProfile.kuberBlocks } : null);
-        toast({ title: 'Claim Failed', description: 'Could not claim your coins. Please try again.', variant: 'destructive' });
-    });
-    
-    return claimedAmount;
-
-  }, [user, userProfile, firestore, toast]);
   
   const getGlobalSessionDuration = useCallback(async (): Promise<number> => {
     try {
