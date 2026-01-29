@@ -282,6 +282,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sessionEndTime: null,
         sessionBaseEarnings: 0,
         sessionReferralEarnings: 0,
+        sessionMissedCoinEarnings: 0,
         lastTransactionTimestamp: null,
         spinCount: 0,
         spinWinnings: 0,
@@ -608,6 +609,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             totalLiveEarnings += userProfile.spinWinnings || 0;
+            totalLiveEarnings += userProfile.sessionMissedCoinEarnings || 0;
+            totalLiveEarnings += userProfile.sessionBaseEarnings || 0;
             setLiveCoins(totalLiveEarnings);
         } else {
             setLiveCoins(userProfile.unclaimedCoins || 0);
@@ -959,6 +962,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       dataToUpdate.adWatchHistory = [];
       dataToUpdate.sessionBaseEarnings = 0;
       dataToUpdate.sessionReferralEarnings = 0;
+      dataToUpdate.sessionMissedCoinEarnings = 0;
 
       if (userProfile.referredBy) {
         dataToUpdate.baseMiningRate = 0.25;
@@ -1006,35 +1010,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   }, [user, userProfile, firestore, referrerProfile, allReferrals]);
   
-    const claimMinedCoins = useCallback(async (): Promise<number | undefined> => {
-        if (!user || !userProfile || !userProfile.unclaimedCoins || userProfile.unclaimedCoins <= 0) return;
+  const claimMinedCoins = useCallback(async (): Promise<number | undefined> => {
+    if (!user || !userProfile) {
+      return;
+    }
 
-        const claimedAmount = userProfile.unclaimedCoins;
+    if (!userProfile.unclaimedCoins || userProfile.unclaimedCoins <= 0) {
+      // Nothing to claim, handle silently or with a subtle notification
+      return 0;
+    }
 
-        // Optimistic UI update
-        setUserProfile(prev => prev ? { ...prev, minedCoins: prev.minedCoins + claimedAmount, unclaimedCoins: 0, activeBoosts: [], spinWinnings: 0, spinAdWatchCount: 0, adWatchHistory: [], sessionBaseEarnings: 0, sessionReferralEarnings: 0, kuberBlocks: [] } : null);
+    const claimedAmount = userProfile.unclaimedCoins;
 
-        try {
-            const functions = getFunctions();
-            const claimFunction = httpsCallable(functions, 'claimMinedCoins');
-            const result = await claimFunction();
-            const data = result.data as { success: boolean, claimedAmount: number };
+    // Optimistic UI update
+    setUserProfile(prev => prev ? { 
+        ...prev, 
+        minedCoins: prev.minedCoins + claimedAmount, 
+        unclaimedCoins: 0, 
+        activeBoosts: [], 
+        spinWinnings: 0, 
+        spinAdWatchCount: 0, 
+        adWatchHistory: [], 
+        sessionBaseEarnings: 0, 
+        sessionReferralEarnings: 0, 
+        sessionMissedCoinEarnings: 0, 
+        kuberBlocks: [] 
+    } : null);
 
-            if (!data.success) {
-                throw new Error("Cloud function reported failure.");
-            }
-
-            // The optimistic update is already done. We can show a toast here if we want.
-            return data.claimedAmount;
-
-        } catch (error) {
-            console.error("Failed to claim coins via cloud function:", error);
-            // Revert optimistic update on failure
-            setUserProfile(prev => prev ? { ...prev, minedCoins: prev.minedCoins - claimedAmount, unclaimedCoins: claimedAmount, kuberBlocks: userProfile.kuberBlocks } : null);
-            toast({ title: 'Claim Failed', description: 'Could not claim your coins. Please try again.', variant: 'destructive' });
+    try {
+        const functions = getFunctions();
+        const claimFunction = httpsCallable(functions, 'claimMinedCoins');
+        const result = await claimFunction();
+        const data = result.data as { success: boolean; claimedAmount: number };
+        
+        if (!data.success) {
+            throw new Error("Cloud function reported failure.");
         }
-    }, [user, userProfile, toast]);
+        
+        // The optimistic update is already done.
+        return data.claimedAmount;
 
+    } catch (error) {
+        console.error("Failed to claim coins via cloud function:", error);
+        // Revert optimistic update on failure
+        setUserProfile(prev => prev ? { 
+            ...prev, 
+            minedCoins: prev.minedCoins - claimedAmount, 
+            unclaimedCoins: claimedAmount,
+            kuberBlocks: userProfile.kuberBlocks // restore kuber blocks if needed
+        } : null);
+        toast({ title: 'Claim Failed', description: 'Could not claim your coins. Please try again.', variant: 'destructive' });
+        // Return undefined or throw to indicate failure to the caller
+        return undefined;
+    }
+  }, [user, userProfile, toast]);
   
   const getGlobalSessionDuration = useCallback(async (): Promise<number> => {
     try {
@@ -1102,72 +1131,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Not an admin');
     }
 
-    const targetUserDocRef = doc(firestore, 'users', userId);
-
+    const functions = getFunctions();
+    const finalizeFunction = httpsCallable(functions, 'finalizeSession');
     try {
-        await runTransaction(firestore, async (transaction) => {
-            const userDoc = await transaction.get(targetUserDocRef);
-            if (!userDoc.exists()) throw new Error("User document does not exist.");
-
-            const profile = userDoc.data() as UserProfile;
-            
-            if (!profile.sessionEndTime || Date.now() >= profile.sessionEndTime || !profile.miningStartTime) {
-              throw new Error("User does not have an active session to terminate.");
-            }
-
-            const now = Date.now();
-            const sessionStartTime = profile.miningStartTime;
-            const elapsedTimeSinceSessionStartMs = now - sessionStartTime;
-            const elapsedTimeHours = elapsedTimeSinceSessionStartMs / (1000 * 60 * 60);
-            
-            const baseRate = profile.baseMiningRate || 0.25;
-            
-            const appliedCodeBonus = profile.appliedCodeBoost || 0; 
-            
-            const finalBaseEarnings = (baseRate + appliedCodeBonus) * elapsedTimeHours;
-
-            let totalEarnings = finalBaseEarnings;
-
-            // Add earnings from boosts
-            (profile.activeBoosts || []).forEach(boost => {
-              if (now > boost.startTime) {
-                const effectiveEndTime = Math.min(now, boost.endTime);
-                const elapsedBoostTimeMs = effectiveEndTime - boost.startTime;
-                if (elapsedBoostTimeMs > 0) {
-                  const elapsedBoostTimeHours = elapsedBoostTimeMs / (1000 * 60 * 60);
-                  totalEarnings += boost.rate * elapsedBoostTimeHours;
-                }
-              }
-            });
-            
-            totalEarnings += profile.spinWinnings || 0;
-
-            // Calculate and add g-box points
-            let gBoxPoints = 0;
-            if (profile.kuberBlocks) {
-                profile.kuberBlocks.forEach(block => {
-                    const durationMs = Math.max(0, block.referralSessionEndTime - block.userSessionStartTime);
-                    const durationHours = durationMs / (1000 * 60 * 60);
-                    gBoxPoints += durationHours * 0.25;
-                });
-            }
-            totalEarnings += gBoxPoints;
-
-            transaction.update(targetUserDocRef, {
-                unclaimedCoins: increment(totalEarnings),
-                miningStartTime: null,
-                sessionEndTime: null,
-                sessionBaseEarnings: finalBaseEarnings,
-                sessionReferralEarnings: 0,
-            });
-        });
+        await finalizeFunction({ userId });
         toast({ title: 'Session Terminated', description: "The user's session has been successfully terminated." });
     } catch (error: any) {
-        console.error("Error terminating user session:", error);
+        console.error("Error terminating user session via function:", error);
         toast({ title: 'Error', description: error.message || 'Could not terminate the session.', variant: 'destructive' });
         throw error;
     }
-  }, [userProfile, firestore, toast]);
+  }, [userProfile, toast]);
 
     const creditSpinWinnings = useCallback(async (winnings: number) => {
         if (!user) return;
@@ -2381,60 +2355,12 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     if (sessionEnded && isSessionActiveInDB) {
       setIsFinalizing(true);
       const finalizeSession = async () => {
-        const userDocRef = doc(firestore, 'users', user.uid);
         try {
-          await runTransaction(firestore, async (transaction) => {
-            const freshUserDoc = await transaction.get(userDocRef);
-            if (!freshUserDoc.exists()) throw new Error("User document does not exist.");
-  
-            const profile = freshUserDoc.data() as UserProfile;
-  
-            if (!profile.miningStartTime || !profile.sessionEndTime || Date.now() < profile.sessionEndTime) {
-              return; 
-            }
-  
-            const sessionStartTime = profile.miningStartTime;
-            const sessionEndTime = profile.sessionEndTime;
-            
-            const baseRate = profile.baseMiningRate || 0.25;
-            
-            const appliedCodeBonus = profile.appliedCodeBoost || 0; 
-            const elapsedTimeHours = (sessionEndTime - sessionStartTime) / (1000 * 60 * 60);
-
-            const finalBaseEarnings = (baseRate + appliedCodeBonus) * elapsedTimeHours;
-
-            let totalEarnings = finalBaseEarnings;
-
-            // Add earnings from boosts
-            (profile.activeBoosts || []).forEach(boost => {
-                const boostDurationHours = (boost.endTime - boost.startTime) / (1000 * 60 * 60);
-                totalEarnings += boost.rate * boostDurationHours;
-            });
-            
-            // Add earnings from spins
-            totalEarnings += profile.spinWinnings || 0;
-            
-            // Calculate and add g-box points
-            let gBoxPoints = 0;
-            if (profile.kuberBlocks) {
-                profile.kuberBlocks.forEach(block => {
-                    const durationMs = Math.max(0, block.referralSessionEndTime - block.userSessionStartTime);
-                    const durationHours = durationMs / (1000 * 60 * 60);
-                    gBoxPoints += durationHours * 0.25;
-                });
-            }
-            totalEarnings += gBoxPoints;
-            
-            transaction.update(userDocRef, {
-              unclaimedCoins: increment(totalEarnings),
-              miningStartTime: null,
-              sessionEndTime: null,
-              sessionBaseEarnings: finalBaseEarnings,
-              sessionReferralEarnings: 0,
-            });
-          });
+            const functions = getFunctions();
+            const finalizeFunction = httpsCallable(functions, 'finalizeSession');
+            await finalizeFunction();
         } catch (error) {
-          console.error("Error finalizing mining session:", error);
+            console.error("Error finalizing mining session:", error);
         } finally {
             // Keep finalizing state for a bit longer to prevent UI flicker
             setTimeout(() => {
@@ -2445,7 +2371,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
   
       finalizeSession();
     }
-  }, [user, userProfile, firestore, referrerProfile]);
+  }, [user, userProfile?.sessionEndTime, userProfile?.miningStartTime, firestore]);
   
   // This effect will turn off the finalizing state once unclaimedCoins > 0
   useEffect(() => {
@@ -2541,71 +2467,56 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
 }, [user, userProfile?.dailyAdCoins, firestore]);
 
 const collectDailyAdCoin = useCallback(async (coinId: string): Promise<number | undefined> => {
-    if (!user || !userProfile?.dailyAdCoins) return;
+    if (!user) return;
 
-    const userDocRef = doc(firestore, 'users', user.uid);
-    const coins = userProfile.dailyAdCoins;
-    let coinToGive = 0;
-
-    const updatedCoins = coins.map(c => {
-        if (c.id === coinId && c.status === 'available') {
-            coinToGive = 1; // Or whatever the coin value is
-            return { ...c, status: 'collected' as 'collected', collectedFromStatus: 'available', collectedAt: Date.now() };
+    try {
+        const functions = getFunctions();
+        const claimFunction = httpsCallable(functions, 'claimDailyCoin');
+        const result = await claimFunction({ coinId, isMissed: false });
+        const data = result.data as { success: boolean, claimedAmount: number };
+        
+        if (data.success) {
+            return data.claimedAmount;
         }
-        return c;
-    });
+        return undefined;
 
-    if (coinToGive > 0) {
-        await updateDoc(userDocRef, {
-            dailyAdCoins: updatedCoins,
-            minedCoins: increment(coinToGive)
-        });
-        return coinToGive;
+    } catch(error: any) {
+        console.error("Error collecting daily coin:", error);
+        toast({ title: 'Error', description: error.message || 'Could not collect the coin.', variant: 'destructive' });
     }
-}, [user, userProfile, firestore]);
+}, [user, toast]);
 
 const claimMissedAdCoin = useCallback(async (coinId: string, adElement: string): Promise<number | undefined> => {
-    if (!user || !userProfile?.dailyAdCoins) return;
+    if (!user || !userProfile) return;
     
-    // Check if ads are unlocked for this user
     if (!userProfile.adsUnlocked) {
         console.log("Ads not unlocked for this user yet.");
-        return; // Or handle this case differently, e.g., show a message
+        return;
     }
-    
-    const userDocRef = doc(firestore, 'users', user.uid);
-    const coins = userProfile.dailyAdCoins;
-    let coinToGive = 0;
 
-    const updatedCoins = coins.map(c => {
-        if (c.id === coinId && c.status === 'missed') {
-            coinToGive = 1;
-            return { ...c, status: 'collected' as 'collected', collectedFromStatus: 'missed', collectedAt: Date.now() };
-        }
-        return c;
-    });
-
-    if (coinToGive > 0) {
-        const adEvent: AdWatchEvent = {
-            id: doc(collection(firestore, 'temp')).id,
-            element: adElement,
-            timestamp: Date.now(),
-        };
-
-        await updateDoc(userDocRef, {
-            dailyAdCoins: updatedCoins,
-            minedCoins: increment(coinToGive),
-            adWatchHistory: arrayUnion(adEvent),
-            lastMissedCoinClaimTimestamp: Date.now()
-        });
-
+    try {
+        const functions = getFunctions();
+        const claimFunction = httpsCallable(functions, 'claimDailyCoin');
+        
+        // Command to show the ad on Android
         if (window.Android && typeof window.Android.showRewardedAd === 'function') {
             window.Android.showRewardedAd();
         }
-        // Let the confirmation dialog trigger the cooldown
-        return coinToGive;
+        
+        const result = await claimFunction({ coinId, isMissed: true, adElement });
+        const data = result.data as { success: boolean, claimedAmount: number };
+        
+        if (data.success) {
+            startAdCooldown(); // Start UI cooldown after successful claim
+            return data.claimedAmount;
+        }
+        return undefined;
+
+    } catch (error: any) {
+        console.error("Error claiming missed coin:", error);
+        toast({ title: 'Error', description: error.message || 'Could not claim the missed coin.', variant: 'destructive' });
     }
-}, [user, userProfile, firestore]);
+}, [user, userProfile, toast, startAdCooldown]);
 
 const requestFollow = useCallback(async (platform: 'facebook' | 'x', profileName: string) => {
     if (!user) {
