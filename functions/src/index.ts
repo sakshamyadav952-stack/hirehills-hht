@@ -245,7 +245,7 @@ export const claimDailyCoin = functions.https.onCall(async (data, context) => {
                 }
             }
             
-            claimedAmount = 1; // Assuming each coin is worth 1
+            claimedAmount = 1; // Each coin is worth 1
             dailyCoins[coinIndex] = {
                 ...coin,
                 status: 'collected',
@@ -253,17 +253,10 @@ export const claimDailyCoin = functions.https.onCall(async (data, context) => {
                 collectedAt: Date.now(),
             };
 
-            const isSessionActive = profile.sessionEndTime && Date.now() < profile.sessionEndTime;
-
             const updatePayload: { [key: string]: any } = {
                 dailyAdCoins: dailyCoins,
+                minedCoins: admin.firestore.FieldValue.increment(claimedAmount)
             };
-
-            if (isSessionActive) {
-                updatePayload.sessionBaseEarnings = admin.firestore.FieldValue.increment(claimedAmount);
-            } else {
-                updatePayload.minedCoins = admin.firestore.FieldValue.increment(claimedAmount);
-            }
             
             if (isMissed) {
                 const adEvent = {
