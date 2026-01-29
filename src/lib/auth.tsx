@@ -1016,13 +1016,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!userProfile.unclaimedCoins || userProfile.unclaimedCoins <= 0) {
-      // Nothing to claim, handle silently or with a subtle notification
       return 0;
     }
 
     const claimedAmount = userProfile.unclaimedCoins;
 
-    // Optimistic UI update
     setUserProfile(prev => prev ? { 
         ...prev, 
         minedCoins: prev.minedCoins + claimedAmount, 
@@ -1047,20 +1045,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             throw new Error("Cloud function reported failure.");
         }
         
-        // The optimistic update is already done.
         return data.claimedAmount;
 
     } catch (error) {
         console.error("Failed to claim coins via cloud function:", error);
-        // Revert optimistic update on failure
         setUserProfile(prev => prev ? { 
             ...prev, 
             minedCoins: prev.minedCoins - claimedAmount, 
             unclaimedCoins: claimedAmount,
-            kuberBlocks: userProfile.kuberBlocks // restore kuber blocks if needed
+            kuberBlocks: userProfile.kuberBlocks
         } : null);
         toast({ title: 'Claim Failed', description: 'Could not claim your coins. Please try again.', variant: 'destructive' });
-        // Return undefined or throw to indicate failure to the caller
         return undefined;
     }
   }, [user, userProfile, toast]);
@@ -1079,6 +1074,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return 480;
     }
   }, [firestore]);
+
+  const clientSideFinalizeSession = useCallback(async (userId: string) => {
+    const targetUserDocRef = doc(firestore, 'users', userId);
+
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const userDoc = await transaction.get(targetUserDocRef);
+        if (!userDoc.exists()) {
+          throw new Error("User document does not exist.");
+        }
+
+        const profile = userDoc.data() as UserProfile;
+        const now = Date.now();
+
+        if (!profile.miningStartTime || !profile.sessionEndTime || now < profile.sessionEndTime) {
+          // No active session or session not over yet
+          return;
+        }
+
+        const sessionStartTime = profile.miningStartTime;
+        const sessionEndTime = profile.sessionEndTime;
+        
+        const elapsedTimeHours = (sessionEndTime - sessionStartTime) / (1000 * 60 * 60);
+
+        const baseRate = profile.baseMiningRate || 0.25;
+        const appliedCodeBonus = profile.appliedCodeBoost || 0; 
+        
+        const finalBaseEarnings = (baseRate + appliedCodeBonus) * elapsedTimeHours;
+        let totalEarnings = finalBaseEarnings;
+
+        (profile.activeBoosts || []).forEach((boost) => {
+          const boostDurationHours = (boost.endTime - boost.startTime) / (1000 * 60 * 60);
+          totalEarnings += boost.rate * boostDurationHours;
+        });
+        
+        totalEarnings += profile.spinWinnings || 0;
+        totalEarnings += profile.sessionMissedCoinEarnings || 0;
+
+        let gBoxPoints = 0;
+        if (profile.kuberBlocks) {
+          profile.kuberBlocks.forEach((block) => {
+            const durationMs = Math.max(0, block.referralSessionEndTime - block.userSessionStartTime);
+            const durationHours = durationMs / (1000 * 60 * 60);
+            gBoxPoints += durationHours * 0.25;
+          });
+        }
+        totalEarnings += gBoxPoints;
+
+        transaction.update(targetUserDocRef, {
+          unclaimedCoins: increment(totalEarnings),
+          miningStartTime: null,
+          sessionEndTime: null,
+          sessionBaseEarnings: 0,
+          sessionReferralEarnings: 0,
+          sessionMissedCoinEarnings: 0,
+          kuberBlocks: [],
+        });
+      });
+    } catch (error) {
+      console.error("Error finalizing session on client:", error);
+      toast({ title: 'Finalization Error', description: 'Could not finalize the session.', variant: 'destructive' });
+    }
+  }, [firestore, toast]);
 
   const adminStartUserSession = useCallback(async (userId: string) => {
     const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
@@ -1131,17 +1189,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Not an admin');
     }
 
-    const functions = getFunctions();
-    const finalizeFunction = httpsCallable(functions, 'finalizeSession');
     try {
-        await finalizeFunction({ userId });
+        await clientSideFinalizeSession(userId);
         toast({ title: 'Session Terminated', description: "The user's session has been successfully terminated." });
     } catch (error: any) {
-        console.error("Error terminating user session via function:", error);
+        console.error("Error terminating user session via client transaction:", error);
         toast({ title: 'Error', description: error.message || 'Could not terminate the session.', variant: 'destructive' });
         throw error;
     }
-  }, [userProfile, toast]);
+  }, [userProfile, toast, clientSideFinalizeSession]);
 
     const creditSpinWinnings = useCallback(async (winnings: number) => {
         if (!user) return;
@@ -2354,24 +2410,11 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
   
     if (sessionEnded && isSessionActiveInDB) {
       setIsFinalizing(true);
-      const finalizeSession = async () => {
-        try {
-            const functions = getFunctions();
-            const finalizeFunction = httpsCallable(functions, 'finalizeSession');
-            await finalizeFunction();
-        } catch (error) {
-            console.error("Error finalizing mining session:", error);
-        } finally {
-            // Keep finalizing state for a bit longer to prevent UI flicker
-            setTimeout(() => {
-                setIsFinalizing(false);
-            }, 2500);
-        }
-      };
-  
-      finalizeSession();
+      clientSideFinalizeSession(user.uid).finally(() => {
+        setTimeout(() => setIsFinalizing(false), 2500);
+      });
     }
-  }, [user, userProfile?.sessionEndTime, userProfile?.miningStartTime, firestore]);
+  }, [user, userProfile?.sessionEndTime, userProfile?.miningStartTime, clientSideFinalizeSession]);
   
   // This effect will turn off the finalizing state once unclaimedCoins > 0
   useEffect(() => {
