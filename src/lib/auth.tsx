@@ -2429,44 +2429,55 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
 
     const resetCoins = async () => {
         const now = new Date();
+        const todayStr = now.toLocaleDateString('en-CA'); // YYYY-MM-DD format, consistent
         const lastReset = userProfile.lastAdCoinReset ? new Date(userProfile.lastAdCoinReset) : null;
+        const lastResetStr = lastReset ? lastReset.toLocaleDateString('en-CA') : null;
         
-        if (!lastReset || now.getDate() !== lastReset.getDate() || now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
+        if (lastResetStr !== todayStr) {
             const userDocRef = doc(firestore, 'users', user.uid);
             
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const daysToBackfill = lastReset ? Math.min(2, Math.floor((now.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24))) : 2;
+            const newCoins: DailyAdCoin[] = [];
             const schedule = ['08:00', '12:00', '16:00', '22:00'];
-            const dateString = today.toISOString().split('T')[0];
+            
+            for (let i = 0; i < daysToBackfill; i++) {
+                const dateForCoins = new Date(now);
+                dateForCoins.setDate(now.getDate() - i);
+                const dateString = dateForCoins.toISOString().split('T')[0];
 
-            const newDailyAdCoins: DailyAdCoin[] = schedule.map(time => {
-                const [hour, minute] = time.split(':').map(Number);
-                const availableAt = new Date(today.getTime());
-                availableAt.setHours(hour, minute, 0, 0);
-
-                return {
-                    id: `${dateString}-${time}`,
-                    status: 'pending',
-                    availableAt: availableAt.getTime(),
-                    expiresAt: availableAt.getTime() + 30 * 60 * 1000,
-                    finalExpiryAt: availableAt.getTime() + 48 * 60 * 60 * 1000,
-                };
-            });
+                schedule.forEach(time => {
+                    const [hour, minute] = time.split(':').map(Number);
+                    const availableAt = new Date(dateForCoins.getFullYear(), dateForCoins.getMonth(), dateForCoins.getDate(), hour, minute, 0, 0);
+                    
+                    newCoins.push({
+                        id: `${dateString}-${time}`,
+                        status: 'pending',
+                        availableAt: availableAt.getTime(),
+                        expiresAt: availableAt.getTime() + 30 * 60 * 1000,
+                        finalExpiryAt: availableAt.getTime() + 48 * 60 * 60 * 1000,
+                    });
+                });
+            }
 
             const existingCoins = userProfile.dailyAdCoins || [];
             const nowMs = now.getTime();
-            const validOldCoins = existingCoins.filter(
-              coin => coin.finalExpiryAt && nowMs < coin.finalExpiryAt
-            );
+            const validOldCoins = existingCoins.filter(coin => coin.finalExpiryAt && nowMs < coin.finalExpiryAt);
+
+            const combinedCoinsMap = new Map<string, DailyAdCoin>();
+            validOldCoins.forEach(coin => combinedCoinsMap.set(coin.id, coin));
+            newCoins.forEach(coin => combinedCoinsMap.set(coin.id, coin));
+            
+            const finalCoinList = Array.from(combinedCoinsMap.values());
 
             await updateDoc(userDocRef, {
-                dailyAdCoins: [...validOldCoins, ...newDailyAdCoins],
+                dailyAdCoins: finalCoinList,
                 lastAdCoinReset: now.getTime()
             });
         }
     };
 
     resetCoins();
-  }, [user, userProfile, firestore]);
+}, [user, userProfile, firestore]);
   
   // Effect to update coin status based on time
   useEffect(() => {
@@ -2488,7 +2499,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
             }
             return coin;
         });
-
+        
         const updatedAndFilteredCoins = potentiallyUpdatedCoins.filter(coin => {
             return !coin.finalExpiryAt || now < coin.finalExpiryAt;
         });
@@ -2887,5 +2898,3 @@ export const useAuth = () => {
   }
   return context;
 };
-    
-    

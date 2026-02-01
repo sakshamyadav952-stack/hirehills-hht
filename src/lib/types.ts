@@ -94,6 +94,7 @@ export type UserProfile = {
   sessionEndTime: number | null;
   sessionBaseEarnings?: number;
   sessionReferralEarnings?: number;
+  sessionMissedCoinEarnings?: number;
   lastTransactionTimestamp?: number | null;
   spinCount: number;
   spinCooldownEnd: number | null;
