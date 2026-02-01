@@ -231,7 +231,7 @@ const MissedCoinItem = ({ coin, onClaim, claimAttemptCooldown, onClaimAttempt }:
   return (
     <div className="flex items-center justify-between p-3 border rounded-md bg-slate-800/60 border-amber-400/20">
         <div>
-            <p className="font-medium text-amber-200">Missed coin from {new Date(coin.availableAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            <p className="font-medium text-amber-200">Missed coin</p>
             <p className="text-xs text-muted-foreground">Claim now by watching an ad.</p>
         </div>
         <Button size="sm" onClick={handleClaim} disabled={isButtonDisabled} className="bg-amber-500 text-black hover:bg-amber-400">
