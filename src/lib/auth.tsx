@@ -2414,7 +2414,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
         setTimeout(() => setIsFinalizing(false), 2500);
       });
     }
-  }, [user, userProfile?.sessionEndTime, userProfile?.miningStartTime, clientSideFinalizeSession]);
+  }, [user, userProfile, clientSideFinalizeSession]);
   
   // This effect will turn off the finalizing state once unclaimedCoins > 0
   useEffect(() => {
@@ -2428,48 +2428,41 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     if (!user || !userProfile) return;
 
     const resetCoins = async () => {
-      const now = new Date();
-      const lastReset = userProfile.lastAdCoinReset
-        ? new Date(userProfile.lastAdCoinReset)
-        : null;
-
-      if (
-        !lastReset ||
-        now.getDate() !== lastReset.getDate() ||
-        now.getMonth() !== lastReset.getMonth() ||
-        now.getFullYear() !== lastReset.getFullYear()
-      ) {
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const schedule = ['08:00', '12:00', '16:00', '22:00'];
-        const dateString = today.toISOString().split('T')[0];
-
-        const newDailyAdCoins: DailyAdCoin[] = schedule.map(time => {
-          const [hour, minute] = time.split(':').map(Number);
-          const availableAt = new Date(today.getTime());
-          availableAt.setHours(hour, minute, 0, 0);
-
-          return {
-            id: `${dateString}-${time}`,
-            status: 'pending',
-            availableAt: availableAt.getTime(),
-            expiresAt: availableAt.getTime() + 30 * 60 * 1000,
-            finalExpiryAt: availableAt.getTime() + 48 * 60 * 60 * 1000, // 48 hours expiry
-          };
-        });
-
-        // Get existing coins and filter out the expired ones
-        const existingCoins = userProfile.dailyAdCoins || [];
-        const nowMs = now.getTime();
-        const validOldCoins = existingCoins.filter(
-          coin => coin.finalExpiryAt && nowMs < coin.finalExpiryAt
-        );
+        const now = new Date();
+        const lastReset = userProfile.lastAdCoinReset ? new Date(userProfile.lastAdCoinReset) : null;
         
-        await updateDoc(userDocRef, {
-          dailyAdCoins: [...validOldCoins, ...newDailyAdCoins],
-          lastAdCoinReset: now.getTime(),
-        });
-      }
+        if (!lastReset || now.getDate() !== lastReset.getDate() || now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const schedule = ['08:00', '12:00', '16:00', '22:00'];
+            const dateString = today.toISOString().split('T')[0];
+
+            const newDailyAdCoins: DailyAdCoin[] = schedule.map(time => {
+                const [hour, minute] = time.split(':').map(Number);
+                const availableAt = new Date(today.getTime());
+                availableAt.setHours(hour, minute, 0, 0);
+
+                return {
+                    id: `${dateString}-${time}`,
+                    status: 'pending',
+                    availableAt: availableAt.getTime(),
+                    expiresAt: availableAt.getTime() + 30 * 60 * 1000,
+                    finalExpiryAt: availableAt.getTime() + 48 * 60 * 60 * 1000,
+                };
+            });
+
+            const existingCoins = userProfile.dailyAdCoins || [];
+            const nowMs = now.getTime();
+            const validOldCoins = existingCoins.filter(
+              coin => coin.finalExpiryAt && nowMs < coin.finalExpiryAt
+            );
+
+            await updateDoc(userDocRef, {
+                dailyAdCoins: [...validOldCoins, ...newDailyAdCoins],
+                lastAdCoinReset: now.getTime()
+            });
+        }
     };
 
     resetCoins();
@@ -2894,3 +2887,5 @@ export const useAuth = () => {
   }
   return context;
 };
+    
+    
