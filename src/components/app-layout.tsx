@@ -397,17 +397,6 @@ function SidebarLayoutContent({ onAssistantClick }: { onAssistantClick: () => vo
             </>
           )}
 
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Project Info">
-                <a href="https://blistree.com" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between w-full" onClick={handleLinkClick}>
-                    <div className="flex items-center gap-2">
-                        <Info />
-                        <span>Project Info</span>
-                    </div>
-                    <ExternalLink className="h-4 w-4" />
-                </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
           <SidebarMenuItem onClick={handleLinkClick}><SidebarMenuButton asChild tooltip="Live Report" isActive={pathname === '/live-report'}><Link href="/live-report"><BarChart2 /><span>Live Report</span></Link></SidebarMenuButton></SidebarMenuItem>
           <SidebarMenuItem onClick={handleLinkClick}><SidebarMenuButton asChild tooltip="Privacy Policy" isActive={pathname === '/privacy-policy'}><Link href="/privacy-policy"><FileText /><span>Privacy Policy</span></Link></SidebarMenuButton></SidebarMenuItem>
           <SidebarMenuItem><SidebarMenuButton asChild tooltip="Rate on Play Store"><a href="https://play.google.com/store/apps/details?id=com.blistree.app" target="_blank" rel="noopener noreferrer"><Star /><span>Rate on Play Store</span></a></SidebarMenuButton></SidebarMenuItem>
@@ -500,10 +489,6 @@ function MobileProfileSheet({ onAssistantClick }: { onAssistantClick: () => void
                              <Button variant="outline" onClick={() => handleLinkClick('/chat')} className="bg-transparent text-amber-300 border-amber-400/50 hover:bg-amber-400/10 hover:text-white justify-start relative"><MessageSquare className="mr-2 h-4 w-4" /><span>Support</span>{userProfile?.hasUnreadAdminMessage && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>}</Button>
                              <Button variant="outline" onClick={() => handleLinkClick('/referrals')} className="bg-transparent text-amber-300 border-amber-400/50 hover:bg-amber-400/10 hover:text-white justify-start"><ShieldCheck className="mr-2 h-4 w-4" /> Security Circle</Button>
                             <Button variant="outline" onClick={() => handleLinkClick('/apply-code')} className="bg-transparent text-amber-300 border-amber-400/50 hover:bg-amber-400/10 hover:text-white justify-start"><FileCode className="mr-2 h-4 w-4" /> Apply Code</Button>
-                            <Button variant="outline" onClick={() => { setIsOpen(false); window.open('https://blistree.com', '_blank'); }} className="bg-transparent text-amber-300 border-amber-400/50 hover:bg-amber-400/10 hover:text-white justify-between">
-                                <div className="flex items-center"><Info className="mr-2 h-4 w-4" /> Project Info</div>
-                                <ExternalLink className="h-4 w-4" />
-                            </Button>
                              <Button variant="outline" onClick={() => handleLinkClick('/kyc')} className="bg-transparent text-amber-300 border-amber-400/50 hover:bg-amber-400/10 hover:text-white justify-start"><Fingerprint className="mr-2 h-4 w-4" /> KYC</Button>
                           </>
                         )}
