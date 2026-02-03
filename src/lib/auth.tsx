@@ -1075,7 +1075,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [firestore]);
 
-  const clientSideFinalizeSession = useCallback(async (userId: string) => {
+  const clientSideFinalizeSession = useCallback(async (userId: string, isAdminTermination: boolean = false) => {
     const targetUserDocRef = doc(firestore, 'users', userId);
 
     try {
@@ -1086,17 +1086,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const profile = userDoc.data() as UserProfile;
-        const now = Date.now();
+        
+        if (!profile.miningStartTime || !profile.sessionEndTime) {
+            // No active session to finalize.
+            return;
+        }
 
-        if (!profile.miningStartTime || !profile.sessionEndTime || now < profile.sessionEndTime) {
-          // No active session or session not over yet
-          return;
+        const now = Date.now();
+        // For a normal user, the session must be over. Admin can terminate anytime.
+        if (!isAdminTermination && now < profile.sessionEndTime) {
+            // Session not over yet for a regular user, do nothing.
+            return;
         }
 
         const sessionStartTime = profile.miningStartTime;
-        const sessionEndTime = profile.sessionEndTime;
+        // If admin terminates, end time is now. Otherwise, it's the scheduled end time.
+        const effectiveEndTime = isAdminTermination ? now : profile.sessionEndTime;
         
-        const elapsedTimeHours = (sessionEndTime - sessionStartTime) / (1000 * 60 * 60);
+        const elapsedTimeHours = (effectiveEndTime - sessionStartTime) / (1000 * 60 * 60);
 
         const baseRate = profile.baseMiningRate || 0.25;
         const appliedCodeBonus = profile.appliedCodeBoost || 0; 
@@ -1105,8 +1112,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let totalEarnings = finalBaseEarnings;
 
         (profile.activeBoosts || []).forEach((boost) => {
-          const boostDurationHours = (boost.endTime - boost.startTime) / (1000 * 60 * 60);
-          totalEarnings += boost.rate * boostDurationHours;
+          const boostStart = boost.startTime;
+          // Ensure the boost's end time doesn't exceed the session's effective end time
+          const boostEnd = Math.min(boost.endTime, effectiveEndTime);
+          if (boostEnd > boostStart) {
+            const elapsedBoostTimeHours = (boostEnd - boostStart) / (1000 * 60 * 60);
+            totalEarnings += boost.rate * elapsedBoostTimeHours;
+          }
         });
         
         totalEarnings += profile.spinWinnings || 0;
@@ -1115,9 +1127,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let gBoxPoints = 0;
         if (profile.kuberBlocks) {
           profile.kuberBlocks.forEach((block) => {
-            const durationMs = Math.max(0, block.referralSessionEndTime - block.userSessionStartTime);
-            const durationHours = durationMs / (1000 * 60 * 60);
-            gBoxPoints += durationHours * 0.25;
+            const blockEnd = Math.min(block.referralSessionEndTime, effectiveEndTime);
+            const durationMs = Math.max(0, blockEnd - block.userSessionStartTime);
+            if (durationMs > 0) {
+              const durationHours = durationMs / (1000 * 60 * 60);
+              gBoxPoints += durationHours * 0.25;
+            }
           });
         }
         totalEarnings += gBoxPoints;
@@ -1126,7 +1141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           unclaimedCoins: increment(totalEarnings),
           miningStartTime: null,
           sessionEndTime: null,
-          sessionBaseEarnings: 0,
+          sessionBaseEarnings: 0, 
           sessionReferralEarnings: 0,
           sessionMissedCoinEarnings: 0,
           kuberBlocks: [],
@@ -1190,7 +1205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-        await clientSideFinalizeSession(userId);
+        await clientSideFinalizeSession(userId, true);
         toast({ title: 'Session Terminated', description: "The user's session has been successfully terminated." });
     } catch (error: any) {
         console.error("Error terminating user session via client transaction:", error);
@@ -2898,3 +2913,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+    
