@@ -506,7 +506,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     const chunks: string[][] = [];
     for (let i = 0; i < referralUids.length; i += 30) {
-        chunks.push(referralUids.slice(i, i + 30));
+      chunks.push(referralUids.slice(i, i + 30));
     }
 
     const unsubscribeFunctions = chunks.map(chunk => {
@@ -1037,7 +1037,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
         const functions = getFunctions();
-        const claimFunction = httpsCallable(functions, 'claimMinedCoins');
+        const claimFunction = httpsCallable(functions, 'claimMinedCoins', { timeout: 30000 });
         const result = await claimFunction();
         const data = result.data as { success: boolean; claimedAmount: number };
         
@@ -2518,7 +2518,7 @@ const collectDailyAdCoin = useCallback(async (coinId: string): Promise<number | 
 
     try {
         const functions = getFunctions();
-        const claimFunction = httpsCallable(functions, 'claimDailyCoin');
+        const claimFunction = httpsCallable(functions, 'claimDailyCoin', { timeout: 30000 });
         const result = await claimFunction({ coinId, isMissed: false });
         const data = result.data as { success: boolean, claimedAmount: number };
         
@@ -2543,7 +2543,7 @@ const claimMissedAdCoin = useCallback(async (coinId: string, adElement: string):
 
     try {
         const functions = getFunctions();
-        const claimFunction = httpsCallable(functions, 'claimDailyCoin');
+        const claimFunction = httpsCallable(functions, 'claimDailyCoin', { timeout: 30000 });
         
         // Command to show the ad on Android
         if (window.Android && typeof window.Android.showRewardedAd === 'function') {
