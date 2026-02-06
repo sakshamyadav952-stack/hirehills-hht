@@ -293,6 +293,10 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
     allCoins.forEach(coin => {
       if (coin.status === 'collected') return;
 
+      if (coin.finalExpiryAt && now >= coin.finalExpiryAt) {
+          return;
+      }
+
       if (now >= coin.availableAt && now < coin.expiresAt) {
         available.push(coin);
       } else if (now >= coin.expiresAt) {
@@ -306,19 +310,50 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
     setMissedCoins(missed);
     
     pending.sort((a,b) => a.availableAt - b.availableAt);
-    const nextCoin = pending[0] || null;
-    setNextPendingCoin(nextCoin);
+    let nextCoin = pending[0] || null;
 
     if (available.length > 0) {
         setNextCoinTime(`Available for: ${formatTime(available[0].expiresAt - now)}`);
-    } else if (missed.length > 0) {
+    } else if (missed.length > 0 && isSessionActive) {
         setNextCoinTime('You have missed coins to claim!');
     } else if (nextCoin) {
         setNextCoinTime(`Next coin in: ${formatTime(nextCoin.availableAt - now)}`);
     } else {
-        setNextCoinTime('Check back later for more coins.');
+        // Calculate next day's first coin if no pending coins exist from the backend
+        const schedule = ['08:00', '12:00', '16:00', '22:00'];
+        const nowDate = new Date(now);
+        let nextCoinTimeValue: Date | null = null;
+        
+        // Find next time today
+        for (const time of schedule) {
+            const [hour, minute] = time.split(':').map(Number);
+            const potentialTime = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), hour, minute, 0, 0);
+            if (potentialTime > nowDate) {
+                nextCoinTimeValue = potentialTime;
+                break;
+            }
+        }
+        
+        // If no more times today, find first time tomorrow
+        if (!nextCoinTimeValue) {
+            const tomorrow = new Date(nowDate);
+            tomorrow.setDate(nowDate.getDate() + 1);
+            const [hour, minute] = schedule[0].split(':').map(Number);
+            nextCoinTimeValue = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), hour, minute, 0, 0);
+        }
+        
+        setNextCoinTime(`Next coin in: ${formatTime(nextCoinTimeValue.getTime() - now)}`);
+        
+        // Create a temporary coin object for UI display
+        nextCoin = {
+            id: 'next-scheduled',
+            status: 'pending',
+            availableAt: nextCoinTimeValue.getTime(),
+            expiresAt: nextCoinTimeValue.getTime() + 30 * 60 * 1000
+        };
     }
-  }, [currentTime, userProfile?.dailyAdCoins]);
+    setNextPendingCoin(nextCoin);
+  }, [currentTime, userProfile?.dailyAdCoins, isSessionActive]);
 
 
   const handleCollect = async (coinId: string) => {
@@ -393,7 +428,7 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
     </svg>
   );
 
-  const showNextSessionTime = availableCoins.length === 0 && missedCoins.length === 0 && nextPendingCoin;
+  const showNextCoinInfo = availableCoins.length === 0 && nextPendingCoin;
 
   return (
       <div className="relative rounded-xl p-4 text-white overflow-hidden bg-black/30 backdrop-blur-sm" style={{ boxShadow: 'inset 0 0 0 1px #4a4a6a, 0 0 20px rgba(74, 74, 106, 0.5)' }}>
@@ -418,7 +453,7 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
                     <div className="text-center">
                         <CircuitNumber number={availableCoins.length} />
                     </div>
-                ) : showNextSessionTime ? (
+                ) : showNextCoinInfo ? (
                     <div className="text-center">
                         <p className="text-xl font-bold text-amber-300" style={{ textShadow: "0 0 8px rgba(251, 191, 36, 0.7)" }}>Next Coin</p>
                         <p className="text-2xl font-bold text-white mt-1">
