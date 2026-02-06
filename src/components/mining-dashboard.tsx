@@ -252,13 +252,17 @@ const MissedCoinItem = ({ coin, onClaim, claimAttemptCooldown, onClaimAttempt }:
 
 function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
   const { userProfile, collectDailyAdCoin, claimMissedAdCoin } = useAuth();
-  const [currentTime, setCurrentTime] = useState(Date.now());
   const [isClaiming, setIsClaiming] = useState(false);
   const [showClaimDialog, setShowClaimDialog] = useState(false);
-  const [nextCoinTime, setNextCoinTime] = useState('');
   const [showClaimConfirmation, setShowClaimConfirmation] = useState(false);
   const [claimedCoinAmount, setClaimedCoinAmount] = useState<number | null>(null);
   const [claimAttemptCooldown, setClaimAttemptCooldown] = useState(false);
+  const [availableCoins, setAvailableCoins] = useState<DailyAdCoin[]>([]);
+  const [missedCoins, setMissedCoins] = useState<DailyAdCoin[]>([]);
+  const [nextPendingCoin, setNextPendingCoin] = useState<DailyAdCoin | null>(null);
+  const [nextCoinTime, setNextCoinTime] = useState('');
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
@@ -278,37 +282,49 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
-  const availableCoins = useMemo(() => 
-    userProfile?.dailyAdCoins?.filter(c => c.status === 'available' && currentTime < c.expiresAt) || []
-  , [userProfile?.dailyAdCoins, currentTime]);
-  
-  const missedCoins = useMemo(() =>
-    userProfile?.dailyAdCoins?.filter(c => c.status === 'missed') || []
-  , [userProfile?.dailyAdCoins]);
+  useEffect(() => {
+    const allCoins = userProfile?.dailyAdCoins || [];
+    const now = currentTime;
 
-  const nextPendingCoin = useMemo(() => 
-    userProfile?.dailyAdCoins
-        ?.filter(c => c.status === 'pending' && c.availableAt > currentTime)
-        .sort((a,b) => a.availableAt - b.availableAt)[0]
-  , [userProfile?.dailyAdCoins, currentTime]);
+    const available: DailyAdCoin[] = [];
+    const missed: DailyAdCoin[] = [];
+    const pending: DailyAdCoin[] = [];
 
- useEffect(() => {
-    if (availableCoins.length > 0) {
-        setNextCoinTime(`Available for: ${formatTime(availableCoins[0].expiresAt - currentTime)}`);
-    } else if (missedCoins.length > 0) {
+    allCoins.forEach(coin => {
+      if (coin.status === 'collected') return;
+
+      if (now >= coin.availableAt && now < coin.expiresAt) {
+        available.push(coin);
+      } else if (now >= coin.expiresAt) {
+        missed.push(coin);
+      } else {
+        pending.push(coin);
+      }
+    });
+
+    setAvailableCoins(available);
+    setMissedCoins(missed);
+    
+    pending.sort((a,b) => a.availableAt - b.availableAt);
+    const nextCoin = pending[0] || null;
+    setNextPendingCoin(nextCoin);
+
+    if (available.length > 0) {
+        setNextCoinTime(`Available for: ${formatTime(available[0].expiresAt - now)}`);
+    } else if (missed.length > 0) {
         setNextCoinTime('You have missed coins to claim!');
-    } else if (nextPendingCoin) {
-        setNextCoinTime(`Next coin in: ${formatTime(nextPendingCoin.availableAt - currentTime)}`);
+    } else if (nextCoin) {
+        setNextCoinTime(`Next coin in: ${formatTime(nextCoin.availableAt - now)}`);
     } else {
-        setNextCoinTime('Next session starts tomorrow!');
+        setNextCoinTime('Check back later for more coins.');
     }
-}, [currentTime, availableCoins, nextPendingCoin, missedCoins.length]);
+  }, [currentTime, userProfile?.dailyAdCoins]);
 
 
-  const handleCollect = async () => {
-    if (availableCoins.length === 0) return;
+  const handleCollect = async (coinId: string) => {
+    if (!coinId || isClaiming) return;
     setIsClaiming(true);
-    const claimedAmount = await collectDailyAdCoin(availableCoins[0].id);
+    const claimedAmount = await collectDailyAdCoin(coinId);
     if(claimedAmount) {
         setClaimedCoinAmount(claimedAmount);
         setShowClaimConfirmation(true);
@@ -337,7 +353,7 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
   const renderActionButton = () => {
     if (availableCoins.length > 0) {
       return (
-        <Button onClick={handleCollect} disabled={isClaiming} className="w-full text-white font-bold shadow-lg border border-blue-400/50 hover:bg-blue-500 transition-all duration-150 transform hover:scale-105" style={{ backgroundColor: '#3180F5' }}>
+        <Button onClick={() => handleCollect(availableCoins[0].id)} disabled={isClaiming} className="w-full text-white font-bold shadow-lg border border-blue-400/50 hover:bg-blue-500 transition-all duration-150 transform hover:scale-105" style={{ backgroundColor: '#3180F5' }}>
           <Gift className="mr-2 h-5 w-5" />
           {isClaiming ? <Loader2 className="animate-spin" /> : `Collect Coin (${formatTime(availableCoins[0].expiresAt - currentTime)})`}
         </Button>
@@ -404,7 +420,7 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
                     </div>
                 ) : showNextSessionTime ? (
                     <div className="text-center">
-                        <p className="text-xl font-bold text-amber-300" style={{ textShadow: "0 0 8px rgba(251, 191, 36, 0.7)" }}>Next Session</p>
+                        <p className="text-xl font-bold text-amber-300" style={{ textShadow: "0 0 8px rgba(251, 191, 36, 0.7)" }}>Next Coin</p>
                         <p className="text-2xl font-bold text-white mt-1">
                             {new Date(nextPendingCoin.availableAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
                         </p>

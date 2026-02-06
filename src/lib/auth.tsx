@@ -2451,7 +2451,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
         if (lastResetStr !== todayStr) {
             const userDocRef = doc(firestore, 'users', user.uid);
             
-            const daysToBackfill = lastReset ? Math.min(2, Math.floor((now.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24))) : 2;
+            const daysToBackfill = 2;
             const newCoins: DailyAdCoin[] = [];
             const schedule = ['08:00', '12:00', '16:00', '22:00'];
             
@@ -2480,7 +2480,11 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
 
             const combinedCoinsMap = new Map<string, DailyAdCoin>();
             validOldCoins.forEach(coin => combinedCoinsMap.set(coin.id, coin));
-            newCoins.forEach(coin => combinedCoinsMap.set(coin.id, coin));
+            newCoins.forEach(coin => {
+                if (!combinedCoinsMap.has(coin.id) || combinedCoinsMap.get(coin.id)?.status !== 'collected') {
+                     combinedCoinsMap.set(coin.id, coin);
+                }
+            });
             
             const finalCoinList = Array.from(combinedCoinsMap.values());
 
