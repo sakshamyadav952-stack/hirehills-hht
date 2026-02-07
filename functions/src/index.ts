@@ -1,9 +1,98 @@
 
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
+import { UserProfile } from "./types";
 
 admin.initializeApp();
 const db = admin.firestore();
+
+export const applyReferralCode = functions
+  .runWith({ timeoutSeconds: 30 }) // Set timeout to 30 seconds
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "You must be logged in to apply a referral code.");
+    }
+
+    const { referrerCode } = data;
+    if (!referrerCode || typeof referrerCode !== 'string') {
+        throw new functions.https.HttpsError("invalid-argument", "A valid referrer code must be provided.");
+    }
+    const refereeUid = context.auth.uid;
+
+    try {
+      await db.runTransaction(async (transaction) => {
+        const usersRef = db.collection("users");
+
+        // 1. Get referee document
+        const refereeDocRef = usersRef.doc(refereeUid);
+        const refereeDoc = await transaction.get(refereeDocRef);
+        if (!refereeDoc.exists) {
+          throw new functions.https.HttpsError("not-found", "Your user profile was not found.");
+        }
+        const refereeData = refereeDoc.data() as UserProfile;
+
+        if (refereeData.referredBy) {
+          throw new functions.https.HttpsError("failed-precondition", "You have already applied a referral code.");
+        }
+
+        // 2. Get referrer document
+        const referrerQuery = usersRef.where("profileCode", "==", referrerCode.toUpperCase());
+        const referrerSnapshot = await transaction.get(referrerQuery);
+        if (referrerSnapshot.empty) {
+          throw new functions.https.HttpsError("not-found", "The referral code you entered is not valid.");
+        }
+        const referrerDoc = referrerSnapshot.docs[0];
+        const referrerId = referrerDoc.id;
+        const referrerData = referrerDoc.data() as UserProfile;
+
+        if (referrerId === refereeUid) {
+          throw new functions.https.HttpsError("invalid-argument", "You cannot use your own referral code.");
+        }
+
+        // 3. Security Check: Redo conflict check on the server
+        const refereeDevices = refereeData.deviceNames || [];
+        const referrerDevices = referrerData.deviceNames || [];
+        const hasCommonDevice = refereeDevices.some(device => referrerDevices.includes(device));
+        
+        const refereeIps = refereeData.ipAddresses || [];
+        const referrerIps = referrerData.ipAddresses || [];
+        const hasCommonIp = refereeIps.some(ip => referrerIps.includes(ip));
+
+        if (hasCommonDevice && hasCommonIp) {
+            throw new functions.https.HttpsError("permission-denied", "Same user detected. Cannot apply referral.");
+        }
+        
+        const rewardAmount = 10;
+
+        // 4. Update Referee's Document
+        transaction.update(refereeDocRef, {
+            referredBy: referrerId,
+            referredByName: referrerData.fullName,
+            referralAppliedAt: admin.firestore.FieldValue.serverTimestamp(),
+            minedCoins: admin.firestore.FieldValue.increment(rewardAmount),
+            appliedCodeBoost: 0.25,
+        });
+
+        // 5. Update Referrer's Document
+        transaction.update(referrerDoc.ref, {
+            referrals: admin.firestore.FieldValue.arrayUnion(refereeUid),
+            minedCoins: admin.firestore.FieldValue.increment(rewardAmount),
+        });
+      });
+
+      return { success: true, message: `Success! You and ${referrerCode} both received ${10} BLIT.` };
+
+    } catch (error: any) {
+        console.error("Error in applyReferralCode Cloud Function:", error);
+        // Re-throw HttpsError to be caught by the client
+        if (error instanceof functions.https.HttpsError) {
+          throw error;
+        }
+        // Throw a generic internal error for other cases
+        throw new functions.https.HttpsError("internal", "An unexpected error occurred while applying the code. Please try again.");
+    }
+  });
+
 
 export const finalizeSession = functions.https.onCall(async (data, context) => {
     // 1. Check for authentication
@@ -121,7 +210,7 @@ export const finalizeSession = functions.https.onCall(async (data, context) => {
     }
 });
 
-export const claimMinedCoins = functions.https.onCall(async (data, context) => {
+export const claimMinedCoins = functions.runWith({ timeoutSeconds: 30 }).https.onCall(async (data, context) => {
   // 1. Check for authentication
   if (!context.auth) {
     throw new functions.https.HttpsError(
@@ -192,7 +281,7 @@ export const claimMinedCoins = functions.https.onCall(async (data, context) => {
 });
 
 
-export const claimDailyCoin = functions.https.onCall(async (data, context) => {
+export const claimDailyCoin = functions.runWith({ timeoutSeconds: 30 }).https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError(
             "unauthenticated",
@@ -227,20 +316,25 @@ export const claimDailyCoin = functions.https.onCall(async (data, context) => {
             const coinIndex = dailyCoins.findIndex((c: any) => c.id === coinId);
 
             if (coinIndex === -1) {
-                throw new functions.https.HttpsError("not-found", "The specified coin does not exist.");
+                throw new functions.https.HttpsError("not-found", "The specified coin does not exist or has expired.");
             }
 
             const coin = dailyCoins[coinIndex];
+            const now = Date.now();
+
+            if (coin.status === 'collected') {
+                 throw new functions.https.HttpsError("failed-precondition", "This coin has already been collected.");
+            }
             
             if (isMissed) {
-                if (coin.status !== 'missed') {
-                    throw new functions.https.HttpsError("failed-precondition", "This coin is not in a 'missed' state.");
+                if (now < coin.expiresAt) {
+                     throw new functions.https.HttpsError("failed-precondition", "This coin is still available for free collection.");
                 }
-                 if (!profile.adsUnlocked) {
+                if (!profile.adsUnlocked) {
                     throw new functions.https.HttpsError("failed-precondition", "Ads are not unlocked for this user.");
                 }
-            } else {
-                if (coin.status !== 'available') {
+            } else { // It's a regular 'available' claim
+                if (now < coin.availableAt || now >= coin.expiresAt) {
                      throw new functions.https.HttpsError("failed-precondition", "This coin is not currently available to collect.");
                 }
             }
@@ -250,7 +344,7 @@ export const claimDailyCoin = functions.https.onCall(async (data, context) => {
                 ...coin,
                 status: 'collected',
                 collectedFromStatus: isMissed ? 'missed' : 'available',
-                collectedAt: Date.now(),
+                collectedAt: now,
             };
 
             const updatePayload: { [key: string]: any } = {
@@ -262,10 +356,10 @@ export const claimDailyCoin = functions.https.onCall(async (data, context) => {
                 const adEvent = {
                     id: db.collection('temp').doc().id, // Generate ID on server
                     element: adElement || `Missed Coin ${coinId}`,
-                    timestamp: Date.now(),
+                    timestamp: now,
                 };
                 updatePayload.adWatchHistory = admin.firestore.FieldValue.arrayUnion(adEvent);
-                updatePayload.lastMissedCoinClaimTimestamp = Date.now();
+                updatePayload.lastMissedCoinClaimTimestamp = now;
             }
 
             transaction.update(userDocRef, updatePayload);
@@ -282,5 +376,24 @@ export const claimDailyCoin = functions.https.onCall(async (data, context) => {
             "internal",
             "An error occurred while claiming the coin.",
         );
+    }
+});
+
+export const sendVerificationEmail = functions.https.onCall(async (data, context) => {
+    const { email } = data;
+    if (!email) {
+        throw new functions.https.HttpsError('invalid-argument', 'The function must be called with an "email" argument.');
+    }
+
+    try {
+        const link = await admin.auth().generateEmailVerificationLink(email);
+        // Note: You would typically send this link via a transactional email service like SendGrid, Mailgun, etc.
+        // For this example, we are logging it, but in a real app, you would not do this.
+        console.log(`Verification link for ${email}: ${link}`);
+        // In a real app, you would return success and the client would show a "email sent" message.
+        return { success: true };
+    } catch (error) {
+        console.error('Error generating email verification link:', error);
+        throw new functions.https.HttpsError('internal', 'Unable to generate verification link.');
     }
 });

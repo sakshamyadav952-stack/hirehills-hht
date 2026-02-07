@@ -75,7 +75,6 @@ interface AuthContextType {
   updateMiningRate: (type: CooldownType, rateIncrease: number, adWatched: boolean) => void;
   applyReferralCode: (profileCode: string) => Promise<void>;
   adminApplyReferralCode: (referrerCode: string, refereeCode: string) => Promise<void>;
-  respondToReferralRequest: (requestId: string, approve: boolean) => Promise<void>;
   adminRespondToReferralRequest: (requestId: string, requesterId: string, targetUserId: string, action: 'approve' | 'reject') => Promise<void>;
   adminApproveAllReferralRequests: () => Promise<void>;
   transferCoins: (recipientId: string, recipientName: string, amount: number) => Promise<void>;
@@ -1037,7 +1036,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
         const functions = getFunctions();
-        const claimFunction = httpsCallable(functions, 'claimMinedCoins', { timeout: 30000 });
+        const claimFunction = httpsCallable(functions, 'claimMinedCoins');
         const result = await claimFunction();
         const data = result.data as { success: boolean; claimedAmount: number };
         
@@ -1341,91 +1340,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast({ title: 'Authentication Error', description: 'You must be logged in to apply a code.', variant: 'destructive' });
         throw new Error("User not authenticated or profile not loaded.");
     }
-
     if (userProfile.referredBy) {
         toast({ title: 'Code Already Applied', description: 'You have already used a referral code.', variant: 'destructive' });
-        return;
+        throw new Error("Code Already Applied");
+    }
+
+    // Quick frontend check to prevent unnecessary backend calls
+    const usersRef = collection(firestore, 'users');
+    const q = query(usersRef, where('profileCode', '==', profileCode.toUpperCase()));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+        toast({ title: 'Error', description: "The profile code you entered is not valid.", variant: 'destructive' });
+        throw new Error("The profile code you entered is not valid.");
+    }
+    const referrerData = querySnapshot.docs[0].data() as UserProfile;
+    
+    const refereeDevices = userProfile.deviceNames || [];
+    const referrerDevices = referrerData.deviceNames || [];
+    if (refereeDevices.some(device => referrerDevices.includes(device))) {
+        toast({ title: 'Error', description: "Cannot apply referral to an account using the same device.", variant: 'destructive' });
+        throw new Error("Same device conflict.");
     }
 
     try {
-        const usersRef = collection(firestore, 'users');
-        
-        const q = query(usersRef, where('profileCode', '==', profileCode.toUpperCase()));
-        const querySnapshot = await getDocs(q);
+        const functions = getFunctions();
+        const applyReferralFn = httpsCallable(functions, 'applyReferralCode');
+        const result = await applyReferralFn({ referrerCode: profileCode });
+        const data = result.data as { success: boolean; message: string };
 
-        if (querySnapshot.empty) {
-            throw new Error("The profile code you entered is not valid.");
+        if (data.success) {
+            toast({ title: 'Referral Success!', description: data.message });
+        } else {
+            // This case might not be reached if the cloud function throws HttpsError
+            throw new Error(data.message || 'An unknown error occurred.');
         }
-
-        const referrerDoc = querySnapshot.docs[0];
-        const referrerId = referrerDoc.id;
-        const referrerData = referrerDoc.data() as UserProfile;
-
-        if (referrerId === user.uid) {
-            throw new Error("You cannot apply your own referral code.");
-        }
-
-        // New conflict rule
-        const refereeDevices = userProfile.deviceNames || [];
-        const referrerDevices = referrerData.deviceNames || [];
-        const hasCommonDevice = refereeDevices.some(device => referrerDevices.includes(device));
-        
-        const refereeIps = userProfile.ipAddresses || [];
-        const referrerIps = referrerData.ipAddresses || [];
-        const hasCommonIp = refereeIps.some(ip => referrerIps.includes(ip));
-
-        if (hasCommonDevice && hasCommonIp) {
-            throw new Error("Same user detected.");
-        }
-        
-        const referralRequestDocRef = doc(collection(firestore, 'referralRequests'));
-
-        const airdropConfigRef = doc(firestore, 'config', 'airdrop');
-        const airdropConfigDoc = await getDoc(airdropConfigRef);
-        const airdropConfig = airdropConfigDoc.exists() ? airdropConfigDoc.data() as AirdropConfig : null;
-        
-        const isAirdropActive = airdropConfig?.isActive && new Date() < (airdropConfig.expiryDate as Timestamp).toDate();
-
-        let rewardAmount = 10; // Standard reward
-        let isAirdropReferral = false;
-        
-        const batch = writeBatch(firestore);
-        const userDocRef = doc(firestore, 'users', user.uid);
-
-        if (isAirdropActive && (referrerData.airdropReferralsCount || 0) < airdropConfig.referralLimit) {
-            rewardAmount = airdropConfig.rewardAmount;
-            isAirdropReferral = true;
-        }
-
-        batch.update(userDocRef, {
-            referredBy: referrerId,
-            referredByName: referrerData.fullName,
-            referralAppliedAt: serverTimestamp(),
-            minedCoins: increment(rewardAmount),
-            appliedCodeBoost: 0.25, // Add permanent boost here
-        });
-
-        // Set the referral request
-        batch.set(referralRequestDocRef, {
-            requesterId: user.uid,
-            requesterName: userProfile.fullName,
-            requesterProfileImageUrl: userProfile.profileImageUrl || '',
-            targetUserId: referrerId,
-            status: 'pending',
-            createdAt: serverTimestamp(),
-            isAirdrop: isAirdropReferral, // Add flag to the request
-        });
-
-        await batch.commit();
-
-        toast({
-            title: 'Referral Success!',
-            description: `You have received ${rewardAmount} BLIT! Your request to join ${referrerData.fullName}'s security circle is sent.`,
-        });
 
     } catch (error: any) {
-        console.error("Error applying referral code:", error);
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        console.error("Error applying referral code via cloud function:", error);
+        const errorMessage = error.message || 'Failed to apply referral code.';
+        toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
         throw error;
     }
   }, [user, userProfile, firestore, toast]);
@@ -1495,90 +1449,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     }, [userProfile, firestore, toast]);
 
-    const respondToReferralRequest = useCallback(async (requestId: string, approve: boolean) => {
-    if (!user || !userProfile) {
-        toast({ title: 'Authentication Error', description: 'You must be logged in.', variant: 'destructive' });
-        throw new Error("User not authenticated.");
-    }
-    
-    const requestDocRef = doc(firestore, 'referralRequests', requestId);
-
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            const requestDoc = await transaction.get(requestDocRef);
-            if (!requestDoc.exists() || requestDoc.data().status !== 'pending') {
-                throw new Error("This request is no longer valid.");
-            }
-            
-            const requestData = requestDoc.data() as ReferralRequest;
-            if (requestData.targetUserId !== user.uid) {
-                throw new Error("You are not authorized to respond to this request.");
-            }
-            
-            if (approve) {
-                const userDocRef = doc(firestore, 'users', user.uid);
-                const userDoc = await transaction.get(userDocRef);
-                if (!userDoc.exists()) throw new Error("Your user document could not be found.");
-                
-                const userData = userDoc.data() as UserProfile;
-                const airdropConfigRef = doc(firestore, 'config', 'airdrop');
-                const airdropConfigDoc = await transaction.get(airdropConfigRef);
-                const airdropConfig = airdropConfigDoc.exists() ? airdropConfigDoc.data() as AirdropConfig : null;
-                const isAirdropActive = airdropConfig?.isActive && new Date() < (airdropConfig.expiryDate as Timestamp).toDate();
-                
-                const referrerUpdatePayload: { [key: string]: any } = {
-                    referrals: arrayUnion(requestData.requesterId)
-                };
-
-                let rewardAmount = 10; // Standard reward
-                
-                if (isAirdropActive && requestData.isAirdrop && (userData.airdropReferralsCount || 0) < airdropConfig.referralLimit) {
-                    const newAirdropReferralCount = (userData.airdropReferralsCount || 0) + 1;
-                    rewardAmount = airdropConfig.rewardAmount;
-                    referrerUpdatePayload.airdropReferralsCount = increment(1);
-
-                    // Check for sub-task bonus
-                    if (airdropConfig.bonusDeadline && new Date() < (airdropConfig.bonusDeadline as Timestamp).toDate() && newAirdropReferralCount === airdropConfig.bonusReferralTarget && !userData.airdropBonusClaimed) {
-                        rewardAmount += airdropConfig.bonusReward || 0;
-                        referrerUpdatePayload.airdropBonusClaimed = true;
-                        toast({ title: 'Sub-Task Bonus!', description: `You earned an extra ${airdropConfig.bonusReward} BLIT!`});
-                    }
-                    // Check for completion bonus
-                    if (newAirdropReferralCount === airdropConfig.referralLimit && !userData.airdropCompletionBonusClaimed) {
-                        rewardAmount += airdropConfig.completionBonus || 0;
-                        referrerUpdatePayload.airdropCompletionBonusClaimed = true;
-                        toast({ title: 'Airdrop Complete!', description: `You earned the completion bonus of ${airdropConfig.completionBonus} BLIT!`});
-                    }
-                }
-                
-                referrerUpdatePayload.minedCoins = increment(rewardAmount);
-                toast({ title: 'Referral Reward!', description: `You received ${rewardAmount} BLIT!`});
-                
-                transaction.update(userDocRef, referrerUpdatePayload);
-            }
-            
-            transaction.delete(requestDocRef);
-        });
-
-        toast({
-            title: 'Request Responded',
-            description: `You have ${approve ? 'approved' : 'rejected'} the referral request.`,
-        });
-
-    } catch (error: any) {
-        console.error("Error responding to referral request:", error);
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        throw error;
-    }
-  }, [user, userProfile, firestore, toast]);
-
-  useEffect(() => {
-    if (user && userProfile && pendingReferralRequests.length > 0) {
-      for (const request of pendingReferralRequests) {
-        respondToReferralRequest(request.id, true);
-      }
-    }
-  }, [pendingReferralRequests, userProfile, user, respondToReferralRequest]);
+  const respondToReferralRequest = useCallback(async (requestId: string, approve: boolean) => {
+    // This function is now largely obsolete due to the backend referral flow,
+    // but kept for handling any legacy requests that may exist.
+  }, []);
 
   const adminRespondToReferralRequest = useCallback(async (requestId: string, requesterId: string, targetUserId: string, action: 'approve' | 'reject') => {
     const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
@@ -1599,37 +1473,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const targetUserDoc = await transaction.get(targetUserDocRef);
             if (!targetUserDoc.exists()) throw new Error("Referrer account not found.");
             
-            const targetUserData = targetUserDoc.data() as UserProfile;
-            const requestData = requestDoc.data() as ReferralRequest;
-
-            const airdropConfigRef = doc(firestore, 'config', 'airdrop');
-            const airdropConfigDoc = await transaction.get(airdropConfigRef);
-            const airdropConfig = airdropConfigDoc.exists() ? airdropConfigDoc.data() as AirdropConfig : null;
-            const isAirdropActive = airdropConfig?.isActive && new Date() < (airdropConfig.expiryDate as Timestamp).toDate();
-            
-            const referrerUpdatePayload: { [key: string]: any } = {
-                referrals: arrayUnion(requesterId)
-            };
-
-            let rewardAmount = 10;
-            
-            if (isAirdropActive && requestData.isAirdrop && (targetUserData.airdropReferralsCount || 0) < airdropConfig.referralLimit) {
-                const newAirdropReferralCount = (targetUserData.airdropReferralsCount || 0) + 1;
-                rewardAmount = airdropConfig.rewardAmount;
-                referrerUpdatePayload.airdropReferralsCount = increment(1);
-
-                if (airdropConfig.bonusDeadline && new Date() < (airdropConfig.bonusDeadline as Timestamp).toDate() && newAirdropReferralCount === airdropConfig.bonusReferralTarget && !targetUserData.airdropBonusClaimed) {
-                    rewardAmount += airdropConfig.bonusReward || 0;
-                    referrerUpdatePayload.airdropBonusClaimed = true;
-                }
-                if (newAirdropReferralCount === airdropConfig.referralLimit && !targetUserData.airdropCompletionBonusClaimed) {
-                    rewardAmount += airdropConfig.completionBonus || 0;
-                    referrerUpdatePayload.airdropCompletionBonusClaimed = true;
-                }
-            }
-            
-            referrerUpdatePayload.minedCoins = increment(rewardAmount);
-            transaction.update(targetUserDocRef, referrerUpdatePayload);
+            // Note: Reward logic is now handled by the 'applyReferralCode' cloud function.
+            // This admin function now only manages the 'referrals' array (Security Circle).
+            transaction.update(targetUserDocRef, { referrals: arrayUnion(requesterId) });
         }
         
         transaction.delete(requestDocRef);
@@ -1640,7 +1486,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       throw error;
     }
-}, [userProfile, firestore, toast]);
+  }, [userProfile, firestore, toast]);
 
   const adminApproveAllReferralRequests = useCallback(async () => {
     const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
@@ -1687,7 +1533,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast({ title: 'Error', description: 'Could not approve all requests.', variant: 'destructive' });
         throw error;
     }
-}, [userProfile, firestore, toast]);
+  }, [userProfile, firestore, toast]);
 
   const transferCoins = useCallback(async (recipientId: string, recipientName: string, amount: number) => {
     if (!user || !userProfile) {
@@ -2537,7 +2383,7 @@ const collectDailyAdCoin = useCallback(async (coinId: string): Promise<number | 
 
     try {
         const functions = getFunctions();
-        const claimFunction = httpsCallable(functions, 'claimDailyCoin', { timeout: 30000 });
+        const claimFunction = httpsCallable(functions, 'claimDailyCoin');
         const result = await claimFunction({ coinId, isMissed: false });
         const data = result.data as { success: boolean, claimedAmount: number };
         
@@ -2562,7 +2408,7 @@ const claimMissedAdCoin = useCallback(async (coinId: string, adElement: string):
 
     try {
         const functions = getFunctions();
-        const claimFunction = httpsCallable(functions, 'claimDailyCoin', { timeout: 30000 });
+        const claimFunction = httpsCallable(functions, 'claimDailyCoin');
         
         // Command to show the ad on Android
         if (window.Android && typeof window.Android.showRewardedAd === 'function') {
@@ -2918,4 +2764,3 @@ export const useAuth = () => {
   return context;
 };
 
-    
