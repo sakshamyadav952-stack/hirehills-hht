@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { ReactNode } from 'react';
@@ -25,7 +26,7 @@ import {
 } from 'firebase/auth';
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { doc, serverTimestamp, onSnapshot, updateDoc, runTransaction, arrayUnion, query, collection, where, documentId, getDocs, writeBatch, deleteDoc, setDoc, getDoc, increment, addDoc, orderBy, Timestamp, arrayRemove, Firestore } from 'firebase/firestore';
-import type { UserProfile, Transaction, PendingTransfer, ReferralRequest, WithdrawalRequest, Note, Comment, ActiveBoost, DailyAdCoin, SessionConfig, AdWatchEvent, AirdropConfig, ChatMessage, KuberBlock, KuberRequest, KuberId } from '@/lib/types';
+import type { UserProfile, Transaction, PendingTransfer, WithdrawalRequest, Note, Comment, ActiveBoost, DailyAdCoin, SessionConfig, AdWatchEvent, AirdropConfig, ChatMessage, KuberBlock, KuberRequest, KuberId } from '@/lib/types';
 import { useToast, toast as toastFn } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -52,6 +53,7 @@ type ReferralWithEarnings = UserProfile & {
 interface AuthContextType {
   userProfile: UserProfile | null;
   loading: boolean;
+  isSigningIn: boolean;
   isFinalizing: boolean;
   emailVerified: boolean;
   logout: () => Promise<void>;
@@ -74,9 +76,6 @@ interface AuthContextType {
   updateMiningRate: (type: CooldownType, rateIncrease: number, adWatched: boolean) => void;
   applyReferralCode: (profileCode: string) => Promise<void>;
   adminApplyReferralCode: (referrerCode: string, refereeCode: string) => Promise<void>;
-  respondToReferralRequest: (requestId: string, approve: boolean) => Promise<void>;
-  adminRespondToReferralRequest: (requestId: string, requesterId: string, targetUserId: string, action: 'approve' | 'reject') => Promise<void>;
-  adminApproveAllReferralRequests: () => Promise<void>;
   transferCoins: (recipientId: string, recipientName: string, amount: number) => Promise<void>;
   respondToTransferByAdmin: (transferId: string, senderId: string, receiverId: string, amount: number, action: 'approve' | 'reject', comment?: string, transactionId?: string) => Promise<void>;
   sendNotificationToUser: (profileCode: string, message: string) => Promise<void>;
@@ -102,7 +101,6 @@ interface AuthContextType {
   allReferrals: ReferralWithEarnings[];
   activeReferrals: ReferralWithEarnings[];
   inactiveReferrals: ReferralWithEarnings[];
-  pendingReferralRequests: ReferralRequest[];
   referralsLoading: boolean;
   activeReferralsCount: number;
   totalUserSupportCount: number;
@@ -126,6 +124,7 @@ interface AuthContextType {
   referralEarnings: number;
   respondToKuberRequest: (request: KuberRequest) => Promise<void>;
   clearKuberSessionLogs: () => Promise<void>;
+  creditCrushOracleInstall: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -174,7 +173,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [miningRateBreakdown, setMiningRateBreakdown] = useState<MiningRateBreakdown | null>(null);
   const [liveCoins, setLiveCoins] = useState(0);
   const [allReferrals, setAllReferrals] = useState<ReferralWithEarnings[]>([]);
-  const [pendingReferralRequests, setPendingReferralRequests] = useState<ReferralRequest[]>([]);
   const [referralsLoading, setReferralsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [totalUserSupportCount, setTotalUserSupportCount] = useState(0);
@@ -187,9 +185,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [referralEarnings, setReferralEarnings] = useState(0);
 
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
+  const loginTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const startAdCooldown = useCallback(() => {
-    setAdCooldownEndTime(Date.now() + 30000); // 30 seconds
+    setAdCooldownEndTime(Date.now() + 15000); // 15 seconds
   }, []);
 
   const setTheme = (newTheme: Theme) => {
@@ -279,6 +278,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sessionEndTime: null,
         sessionBaseEarnings: 0,
         sessionReferralEarnings: 0,
+        sessionMissedCoinEarnings: 0,
         lastTransactionTimestamp: null,
         spinCount: 0,
         spinWinnings: 0,
@@ -344,7 +344,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) {
       setUserProfile(null);
       setAllReferrals([]);
-      setPendingReferralRequests([]);
       setProfileLoading(false);
       setReferralsLoading(false);
       setShowOnboarding(false);
@@ -421,15 +420,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfileLoading(false);
     });
 
-    const requestsQuery = query(collection(firestore, 'referralRequests'), where('targetUserId', '==', user.uid), where('status', '==', 'pending'));
-    const unsubscribeRequests = onSnapshot(requestsQuery, (snapshot) => {
-        const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReferralRequest));
-        requests.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
-        setPendingReferralRequests(requests);
-    }, (err) => {
-        console.error("Error fetching referral requests:", err);
-    });
-    
     // This calculates the total unread count for the admin.
     if (userProfile?.isAdmin) {
         const allUsersQuery = query(collection(firestore, 'users'));
@@ -470,7 +460,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       unsubscribeProfile();
-      unsubscribeRequests();
       unsubscribeTransfers();
     };
   }, [user, firestore, userProfile?.isAdmin]);
@@ -502,7 +491,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     const chunks: string[][] = [];
     for (let i = 0; i < referralUids.length; i += 30) {
-        chunks.push(referralUids.slice(i, i + 30));
+      chunks.push(referralUids.slice(i, i + 30));
     }
 
     const unsubscribeFunctions = chunks.map(chunk => {
@@ -579,7 +568,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         });
         
-        const referralBonusRate = activeReferralsCount * 0.1;
+        const referralBonusRate = activeReferralsCount * 0.25;
         
         const currentTotalMiningRate = baseRate + referralBonusRate + currentBoostRate + appliedCodeBonus;
 
@@ -605,6 +594,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             totalLiveEarnings += userProfile.spinWinnings || 0;
+            totalLiveEarnings += userProfile.sessionMissedCoinEarnings || 0;
+            totalLiveEarnings += userProfile.sessionBaseEarnings || 0;
             setLiveCoins(totalLiveEarnings);
         } else {
             setLiveCoins(userProfile.unclaimedCoins || 0);
@@ -693,7 +684,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
         const functions = getFunctions();
         const sendVerificationEmailFn = httpsCallable(functions, 'sendVerificationEmail');
-
         await sendVerificationEmailFn({ email: user.email });
 
         toast({ title: 'Verification Email Sent', description: `A verification link has been sent to ${user.email}.` });
@@ -707,25 +697,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!auth) throw new Error("Firebase Auth not initialized.");
     if (!user) throw new Error("User not signed in.");
 
-    if (recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current.clear();
-    }
+    recaptchaVerifierRef.current?.clear();
 
     recaptchaVerifierRef.current = new RecaptchaVerifier(auth, container, {
         'size': 'invisible',
-        'callback': (response: any) => {
-            // reCAPTCHA solved, allow signInWithPhoneNumber.
-        },
-        'expired-callback': () => {
-            // Response expired. Ask user to solve reCAPTCHA again.
-            toast({ title: 'reCAPTCHA Expired', description: 'Please try sending the code again.', variant: 'destructive' });
-        }
     });
-
-    const verifier = recaptchaVerifierRef.current;
     
-    return await linkWithPhoneNumber(user, phoneNumber, verifier);
-  }, [auth, user, toast]);
+    await recaptchaVerifierRef.current.render();
+    
+    return await linkWithPhoneNumber(user, phoneNumber, recaptchaVerifierRef.current);
+  }, [auth, user]);
 
   const confirmPhoneNumberVerification = useCallback(async (confirmationResult: ConfirmationResult, verificationCode: string): Promise<void> => {
     if (!user) throw new Error("User not signed in.");
@@ -741,17 +722,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, firestore, toast]);
 
     const initializeRecaptcha = useCallback((container: HTMLElement) => {
-        if (!auth || recaptchaVerifierRef.current) return;
-        
+        if (!auth) return;
+        recaptchaVerifierRef.current?.clear();
+
         recaptchaVerifierRef.current = new RecaptchaVerifier(auth, container, {
             'size': 'invisible',
-            'callback': () => {},
-            'expired-callback': () => {
-                toast({ title: 'reCAPTCHA Expired', description: 'Please try sending the OTP again.', variant: 'destructive' });
-                recaptchaVerifierRef.current?.clear();
-            }
         });
-    }, [auth, toast]);
+        
+        recaptchaVerifierRef.current.render();
+    }, [auth]);
 
   const signInWithPhoneNumber = useCallback(async (phoneNumber: string): Promise<ConfirmationResult> => {
     if (!auth) throw new Error("Firebase Auth not initialized.");
@@ -762,13 +741,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [auth]);
 
   const signInWithGoogle = useCallback(async () => {
+    setIsSigningIn(true);
+    
+    if (loginTimeoutRef.current) {
+        clearTimeout(loginTimeoutRef.current);
+    }
+
     if (typeof window !== 'undefined' && (window as any).AndroidApp?.startGoogleLogin) {
         (window as any).AndroidApp.startGoogleLogin();
+
+        loginTimeoutRef.current = setTimeout(() => {
+            setIsSigningIn(false);
+            loginTimeoutRef.current = null;
+            toast({
+                title: 'Sign-in took too long',
+                description: 'Please try signing in again. If the problem persists, try restarting the app.',
+                variant: 'destructive',
+            });
+        }, 20000); // 20 seconds timeout
     } else {
         console.log("Native Google login not available. Please use the mobile app.");
         router.push('/app-only');
+        setIsSigningIn(false);
     }
-  }, [router]);
+  }, [router, toast]);
 
   const confirmOtp = useCallback(async (confirmationResult: ConfirmationResult, otp: string) => {
     setIsSigningIn(true);
@@ -787,6 +783,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const handleLoginSuccess = async (idToken: string) => {
+        if (loginTimeoutRef.current) {
+            clearTimeout(loginTimeoutRef.current);
+            loginTimeoutRef.current = null;
+        }
         try {
             setIsSigningIn(true);
             const credential = GoogleAuthProvider.credential(idToken);
@@ -809,6 +809,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (window as any).onGoogleLoginSuccess = handleLoginSuccess;
 
     const handleLoginError = (error: string) => {
+        if (loginTimeoutRef.current) {
+            clearTimeout(loginTimeoutRef.current);
+            loginTimeoutRef.current = null;
+        }
         console.error("Native Google Login Error:", error);
         toast({ title: 'Google Sign-In failed', variant: 'destructive' });
         setIsSigningIn(false);
@@ -931,40 +935,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       dataToUpdate.adWatchHistory = [];
       dataToUpdate.sessionBaseEarnings = 0;
       dataToUpdate.sessionReferralEarnings = 0;
+      dataToUpdate.sessionMissedCoinEarnings = 0;
 
-        // Create Kuber Request for the user's referrer
-        if (userProfile.referredBy && referrerProfile?.sessionEndTime && referrerProfile.sessionEndTime > startTime) {
-            const newRequestId = doc(collection(firestore, 'temp')).id;
-            const newRequest: KuberRequest = {
-                id: newRequestId,
-                userName: userProfile.fullName,
-                userSessionStartTime: startTime,
-                referrerSessionEndTime: referrerProfile.sessionEndTime,
-            };
-            dataToUpdate.kuberRequests = [newRequest];
-        } else {
-            dataToUpdate.kuberRequests = [];
-        }
+      if (userProfile.referredBy) {
+        dataToUpdate.baseMiningRate = 0.25;
+        dataToUpdate.appliedCodeBoost = 0.25;
+      } else {
+        dataToUpdate.baseMiningRate = 0.25;
+        dataToUpdate.appliedCodeBoost = 0;
+      }
 
-        // Create Kuber Blocks for user's active referrals
-        const newKuberBlocks: KuberBlock[] = [];
-        if (allReferrals) {
-            for (const referral of allReferrals) {
-                if (referral.status === 'Active' && referral.sessionEndTime) {
-                    const newBlock: KuberBlock = {
-                        id: doc(collection(firestore, 'temp')).id,
-                        referralId: referral.id,
-                        referralName: referral.fullName,
-                        userSessionStartTime: startTime,
-                        referralSessionEndTime: referral.sessionEndTime,
-                    };
-                    newKuberBlocks.push(newBlock);
-                }
+      // Create Kuber Request for the user's referrer
+      if (userProfile.referredBy && referrerProfile?.sessionEndTime && referrerProfile.sessionEndTime > startTime) {
+          const newRequestId = doc(collection(firestore, 'temp')).id;
+          const newRequest: KuberRequest = {
+              id: newRequestId,
+              userName: userProfile.fullName,
+              userSessionStartTime: startTime,
+              referrerSessionEndTime: referrerProfile.sessionEndTime,
+          };
+          dataToUpdate.kuberRequests = [newRequest];
+      } else {
+          dataToUpdate.kuberRequests = [];
+      }
+
+      const newKuberBlocks: KuberBlock[] = [];
+      if (allReferrals) {
+        for (const referral of allReferrals) {
+            if (referral.status === 'Active' && referral.sessionEndTime) {
+                const newBlock: KuberBlock = {
+                    id: doc(collection(firestore, 'temp')).id,
+                    referralId: referral.id,
+                    referralName: referral.fullName,
+                    userSessionStartTime: startTime,
+                    referralSessionEndTime: referral.sessionEndTime,
+                };
+                newKuberBlocks.push(newBlock);
             }
         }
-        if (newKuberBlocks.length > 0) {
-            dataToUpdate.kuberBlocks = arrayUnion(...newKuberBlocks);
-        }
+      }
+      if (newKuberBlocks.length > 0) {
+        dataToUpdate.kuberBlocks = arrayUnion(...newKuberBlocks);
+      }
     }
     
     await updateDoc(userDocRef, dataToUpdate);
@@ -972,50 +984,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, userProfile, firestore, referrerProfile, allReferrals]);
   
   const claimMinedCoins = useCallback(async (): Promise<number | undefined> => {
-    if (!user || !userProfile || !userProfile.unclaimedCoins || userProfile.unclaimedCoins <= 0) return;
-    
+    if (!user || !userProfile) {
+      return;
+    }
+
+    if (!userProfile.unclaimedCoins || userProfile.unclaimedCoins <= 0) {
+      return 0;
+    }
+
     const claimedAmount = userProfile.unclaimedCoins;
-    
-    // Optimistic UI update
-    setUserProfile(prev => prev ? { ...prev, minedCoins: prev.minedCoins + claimedAmount, unclaimedCoins: 0, activeBoosts: [], spinWinnings: 0, spinAdWatchCount: 0, adWatchHistory: [], sessionBaseEarnings: 0, sessionReferralEarnings: 0, kuberBlocks: [] } : null);
 
-    const userDocRef = doc(firestore, 'users', user.uid);
-    
-    runTransaction(firestore, async (transaction) => {
-        const userDoc = await transaction.get(userDocRef);
-        if (!userDoc.exists()) {
-            throw "User document does not exist!";
-        }
-        const profile = userDoc.data() as UserProfile;
-        const unclaimed = profile.unclaimedCoins || 0;
+    setUserProfile(prev => prev ? { 
+        ...prev, 
+        minedCoins: prev.minedCoins + claimedAmount, 
+        unclaimedCoins: 0, 
+        activeBoosts: [], 
+        spinWinnings: 0, 
+        spinAdWatchCount: 0, 
+        adWatchHistory: [], 
+        sessionBaseEarnings: 0, 
+        sessionReferralEarnings: 0, 
+        sessionMissedCoinEarnings: 0, 
+        kuberBlocks: [] 
+    } : null);
 
-        const updatePayload: { [key: string]: any } = {
-            minedCoins: increment(unclaimed),
-            unclaimedCoins: 0,
-            activeBoosts: [],
-            spinWinnings: 0,
-            spinAdWatchCount: 0,
-            adWatchHistory: [],
-            sessionBaseEarnings: 0,
-            sessionReferralEarnings: 0,
-            kuberBlocks: [], // Clear kuberBlocks on claim
-        };
-
-        if (!profile.adsUnlocked) {
-            updatePayload.adsUnlocked = true;
+    try {
+        const functions = getFunctions();
+        const claimFunction = httpsCallable(functions, 'claimMinedCoins');
+        const result = await claimFunction();
+        const data = result.data as { success: boolean; claimedAmount: number };
+        
+        if (!data.success) {
+            throw new Error("Cloud function reported failure.");
         }
         
-        transaction.update(userDocRef, updatePayload);
-    }).catch((error) => {
-        console.error("Failed to claim coins:", error);
-        // Revert optimistic update
-        setUserProfile(prev => prev ? { ...prev, minedCoins: prev.minedCoins - claimedAmount, unclaimedCoins: claimedAmount } : null);
-        toast({ title: 'Claim Failed', description: 'Could not claim your coins. Please try again.', variant: 'destructive' });
-    });
-    
-    return claimedAmount;
+        return data.claimedAmount;
 
-  }, [user, userProfile, firestore, toast]);
+    } catch (error) {
+        console.error("Failed to claim coins via cloud function:", error);
+        setUserProfile(prev => prev ? { 
+            ...prev, 
+            minedCoins: prev.minedCoins - claimedAmount, 
+            unclaimedCoins: claimedAmount,
+            kuberBlocks: userProfile.kuberBlocks
+        } : null);
+        toast({ title: 'Claim Failed', description: 'Could not claim your coins. Please try again.', variant: 'destructive' });
+        return undefined;
+    }
+  }, [user, userProfile, toast]);
   
   const getGlobalSessionDuration = useCallback(async (): Promise<number> => {
     try {
@@ -1031,6 +1047,84 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return 480;
     }
   }, [firestore]);
+
+  const clientSideFinalizeSession = useCallback(async (userId: string, isAdminTermination: boolean = false) => {
+    const targetUserDocRef = doc(firestore, 'users', userId);
+
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const userDoc = await transaction.get(targetUserDocRef);
+        if (!userDoc.exists()) {
+          throw new Error("User document does not exist.");
+        }
+
+        const profile = userDoc.data() as UserProfile;
+        
+        if (!profile.miningStartTime || !profile.sessionEndTime) {
+            // No active session to finalize.
+            return;
+        }
+
+        const now = Date.now();
+        // For a normal user, the session must be over. Admin can terminate anytime.
+        if (!isAdminTermination && now < profile.sessionEndTime) {
+            // Session not over yet for a regular user, do nothing.
+            return;
+        }
+
+        const sessionStartTime = profile.miningStartTime;
+        // If admin terminates, end time is now. Otherwise, it's the scheduled end time.
+        const effectiveEndTime = isAdminTermination ? now : profile.sessionEndTime;
+        
+        const elapsedTimeHours = (effectiveEndTime - sessionStartTime) / (1000 * 60 * 60);
+
+        const baseRate = profile.baseMiningRate || 0.25;
+        const appliedCodeBonus = profile.appliedCodeBoost || 0; 
+        
+        const finalBaseEarnings = (baseRate + appliedCodeBonus) * elapsedTimeHours;
+        let totalEarnings = finalBaseEarnings;
+
+        (profile.activeBoosts || []).forEach((boost) => {
+          const boostStart = boost.startTime;
+          // Ensure the boost's end time doesn't exceed the session's effective end time
+          const boostEnd = Math.min(boost.endTime, effectiveEndTime);
+          if (boostEnd > boostStart) {
+            const elapsedBoostTimeHours = (boostEnd - boostStart) / (1000 * 60 * 60);
+            totalEarnings += boost.rate * elapsedBoostTimeHours;
+          }
+        });
+        
+        totalEarnings += profile.spinWinnings || 0;
+        totalEarnings += profile.sessionMissedCoinEarnings || 0;
+
+        let gBoxPoints = 0;
+        if (profile.kuberBlocks) {
+          profile.kuberBlocks.forEach((block) => {
+            const blockEnd = Math.min(block.referralSessionEndTime, effectiveEndTime);
+            const durationMs = Math.max(0, blockEnd - block.userSessionStartTime);
+            if (durationMs > 0) {
+              const durationHours = durationMs / (1000 * 60 * 60);
+              gBoxPoints += durationHours * 0.25;
+            }
+          });
+        }
+        totalEarnings += gBoxPoints;
+
+        transaction.update(targetUserDocRef, {
+          unclaimedCoins: increment(totalEarnings),
+          miningStartTime: null,
+          sessionEndTime: null,
+          sessionBaseEarnings: 0, 
+          sessionReferralEarnings: 0,
+          sessionMissedCoinEarnings: 0,
+          kuberBlocks: [],
+        });
+      });
+    } catch (error) {
+      console.error("Error finalizing session on client:", error);
+      toast({ title: 'Finalization Error', description: 'Could not finalize the session.', variant: 'destructive' });
+    }
+  }, [firestore, toast]);
 
   const adminStartUserSession = useCallback(async (userId: string) => {
     const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
@@ -1083,73 +1177,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Not an admin');
     }
 
-    const targetUserDocRef = doc(firestore, 'users', userId);
-
     try {
-        await runTransaction(firestore, async (transaction) => {
-            const userDoc = await transaction.get(targetUserDocRef);
-            if (!userDoc.exists()) throw new Error("User document does not exist.");
-
-            const profile = userDoc.data() as UserProfile;
-            
-            if (!profile.sessionEndTime || Date.now() >= profile.sessionEndTime || !profile.miningStartTime) {
-              throw new Error("User does not have an active session to terminate.");
-            }
-
-            const now = Date.now();
-            const sessionStartTime = profile.miningStartTime;
-            const elapsedTimeSinceSessionStartMs = now - sessionStartTime;
-            const elapsedTimeHours = elapsedTimeSinceSessionStartMs / (1000 * 60 * 60);
-            
-            const baseRate = profile.baseMiningRate || 0.25;
-            
-            const appliedCodeBonus = profile.appliedCodeBoost || 0; 
-            
-            const finalBaseEarnings = (baseRate + appliedCodeBonus) * elapsedTimeHours;
-
-            let totalEarnings = finalBaseEarnings;
-
-            // Add earnings from boosts
-            (profile.activeBoosts || []).forEach(boost => {
-              if (now > boost.startTime) {
-                const effectiveEndTime = Math.min(now, boost.endTime);
-                const elapsedBoostTimeMs = effectiveEndTime - boost.startTime;
-                if (elapsedBoostTimeMs > 0) {
-                  const elapsedBoostTimeHours = elapsedBoostTimeMs / (1000 * 60 * 60);
-                  totalEarnings += boost.rate * elapsedBoostTimeHours;
-                }
-              }
-            });
-            
-            totalEarnings += profile.spinWinnings || 0;
-
-            // Calculate and add g-box points
-            let gBoxPoints = 0;
-            if (profile.kuberBlocks) {
-                profile.kuberBlocks.forEach(block => {
-                    const durationMs = Math.max(0, block.referralSessionEndTime - block.userSessionStartTime);
-                    const durationHours = durationMs / (1000 * 60 * 60);
-                    gBoxPoints += durationHours * 0.25;
-                });
-            }
-            totalEarnings += gBoxPoints;
-
-            transaction.update(targetUserDocRef, {
-                unclaimedCoins: increment(totalEarnings),
-                miningStartTime: null,
-                sessionEndTime: null,
-                sessionBaseEarnings: finalBaseEarnings,
-                sessionReferralEarnings: 0,
-                kuberBlocks: [],
-            });
-        });
+        await clientSideFinalizeSession(userId, true);
         toast({ title: 'Session Terminated', description: "The user's session has been successfully terminated." });
     } catch (error: any) {
-        console.error("Error terminating user session:", error);
+        console.error("Error terminating user session via client transaction:", error);
         toast({ title: 'Error', description: error.message || 'Could not terminate the session.', variant: 'destructive' });
         throw error;
     }
-  }, [userProfile, firestore, toast]);
+  }, [userProfile, toast, clientSideFinalizeSession]);
 
     const creditSpinWinnings = useCallback(async (winnings: number) => {
         if (!user) return;
@@ -1278,91 +1314,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast({ title: 'Authentication Error', description: 'You must be logged in to apply a code.', variant: 'destructive' });
         throw new Error("User not authenticated or profile not loaded.");
     }
-
     if (userProfile.referredBy) {
         toast({ title: 'Code Already Applied', description: 'You have already used a referral code.', variant: 'destructive' });
-        return;
+        throw new Error("Code Already Applied");
+    }
+
+    // Quick frontend check to prevent unnecessary backend calls
+    const usersRef = collection(firestore, 'users');
+    const q = query(usersRef, where('profileCode', '==', profileCode.toUpperCase()));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+        toast({ title: 'Error', description: "The profile code you entered is not valid.", variant: 'destructive' });
+        throw new Error("The profile code you entered is not valid.");
+    }
+    const referrerData = querySnapshot.docs[0].data() as UserProfile;
+    
+    const refereeDevices = userProfile.deviceNames || [];
+    const referrerDevices = referrerData.deviceNames || [];
+    if (refereeDevices.some(device => referrerDevices.includes(device))) {
+        toast({ title: 'Error', description: "Cannot apply referral to an account using the same device.", variant: 'destructive' });
+        throw new Error("Same device conflict.");
     }
 
     try {
-        const usersRef = collection(firestore, 'users');
-        
-        const q = query(usersRef, where('profileCode', '==', profileCode));
-        const querySnapshot = await getDocs(q);
+        const functions = getFunctions();
+        const applyReferralFn = httpsCallable(functions, 'applyReferralCode');
+        const result = await applyReferralFn({ referrerCode: profileCode });
+        const data = result.data as { success: boolean; message: string };
 
-        if (querySnapshot.empty) {
-            throw new Error("The profile code you entered is not valid.");
+        if (data.success) {
+            toast({ title: 'Referral Success!', description: data.message });
+        } else {
+            // This case might not be reached if the cloud function throws HttpsError
+            throw new Error(data.message || 'An unknown error occurred.');
         }
-
-        const referrerDoc = querySnapshot.docs[0];
-        const referrerId = referrerDoc.id;
-        const referrerData = referrerDoc.data() as UserProfile;
-
-        if (referrerId === user.uid) {
-            throw new Error("You cannot apply your own referral code.");
-        }
-
-        // New conflict rule
-        const refereeDevices = userProfile.deviceNames || [];
-        const referrerDevices = referrerData.deviceNames || [];
-        const hasCommonDevice = refereeDevices.some(device => referrerDevices.includes(device));
-        
-        const refereeIps = userProfile.ipAddresses || [];
-        const referrerIps = referrerData.ipAddresses || [];
-        const hasCommonIp = refereeIps.some(ip => referrerIps.includes(ip));
-
-        if (hasCommonDevice && hasCommonIp) {
-            throw new Error("Same user detected.");
-        }
-        
-        const referralRequestDocRef = doc(collection(firestore, 'referralRequests'));
-
-        const airdropConfigRef = doc(firestore, 'config', 'airdrop');
-        const airdropConfigDoc = await getDoc(airdropConfigRef);
-        const airdropConfig = airdropConfigDoc.exists() ? airdropConfigDoc.data() as AirdropConfig : null;
-        
-        const isAirdropActive = airdropConfig?.isActive && new Date() < (airdropConfig.expiryDate as Timestamp).toDate();
-
-        let rewardAmount = 10; // Standard reward
-        let isAirdropReferral = false;
-        
-        const batch = writeBatch(firestore);
-        const userDocRef = doc(firestore, 'users', user.uid);
-
-        if (isAirdropActive && (referrerData.airdropReferralsCount || 0) < airdropConfig.referralLimit) {
-            rewardAmount = airdropConfig.rewardAmount;
-            isAirdropReferral = true;
-        }
-
-        batch.update(userDocRef, {
-            referredBy: referrerId,
-            referredByName: referrerData.fullName,
-            referralAppliedAt: serverTimestamp(),
-            minedCoins: increment(rewardAmount),
-            appliedCodeBoost: 0.1, // Add permanent boost here
-        });
-
-        // Set the referral request
-        batch.set(referralRequestDocRef, {
-            requesterId: user.uid,
-            requesterName: userProfile.fullName,
-            requesterProfileImageUrl: userProfile.profileImageUrl || '',
-            targetUserId: referrerId,
-            status: 'pending',
-            createdAt: serverTimestamp(),
-            isAirdrop: isAirdropReferral, // Add flag to the request
-        });
-
-        await batch.commit();
-
-        toast({
-            title: 'Referral Success!',
-            description: `You have received ${rewardAmount} BLIT! Your request to join ${referrerData.fullName}'s security circle is sent.`,
-        });
 
     } catch (error: any) {
-        console.error("Error applying referral code:", error);
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        console.error("Error applying referral code via cloud function:", error);
+        const errorMessage = error.message || 'Failed to apply referral code.';
+        toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
         throw error;
     }
   }, [user, userProfile, firestore, toast]);
@@ -1374,15 +1365,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        if (referrerCode === refereeCode) {
+        const upperReferrerCode = referrerCode.toUpperCase();
+        const upperRefereeCode = refereeCode.toUpperCase();
+
+        if (upperReferrerCode === upperRefereeCode) {
             toast({ title: 'Error', description: 'Referrer and referee codes cannot be the same.', variant: 'destructive' });
             return;
         }
 
         try {
             const usersRef = collection(firestore, 'users');
-            const referrerQuery = query(usersRef, where('profileCode', '==', referrerCode));
-            const refereeQuery = query(usersRef, where('profileCode', '==', refereeCode));
+            const referrerQuery = query(usersRef, where('profileCode', '==', upperReferrerCode));
+            const refereeQuery = query(usersRef, where('profileCode', '==', upperRefereeCode));
 
             const [referrerSnapshot, refereeSnapshot] = await Promise.all([getDocs(referrerQuery), getDocs(refereeQuery)]);
 
@@ -1428,200 +1422,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
     }, [userProfile, firestore, toast]);
-
-    const respondToReferralRequest = useCallback(async (requestId: string, approve: boolean) => {
-    if (!user || !userProfile) {
-        toast({ title: 'Authentication Error', description: 'You must be logged in.', variant: 'destructive' });
-        throw new Error("User not authenticated.");
-    }
-    
-    const requestDocRef = doc(firestore, 'referralRequests', requestId);
-
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            const requestDoc = await transaction.get(requestDocRef);
-            if (!requestDoc.exists() || requestDoc.data().status !== 'pending') {
-                throw new Error("This request is no longer valid.");
-            }
-            
-            const requestData = requestDoc.data() as ReferralRequest;
-            if (requestData.targetUserId !== user.uid) {
-                throw new Error("You are not authorized to respond to this request.");
-            }
-            
-            if (approve) {
-                const userDocRef = doc(firestore, 'users', user.uid);
-                const userDoc = await transaction.get(userDocRef);
-                if (!userDoc.exists()) throw new Error("Your user document could not be found.");
-                
-                const userData = userDoc.data() as UserProfile;
-                const airdropConfigRef = doc(firestore, 'config', 'airdrop');
-                const airdropConfigDoc = await transaction.get(airdropConfigRef);
-                const airdropConfig = airdropConfigDoc.exists() ? airdropConfigDoc.data() as AirdropConfig : null;
-                const isAirdropActive = airdropConfig?.isActive && new Date() < (airdropConfig.expiryDate as Timestamp).toDate();
-                
-                const referrerUpdatePayload: { [key: string]: any } = {
-                    referrals: arrayUnion(requestData.requesterId)
-                };
-
-                let rewardAmount = 10; // Standard reward
-                
-                if (isAirdropActive && requestData.isAirdrop && (userData.airdropReferralsCount || 0) < airdropConfig.referralLimit) {
-                    const newAirdropReferralCount = (userData.airdropReferralsCount || 0) + 1;
-                    rewardAmount = airdropConfig.rewardAmount;
-                    referrerUpdatePayload.airdropReferralsCount = increment(1);
-
-                    // Check for sub-task bonus
-                    if (airdropConfig.bonusDeadline && new Date() < (airdropConfig.bonusDeadline as Timestamp).toDate() && newAirdropReferralCount === airdropConfig.bonusReferralTarget && !userData.airdropBonusClaimed) {
-                        rewardAmount += airdropConfig.bonusReward || 0;
-                        referrerUpdatePayload.airdropBonusClaimed = true;
-                        toast({ title: 'Sub-Task Bonus!', description: `You earned an extra ${airdropConfig.bonusReward} BLIT!`});
-                    }
-                    // Check for completion bonus
-                    if (newAirdropReferralCount === airdropConfig.referralLimit && !userData.airdropCompletionBonusClaimed) {
-                        rewardAmount += airdropConfig.completionBonus || 0;
-                        referrerUpdatePayload.airdropCompletionBonusClaimed = true;
-                        toast({ title: 'Airdrop Complete!', description: `You earned the completion bonus of ${airdropConfig.completionBonus} BLIT!`});
-                    }
-                }
-                
-                referrerUpdatePayload.minedCoins = increment(rewardAmount);
-                toast({ title: 'Referral Reward!', description: `You received ${rewardAmount} BLIT!`});
-                
-                transaction.update(userDocRef, referrerUpdatePayload);
-            }
-            
-            transaction.delete(requestDocRef);
-        });
-
-        toast({
-            title: 'Request Responded',
-            description: `You have ${approve ? 'approved' : 'rejected'} the referral request.`,
-        });
-
-    } catch (error: any) {
-        console.error("Error responding to referral request:", error);
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        throw error;
-    }
-  }, [user, userProfile, firestore, toast]);
-
-  useEffect(() => {
-    if (user && userProfile && pendingReferralRequests.length > 0) {
-      for (const request of pendingReferralRequests) {
-        respondToReferralRequest(request.id, true);
-      }
-    }
-  }, [pendingReferralRequests, userProfile, user, respondToReferralRequest]);
-
-  const adminRespondToReferralRequest = useCallback(async (requestId: string, requesterId: string, targetUserId: string, action: 'approve' | 'reject') => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
-    if (!isAdmin) {
-      toast({ title: 'Unauthorized', description: 'You do not have permission.', variant: 'destructive' });
-      return;
-    }
-
-    const requestDocRef = doc(firestore, 'referralRequests', requestId);
-    const targetUserDocRef = doc(firestore, 'users', targetUserId);
-    
-    try {
-      await runTransaction(firestore, async (transaction) => {
-        const requestDoc = await transaction.get(requestDocRef);
-        if (!requestDoc.exists()) throw new Error("Request not found.");
-        
-        if (action === 'approve') {
-            const targetUserDoc = await transaction.get(targetUserDocRef);
-            if (!targetUserDoc.exists()) throw new Error("Referrer account not found.");
-            
-            const targetUserData = targetUserDoc.data() as UserProfile;
-            const requestData = requestDoc.data() as ReferralRequest;
-
-            const airdropConfigRef = doc(firestore, 'config', 'airdrop');
-            const airdropConfigDoc = await transaction.get(airdropConfigRef);
-            const airdropConfig = airdropConfigDoc.exists() ? airdropConfigDoc.data() as AirdropConfig : null;
-            const isAirdropActive = airdropConfig?.isActive && new Date() < (airdropConfig.expiryDate as Timestamp).toDate();
-            
-            const referrerUpdatePayload: { [key: string]: any } = {
-                referrals: arrayUnion(requesterId)
-            };
-
-            let rewardAmount = 10;
-            
-            if (isAirdropActive && requestData.isAirdrop && (targetUserData.airdropReferralsCount || 0) < airdropConfig.referralLimit) {
-                const newAirdropReferralCount = (targetUserData.airdropReferralsCount || 0) + 1;
-                rewardAmount = airdropConfig.rewardAmount;
-                referrerUpdatePayload.airdropReferralsCount = increment(1);
-
-                if (airdropConfig.bonusDeadline && new Date() < (airdropConfig.bonusDeadline as Timestamp).toDate() && newAirdropReferralCount === airdropConfig.bonusReferralTarget && !targetUserData.airdropBonusClaimed) {
-                    rewardAmount += airdropConfig.bonusReward || 0;
-                    referrerUpdatePayload.airdropBonusClaimed = true;
-                }
-                if (newAirdropReferralCount === airdropConfig.referralLimit && !targetUserData.airdropCompletionBonusClaimed) {
-                    rewardAmount += airdropConfig.completionBonus || 0;
-                    referrerUpdatePayload.airdropCompletionBonusClaimed = true;
-                }
-            }
-            
-            referrerUpdatePayload.minedCoins = increment(rewardAmount);
-            transaction.update(targetUserDocRef, referrerUpdatePayload);
-        }
-        
-        transaction.delete(requestDocRef);
-      });
-      toast({ title: 'Success', description: `Referral request has been ${action === 'approve' ? 'processed' : 'rejected'}.` });
-    } catch (error: any) {
-      console.error("Error responding to referral request as admin:", error);
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      throw error;
-    }
-}, [userProfile, firestore, toast]);
-
-  const adminApproveAllReferralRequests = useCallback(async () => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
-    if (!isAdmin) {
-      toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
-      return;
-    }
-
-    try {
-        const requestsQuery = query(collection(firestore, 'referralRequests'), where('status', '==', 'pending'));
-        const snapshot = await getDocs(requestsQuery);
-
-        if (snapshot.empty) {
-            toast({ title: 'No Requests', description: 'There are no pending requests to approve.' });
-            return;
-        }
-
-        const batch = writeBatch(firestore);
-        let approvedCount = 0;
-        
-        for (const requestDoc of snapshot.docs) {
-            const requestData = requestDoc.data() as ReferralRequest;
-            const targetUserDocRef = doc(firestore, 'users', requestData.targetUserId);
-            
-            const targetUserDoc = await getDoc(targetUserDocRef);
-
-            if (targetUserDoc.exists()) {
-                batch.update(targetUserDocRef, { referrals: arrayUnion(requestData.requesterId) });
-                approvedCount++;
-            }
-            // Always delete the request, whether the user exists or not
-            batch.delete(requestDoc.ref);
-        }
-
-        await batch.commit();
-        
-        if (approvedCount > 0) {
-           toast({ title: 'Success', description: `Approved ${approvedCount} pending referral requests.` });
-        } else {
-           toast({ title: 'Cleanup Complete', description: `Removed ${snapshot.size} orphaned requests.` });
-        }
-    } catch (error: any) {
-        console.error("Error approving all referral requests:", error);
-        toast({ title: 'Error', description: 'Could not approve all requests.', variant: 'destructive' });
-        throw error;
-    }
-}, [userProfile, firestore, toast]);
 
   const transferCoins = useCallback(async (recipientId: string, recipientName: string, amount: number) => {
     if (!user || !userProfile) {
@@ -1836,7 +1636,7 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
 
         try {
             const usersRef = collection(firestore, 'users');
-            const q = query(usersRef, where('profileCode', '==', profileCode));
+            const q = query(usersRef, where('profileCode', '==', profileCode.toUpperCase()));
             const querySnapshot = await getDocs(q);
 
             if (querySnapshot.empty) {
@@ -2359,69 +2159,11 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
   
     if (sessionEnded && isSessionActiveInDB) {
       setIsFinalizing(true);
-      const finalizeSession = async () => {
-        const userDocRef = doc(firestore, 'users', user.uid);
-        try {
-          await runTransaction(firestore, async (transaction) => {
-            const freshUserDoc = await transaction.get(userDocRef);
-            if (!freshUserDoc.exists()) throw new Error("User document does not exist.");
-  
-            const profile = freshUserDoc.data() as UserProfile;
-  
-            if (!profile.miningStartTime || !profile.sessionEndTime || Date.now() < profile.sessionEndTime) {
-              return; 
-            }
-  
-            const sessionStartTime = profile.miningStartTime;
-            const sessionEndTime = profile.sessionEndTime;
-            
-            const baseRate = profile.baseMiningRate || 0.25;
-            
-            const appliedCodeBonus = profile.appliedCodeBoost || 0; 
-            const elapsedTimeHours = (sessionEndTime - sessionStartTime) / (1000 * 60 * 60);
-
-            const finalBaseEarnings = (baseRate + appliedCodeBonus) * elapsedTimeHours;
-
-            let totalEarnings = finalBaseEarnings;
-
-            // Add earnings from boosts
-            (profile.activeBoosts || []).forEach(boost => {
-                const boostDurationHours = (boost.endTime - boost.startTime) / (1000 * 60 * 60);
-                totalEarnings += boost.rate * boostDurationHours;
-            });
-            
-            // Add earnings from spins
-            totalEarnings += profile.spinWinnings || 0;
-            
-            // Calculate and add g-box points
-            let gBoxPoints = 0;
-            if (profile.kuberBlocks) {
-                profile.kuberBlocks.forEach(block => {
-                    const durationMs = Math.max(0, block.referralSessionEndTime - block.userSessionStartTime);
-                    const durationHours = durationMs / (1000 * 60 * 60);
-                    gBoxPoints += durationHours * 0.25;
-                });
-            }
-            totalEarnings += gBoxPoints;
-            
-            transaction.update(userDocRef, {
-              unclaimedCoins: increment(totalEarnings),
-              miningStartTime: null,
-              sessionEndTime: null,
-              sessionBaseEarnings: finalBaseEarnings,
-              sessionReferralEarnings: 0,
-            });
-          });
-        } catch (error) {
-          console.error("Error finalizing mining session:", error);
-        } finally {
-            setIsFinalizing(false);
-        }
-      };
-  
-      finalizeSession();
+      clientSideFinalizeSession(user.uid).finally(() => {
+        setTimeout(() => setIsFinalizing(false), 2500);
+      });
     }
-  }, [user, userProfile, firestore, referrerProfile]);
+  }, [user, userProfile, clientSideFinalizeSession]);
   
   // This effect will turn off the finalizing state once unclaimedCoins > 0
   useEffect(() => {
@@ -2436,36 +2178,59 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
 
     const resetCoins = async () => {
         const now = new Date();
+        const todayStr = now.toLocaleDateString('en-CA'); // YYYY-MM-DD format, consistent
         const lastReset = userProfile.lastAdCoinReset ? new Date(userProfile.lastAdCoinReset) : null;
+        const lastResetStr = lastReset ? lastReset.toLocaleDateString('en-CA') : null;
         
-        if (!lastReset || now.getDate() !== lastReset.getDate() || now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
+        if (lastResetStr !== todayStr) {
             const userDocRef = doc(firestore, 'users', user.uid);
             
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const daysToBackfill = 2;
+            const newCoins: DailyAdCoin[] = [];
             const schedule = ['08:00', '12:00', '16:00', '22:00'];
+            
+            for (let i = 0; i < daysToBackfill; i++) {
+                const dateForCoins = new Date(now);
+                dateForCoins.setDate(now.getDate() - i);
+                const dateString = dateForCoins.toISOString().split('T')[0];
 
-            const newDailyAdCoins: DailyAdCoin[] = schedule.map(time => {
-                const [hour, minute] = time.split(':').map(Number);
-                const availableAt = new Date(today.getTime());
-                availableAt.setHours(hour, minute, 0, 0);
+                schedule.forEach(time => {
+                    const [hour, minute] = time.split(':').map(Number);
+                    const availableAt = new Date(dateForCoins.getFullYear(), dateForCoins.getMonth(), dateForCoins.getDate(), hour, minute, 0, 0);
+                    
+                    newCoins.push({
+                        id: `${dateString}-${time}`,
+                        status: 'pending',
+                        availableAt: availableAt.getTime(),
+                        expiresAt: availableAt.getTime() + 30 * 60 * 1000,
+                        finalExpiryAt: availableAt.getTime() + 48 * 60 * 60 * 1000,
+                    });
+                });
+            }
 
-                return {
-                    id: time,
-                    status: 'pending',
-                    availableAt: availableAt.getTime(),
-                    expiresAt: availableAt.getTime() + 30 * 60 * 1000,
-                };
+            const existingCoins = userProfile.dailyAdCoins || [];
+            const nowMs = now.getTime();
+            const validOldCoins = existingCoins.filter(coin => coin.finalExpiryAt && nowMs < coin.finalExpiryAt);
+
+            const combinedCoinsMap = new Map<string, DailyAdCoin>();
+            validOldCoins.forEach(coin => combinedCoinsMap.set(coin.id, coin));
+            newCoins.forEach(coin => {
+                if (!combinedCoinsMap.has(coin.id) || combinedCoinsMap.get(coin.id)?.status !== 'collected') {
+                     combinedCoinsMap.set(coin.id, coin);
+                }
             });
+            
+            const finalCoinList = Array.from(combinedCoinsMap.values());
 
             await updateDoc(userDocRef, {
-                dailyAdCoins: newDailyAdCoins,
+                dailyAdCoins: finalCoinList,
                 lastAdCoinReset: now.getTime()
             });
         }
     };
 
     resetCoins();
-  }, [user, userProfile, firestore]);
+}, [user, userProfile, firestore]);
   
   // Effect to update coin status based on time
   useEffect(() => {
@@ -2476,23 +2241,25 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
         const coins = userProfile.dailyAdCoins || [];
         let hasChanges = false;
         
-        const updatedCoins = coins.map(coin => {
-            // Pending to Available
+        const potentiallyUpdatedCoins = coins.map(coin => {
             if (coin.status === 'pending' && now >= coin.availableAt) {
                 hasChanges = true;
                 return { ...coin, status: 'available' as 'available' };
             }
-            // Available to Missed
             if (coin.status === 'available' && now >= coin.expiresAt) {
                 hasChanges = true;
                 return { ...coin, status: 'missed' as 'missed' };
             }
             return coin;
         });
+        
+        const updatedAndFilteredCoins = potentiallyUpdatedCoins.filter(coin => {
+            return !coin.finalExpiryAt || now < coin.finalExpiryAt;
+        });
 
-        if (hasChanges) {
+        if (hasChanges || updatedAndFilteredCoins.length !== coins.length) {
             const userDocRef = doc(firestore, 'users', user.uid);
-            await updateDoc(userDocRef, { dailyAdCoins: updatedCoins });
+            await updateDoc(userDocRef, { dailyAdCoins: updatedAndFilteredCoins });
         }
     }, 1000); // Check every second
 
@@ -2500,71 +2267,56 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
 }, [user, userProfile?.dailyAdCoins, firestore]);
 
 const collectDailyAdCoin = useCallback(async (coinId: string): Promise<number | undefined> => {
-    if (!user || !userProfile?.dailyAdCoins) return;
+    if (!user) return;
 
-    const userDocRef = doc(firestore, 'users', user.uid);
-    const coins = userProfile.dailyAdCoins;
-    let coinToGive = 0;
-
-    const updatedCoins = coins.map(c => {
-        if (c.id === coinId && c.status === 'available') {
-            coinToGive = 1; // Or whatever the coin value is
-            return { ...c, status: 'collected' as 'collected', collectedFromStatus: 'available', collectedAt: Date.now() };
+    try {
+        const functions = getFunctions();
+        const claimFunction = httpsCallable(functions, 'claimDailyCoin');
+        const result = await claimFunction({ coinId, isMissed: false });
+        const data = result.data as { success: boolean, claimedAmount: number };
+        
+        if (data.success) {
+            return data.claimedAmount;
         }
-        return c;
-    });
+        return undefined;
 
-    if (coinToGive > 0) {
-        await updateDoc(userDocRef, {
-            dailyAdCoins: updatedCoins,
-            minedCoins: increment(coinToGive)
-        });
-        return coinToGive;
+    } catch(error: any) {
+        console.error("Error collecting daily coin:", error);
+        toast({ title: 'Error', description: error.message || 'Could not collect the coin.', variant: 'destructive' });
     }
-}, [user, userProfile, firestore]);
+}, [user, toast]);
 
 const claimMissedAdCoin = useCallback(async (coinId: string, adElement: string): Promise<number | undefined> => {
-    if (!user || !userProfile?.dailyAdCoins) return;
+    if (!user || !userProfile) return;
     
-    // Check if ads are unlocked for this user
     if (!userProfile.adsUnlocked) {
         console.log("Ads not unlocked for this user yet.");
-        return; // Or handle this case differently, e.g., show a message
+        return;
     }
-    
-    const userDocRef = doc(firestore, 'users', user.uid);
-    const coins = userProfile.dailyAdCoins;
-    let coinToGive = 0;
 
-    const updatedCoins = coins.map(c => {
-        if (c.id === coinId && c.status === 'missed') {
-            coinToGive = 1;
-            return { ...c, status: 'collected' as 'collected', collectedFromStatus: 'missed', collectedAt: Date.now() };
-        }
-        return c;
-    });
-
-    if (coinToGive > 0) {
-        const adEvent: AdWatchEvent = {
-            id: doc(collection(firestore, 'temp')).id,
-            element: adElement,
-            timestamp: Date.now(),
-        };
-
-        await updateDoc(userDocRef, {
-            dailyAdCoins: updatedCoins,
-            minedCoins: increment(coinToGive),
-            adWatchHistory: arrayUnion(adEvent),
-            lastMissedCoinClaimTimestamp: Date.now()
-        });
-
+    try {
+        const functions = getFunctions();
+        const claimFunction = httpsCallable(functions, 'claimDailyCoin');
+        
+        // Command to show the ad on Android
         if (window.Android && typeof window.Android.showRewardedAd === 'function') {
             window.Android.showRewardedAd();
         }
-        // Don't start cooldown here, let the confirmation dialog do it
-        return coinToGive;
+        
+        const result = await claimFunction({ coinId, isMissed: true, adElement });
+        const data = result.data as { success: boolean, claimedAmount: number };
+        
+        if (data.success) {
+            startAdCooldown(); // Start UI cooldown after successful claim
+            return data.claimedAmount;
+        }
+        return undefined;
+
+    } catch (error: any) {
+        console.error("Error claiming missed coin:", error);
+        toast({ title: 'Error', description: error.message || 'Could not claim the missed coin.', variant: 'destructive' });
     }
-}, [user, userProfile, firestore]);
+}, [user, userProfile, toast, startAdCooldown]);
 
 const requestFollow = useCallback(async (platform: 'facebook' | 'x', profileName: string) => {
     if (!user) {
@@ -2576,41 +2328,27 @@ const requestFollow = useCallback(async (platform: 'facebook' | 'x', profileName
     const nameField = platform === 'facebook' ? 'facebookProfileName' : 'xProfileName';
     
     try {
-      // Set status to pending immediately
-      await updateDoc(userDocRef, {
-        [fieldToUpdate]: 'pending',
-        [nameField]: profileName
-      });
-      toast({ title: 'Verification Pending', description: `Your follow on ${platform} is being verified.` });
-
-      // After 25 seconds, automatically approve
-      setTimeout(async () => {
-        try {
-          await runTransaction(firestore, async (transaction) => {
+        await runTransaction(firestore, async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
             if (!userDoc.exists()) throw new Error("User not found");
-
+            
             const currentStatus = userDoc.data()?.[fieldToUpdate];
-            // Only proceed if it's still pending (user hasn't cancelled or been rejected)
-            if (currentStatus === 'pending') {
-              transaction.update(userDocRef, {
-                [fieldToUpdate]: 'followed',
-                minedCoins: increment(10) // Reward the user with 10 coins
-              });
+            if (currentStatus === 'followed') {
+                return; // Do nothing if already followed
             }
-          });
-          toast({ title: 'Follow Approved!', description: `You've been rewarded 10 BLIT for following on ${platform}.` });
-        } catch (innerError) {
-          console.error(`Error auto-approving follow for ${platform}:`, innerError);
-          // Don't show an error toast to the user for this background process
-        }
-      }, 25000); // 25 seconds
 
+            transaction.update(userDocRef, {
+                [fieldToUpdate]: 'followed',
+                [nameField]: profileName,
+                minedCoins: increment(10)
+            });
+        });
+        toast({ title: 'Follow Approved!', description: `You've been rewarded 10 BLIT for following on ${platform}.` });
     } catch (error) {
-      console.error(`Error requesting follow for ${platform}:`, error);
-      toast({ title: 'Error', description: 'Could not submit your follow for verification.', variant: 'destructive' });
+        console.error(`Error requesting follow for ${platform}:`, error);
+        toast({ title: 'Error', description: 'Could not submit your follow for verification.', variant: 'destructive' });
     }
-  }, [user, firestore, toast]);
+}, [user, firestore, toast]);
 
   const approveFollowRequest = useCallback(async (userId: string, platform: 'facebook' | 'x') => {
     const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
@@ -2771,10 +2509,40 @@ const setUserHasRatedOnPlayStore = useCallback(async () => {
     }
 }, [userProfile, firestore, toast]);
 
+const creditCrushOracleInstall = useCallback(async () => {
+    if (!user || !userProfile) {
+      toast({ title: 'Error', description: 'You must be logged in.', variant: 'destructive' });
+      throw new Error("Not logged in");
+    }
+    if (userProfile.crushOracleInstalled) {
+      return;
+    }
+
+    const userDocRef = doc(firestore, 'users', user.uid);
+    try {
+      await updateDoc(userDocRef, {
+        crushOracleInstalled: true,
+        minedCoins: increment(10)
+      });
+      toast({
+        title: 'Reward Credited!',
+        description: '10 BLIT have been added to your wallet.'
+      });
+    } catch (error) {
+      console.error("Error crediting Crush Oracle install:", error);
+      toast({
+        title: 'Error',
+        description: 'Could not credit your reward. Please try again.',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  }, [user, userProfile, firestore, toast]);
+
   useEffect(() => {
     if (loading || isSigningIn) return;
 
-    const publicPages = ['/auth/login', '/auth/mobile-login', '/auth/mobile-welcome', '/privacy-policy', '/email-verified', '/app-only', '/from-facebook', '/privacy-policy-2'];
+    const publicPages = ['/auth/login', '/auth/mobile-login', '/auth/mobile-welcome', '/privacy-policy', '/delete-your-data', '/email-verified', '/app-only', '/from-facebook', '/privacy-policy-2'];
     const isPublicPage = publicPages.some(page => pathname.startsWith(page));
     
     if (pathname.startsWith('/from-facebook') || pathname.startsWith('/privacy-policy-2') || pathname.startsWith('/app-only') || pathname.startsWith('/airdrop')) {
@@ -2795,6 +2563,7 @@ const setUserHasRatedOnPlayStore = useCallback(async () => {
   const value: AuthContextType = {
     userProfile,
     loading,
+    isSigningIn,
     isFinalizing,
     emailVerified,
     logout,
@@ -2817,9 +2586,6 @@ const setUserHasRatedOnPlayStore = useCallback(async () => {
     updateMiningRate,
     applyReferralCode,
     adminApplyReferralCode,
-    respondToReferralRequest,
-    adminRespondToReferralRequest,
-    adminApproveAllReferralRequests,
     transferCoins,
     respondToTransferByAdmin,
     sendNotificationToUser,
@@ -2846,7 +2612,6 @@ const setUserHasRatedOnPlayStore = useCallback(async () => {
     allReferrals,
     activeReferrals,
     inactiveReferrals,
-    pendingReferralRequests,
     referralsLoading,
     activeReferralsCount,
     totalUserSupportCount,
@@ -2869,6 +2634,7 @@ const setUserHasRatedOnPlayStore = useCallback(async () => {
     referralEarnings,
     respondToKuberRequest,
     clearKuberSessionLogs,
+    creditCrushOracleInstall,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -964,12 +964,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (allReferrals) {
         for (const referral of allReferrals) {
             if (referral.status === 'Active' && referral.sessionEndTime) {
+                const eightHoursInMillis = 8 * 60 * 60 * 1000;
+                let effectiveReferralEndTime = referral.sessionEndTime;
+
+                if (referral.sessionEndTime - startTime > eightHoursInMillis) {
+                  effectiveReferralEndTime = startTime + eightHoursInMillis;
+                }
+
                 const newBlock: KuberBlock = {
                     id: doc(collection(firestore, 'temp')).id,
                     referralId: referral.id,
                     referralName: referral.fullName,
                     userSessionStartTime: startTime,
-                    referralSessionEndTime: referral.sessionEndTime,
+                    referralSessionEndTime: effectiveReferralEndTime,
                 };
                 newKuberBlocks.push(newBlock);
             }
