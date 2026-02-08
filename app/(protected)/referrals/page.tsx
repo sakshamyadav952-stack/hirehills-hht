@@ -1,20 +1,16 @@
 
-
 'use client';
 
 import { ReferralList } from '@/components/referral-list';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PendingReferralRequests } from '@/components/pending-referral-requests';
 import { useAuth } from '@/lib/auth';
-import { Badge } from '@/components/ui/badge';
-import { Users, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { NetworkStrengthIndicator } from '@/components/network-strength-indicator';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default function ReferralsPage() {
-  const { userProfile, pendingReferralRequests } = useAuth();
+  const { userProfile } = useAuth();
   const router = useRouter();
   const referralCount = userProfile?.referrals?.length || 0;
   const referralsNeeded = 5 - referralCount;
@@ -35,28 +31,14 @@ export default function ReferralsPage() {
                 <ShieldCheck className="h-10 w-10 text-cyan-300" />
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-white">Your Security Circle</h1>
-            <p className="text-cyan-200/70 mt-2">View your referred users and manage incoming requests.</p>
+            <p className="text-cyan-200/70 mt-2">View the friends you have successfully referred.</p>
         </div>
         
         <NetworkStrengthIndicator referralCount={referralCount} showDetailedDescription={false} />
 
-        <Tabs defaultValue="referrals" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-black/20 border border-cyan-400/20 rounded-lg">
-                <TabsTrigger value="referrals" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-white">My Circle</TabsTrigger>
-                <TabsTrigger value="pending" className="relative data-[state=active]:bg-cyan-500/20 data-[state=active]:text-white">
-                    Pending Requests 
-                    {pendingReferralRequests.length > 0 && (
-                        <Badge variant="destructive" className="ml-2 h-5 w-5 justify-center p-0">{pendingReferralRequests.length}</Badge>
-                    )}
-                </TabsTrigger>
-            </TabsList>
-            <TabsContent value="referrals" className="mt-6">
-                <ReferralList />
-            </TabsContent>
-            <TabsContent value="pending" className="mt-6">
-                <PendingReferralRequests />
-            </TabsContent>
-        </Tabs>
+        <div className="mt-6">
+          <ReferralList />
+        </div>
         
         {referralsNeeded > 0 && (
           <Card className="futuristic-card-bg-secondary text-center">
