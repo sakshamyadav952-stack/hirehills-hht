@@ -9,11 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Search, User, Mail, Phone, Calendar, PlusCircle, MinusCircle, Banknote, Users, Trash2, Globe, Clapperboard, Zap, Play, Coins, Smartphone, Network, ShieldAlert } from 'lucide-react';
+import { Loader2, Search, User, Mail, Phone, Calendar, PlusCircle, MinusCircle, Banknote, Users, Trash2, Globe, Clapperboard, Zap, Play, Coins, Smartphone, Network, ShieldAlert, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { collection, getDocs, query, where, documentId, deleteDoc, doc, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
-import type { UserProfile, AdWatchEvent, DailyAdCoin } from '@/lib/types';
+import type { UserProfile, AdWatchEvent } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, formatDistanceToNow, subHours } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
@@ -141,7 +141,7 @@ function AdWatchHistoryCard({ user }: { user: UserProfile }) {
 
 type ConflictingAccount = UserProfile & { conflictType: 'IP' | 'Device' | 'Both' };
 
-function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingAccounts, onConflictingAccountDeleted }: { user: UserProfile, onUpdate: () => void, referrals: (UserProfile & { status: 'Active' | 'Inactive' })[], referralsLoading: boolean, conflictingAccounts: ConflictingAccount[], onConflictingAccountDeleted: (deletedUserId: string) => void }) {
+function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingAccounts, onConflictingAccountDeleted, referrerProfileCode }: { user: UserProfile, onUpdate: () => void, referrals: (UserProfile & { status: 'Active' | 'Inactive' })[], referralsLoading: boolean, conflictingAccounts: ConflictingAccount[], onConflictingAccountDeleted: (deletedUserId: string) => void, referrerProfileCode?: string | null }) {
     const { adminRemoveReferral, userProfile: adminProfile, adminSetFollowStatus, adminTerminateUserSession, adminStartUserSession, deleteAccount } = useAuth();
     const firestore = useFirestore();
     const registrationDate = user.createdAt instanceof Timestamp ? user.createdAt.toDate() : new Date((user.createdAt as any).seconds * 1000);
@@ -155,17 +155,17 @@ function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingA
 
     const missedCoinsCollectedLast24h = useMemo(() => {
         const twentyFourHoursAgo = subHours(new Date(), 24).getTime();
-        return user.dailyAdCoins?.filter(
-            (coin) => coin.status === 'collected' && coin.collectedFromStatus === 'missed' && coin.collectedAt && coin.collectedAt > twentyFourHoursAgo
+        return user.adWatchHistory?.filter(
+            (event) => event.element.startsWith('Missed Coin') && event.timestamp > twentyFourHoursAgo
         ).length || 0;
-    }, [user.dailyAdCoins]);
+    }, [user.adWatchHistory]);
 
 
     const handleRemoveReferral = async (referralId: string) => {
         setIsRemoving(referralId);
         try {
             await adminRemoveReferral(user.id, referralId);
-            onUpdate(); // Re-fetch user data to update the list
+            onUpdate(); // Trigger a re-fetch of the user data
         } finally {
             setIsRemoving(null);
         }
@@ -295,6 +295,21 @@ function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingA
                             <Calendar className="h-5 w-5 text-muted-foreground" />
                             <span className="text-sm">Joined: {format(registrationDate, 'PPP')}</span>
                         </div>
+                        {user.referredByName && (
+                            <div className="flex items-center gap-3">
+                                <UserCheck className="h-5 w-5 text-muted-foreground" />
+                                <span className="text-sm">
+                                    Referred by:{' '}
+                                    {referrerProfileCode ? (
+                                        <Link href={`/admin/find-user?profileCode=${referrerProfileCode}`} className="font-semibold hover:underline text-primary">
+                                            {user.referredByName}
+                                        </Link>
+                                    ) : (
+                                        <span className="font-semibold">{user.referredByName}</span>
+                                    )}
+                                </span>
+                            </div>
+                        )}
                         <div className="flex items-center gap-3">
                             <Smartphone className="h-5 w-5 text-muted-foreground" />
                             <span className="text-sm break-all font-mono">{user.deviceNames?.slice(-1)[0] || 'Not available'}</span>
@@ -540,6 +555,7 @@ function FindUserComponent() {
     const [referralsLoading, setReferralsLoading] = useState(false);
     const [conflictingAccounts, setConflictingAccounts] = useState<ConflictingAccount[]>([]);
     const [conflictsLoading, setConflictsLoading] = useState(false);
+    const [referrerProfileCode, setReferrerProfileCode] = useState<string | null>(null);
 
 
     const form = useForm<FindUserFormValues>({
@@ -598,6 +614,7 @@ function FindUserComponent() {
         setFoundUser(null);
         setUserReferrals([]);
         setConflictingAccounts([]);
+        setReferrerProfileCode(null);
         try {
             const { searchQuery } = data;
             
@@ -626,6 +643,14 @@ function FindUserComponent() {
                     const privateData = privateContactSnap.data();
                     userData.email = privateData.email;
                     userData.mobileNumber = privateData.mobileNumber;
+                }
+
+                if (userData.referredBy) {
+                    const referrerDocRef = doc(firestore, 'users', userData.referredBy);
+                    const referrerSnap = await getDoc(referrerDocRef);
+                    if (referrerSnap.exists()) {
+                        setReferrerProfileCode(referrerSnap.data().profileCode);
+                    }
                 }
                 
                 setFoundUser(userData);
@@ -720,7 +745,7 @@ function FindUserComponent() {
                             </Button>
                         </form>
                     </Form>
-                    {foundUser && <UserDetails user={foundUser} onUpdate={handleUserUpdate} referrals={userReferrals} referralsLoading={referralsLoading} conflictingAccounts={conflictingAccounts} onConflictingAccountDeleted={handleConflictDeleted} />}
+                    {foundUser && <UserDetails user={foundUser} onUpdate={handleUserUpdate} referrals={userReferrals} referralsLoading={referralsLoading} conflictingAccounts={conflictingAccounts} onConflictingAccountDeleted={handleConflictDeleted} referrerProfileCode={referrerProfileCode} />}
                 </CardContent>
             </Card>
         </div>
@@ -737,3 +762,5 @@ export default function FindUserPage() {
     
 
     
+
+
