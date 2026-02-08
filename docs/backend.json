@@ -230,20 +230,6 @@
         },
         "required": ["senderId", "senderName", "receiverId", "receiverName", "amount", "status", "createdAt", "completedAt"]
     },
-    "ReferralRequest": {
-        "title": "ReferralRequest",
-        "type": "object",
-        "description": "Represents a pending referral request from one user to another.",
-        "properties": {
-            "requesterId": { "type": "string" },
-            "requesterName": { "type": "string" },
-            "requesterProfileImageUrl": { "type": "string" },
-            "targetUserId": { "type": "string" },
-            "status": { "type": "string", "enum": ["pending"] },
-            "createdAt": { "type": "string", "format": "date-time" }
-        },
-        "required": ["requesterId", "requesterName", "targetUserId", "status", "createdAt"]
-    },
     "WithdrawalRequest": {
       "title": "WithdrawalRequest",
       "type": "object",
@@ -471,14 +457,6 @@
           "description": "Stores all completed and rejected transactions. Both sender and receiver can read their own transactions."
         }
       },
-       {
-        "path": "/referralRequests/{requestId}",
-        "definition": {
-          "entityName": "ReferralRequest",
-          "schema": { "$ref": "#/backend/entities/ReferralRequest" },
-          "description": "Stores pending referral requests. The requester creates the doc, and the target user can read/delete it to respond."
-        }
-      },
       {
         "path": "/universal_messages/current",
         "definition": {
@@ -531,3 +509,4 @@
     
 
     
+

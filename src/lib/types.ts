@@ -185,20 +185,6 @@ export type Transaction = {
     adminComment?: string;
 };
 
-export type ReferralRequest = {
-    id: string;
-    requesterId: string;
-    requesterName: string;
-    requesterProfileImageUrl?: string;
-    requesterProfileCode?: string;
-    targetUserId: string;
-    targetUserName?: string;
-    targetUserProfileCode?: string;
-    status: 'pending' | 'approved' | 'rejected';
-    createdAt: Timestamp;
-    isAirdrop?: boolean;
-};
-
 export type AddEmailFormValues = {
   email: string;
 };
