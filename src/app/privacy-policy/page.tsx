@@ -70,7 +70,7 @@ export default function PrivacyPolicyPage() {
           
           <h2 className="text-xl font-semibold">7. Contact Us</h2>
           <p>
-            If you have questions or comments about this Privacy Policy, or if you wish to make a data deletion request, please contact us at: sakshamyadav071@gmail.com
+            If you have questions or comments about this Privacy Policy, or if you wish to make a data deletion request, please contact us at: support@blistree.com
           </p>
         </CardContent>
       </Card>

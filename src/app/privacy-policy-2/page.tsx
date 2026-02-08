@@ -97,7 +97,7 @@ export default function PrivacyPolicy2Page() {
 
           <h2 className="text-xl font-semibold">8. Contact Us</h2>
           <p>
-            If you have any questions about this Privacy Policy, you can contact us at:
+            If you have any questions about this Privacy Policy, you can contact us at: support@blistree.com
           </p>
         </CardContent>
       </Card>
