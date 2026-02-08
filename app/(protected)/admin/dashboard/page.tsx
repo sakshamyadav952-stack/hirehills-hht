@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, onSnapshot, doc, updateDoc, runTransaction, arrayUnion, query, where, getDocs, writeBatch, increment, getDoc, orderBy, Timestamp, documentId } from 'firebase/firestore';
 import { Loader2, User, Shield, Inbox, Check, X, Coins, Award, Settings, MessageSquare, Send, Star, Banknote, Building2, UserCheck, Share2, AtSign, Smartphone, Gift, Save, FilePen } from 'lucide-react';
-import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction, Note, Review, ReferralRequest, AirdropConfig } from '@/lib/types';
+import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction, Note, Review, AirdropConfig } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
