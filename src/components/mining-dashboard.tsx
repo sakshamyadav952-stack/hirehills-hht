@@ -251,7 +251,7 @@ const MissedCoinItem = ({ coin, onClaim, claimAttemptCooldown, onClaimAttempt }:
 
 
 function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
-  const { userProfile, collectDailyAdCoin, claimMissedAdCoin } = useAuth();
+  const { dailyAdCoins, collectDailyAdCoin, claimMissedAdCoin } = useAuth();
   const [isClaiming, setIsClaiming] = useState(false);
   const [showClaimDialog, setShowClaimDialog] = useState(false);
   const [showClaimConfirmation, setShowClaimConfirmation] = useState(false);
@@ -283,7 +283,7 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
   };
 
   useEffect(() => {
-    const allCoins = userProfile?.dailyAdCoins || [];
+    const allCoins = dailyAdCoins || [];
     const now = currentTime;
 
     const available: DailyAdCoin[] = [];
@@ -319,12 +319,10 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
     } else if (nextCoin) {
         setNextCoinTime(`Next coin in: ${formatTime(nextCoin.availableAt - now)}`);
     } else {
-        // Calculate next day's first coin if no pending coins exist from the backend
         const schedule = ['08:00', '12:00', '16:00', '22:00'];
         const nowDate = new Date(now);
         let nextCoinTimeValue: Date | null = null;
         
-        // Find next time today
         for (const time of schedule) {
             const [hour, minute] = time.split(':').map(Number);
             const potentialTime = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), hour, minute, 0, 0);
@@ -334,7 +332,6 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
             }
         }
         
-        // If no more times today, find first time tomorrow
         if (!nextCoinTimeValue) {
             const tomorrow = new Date(nowDate);
             tomorrow.setDate(nowDate.getDate() + 1);
@@ -344,7 +341,6 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
         
         setNextCoinTime(`Next coin in: ${formatTime(nextCoinTimeValue.getTime() - now)}`);
         
-        // Create a temporary coin object for UI display
         nextCoin = {
             id: 'next-scheduled',
             status: 'pending',
@@ -353,7 +349,7 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
         };
     }
     setNextPendingCoin(nextCoin);
-  }, [currentTime, userProfile?.dailyAdCoins, isSessionActive]);
+  }, [currentTime, dailyAdCoins, isSessionActive]);
 
 
   const handleCollect = async (coinId: string) => {

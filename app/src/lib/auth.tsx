@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import type { ReactNode } from 'react';
@@ -125,6 +124,7 @@ interface AuthContextType {
   respondToKuberRequest: (request: KuberRequest) => Promise<void>;
   clearKuberSessionLogs: () => Promise<void>;
   creditCrushOracleInstall: () => Promise<void>;
+  dailyAdCoins: DailyAdCoin[];
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -183,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [canWatchAd, setCanWatchAd] = useState(true);
   const [referrerProfile, setReferrerProfile] = useState<UserProfile | null>(null);
   const [referralEarnings, setReferralEarnings] = useState(0);
+  const [dailyAdCoins, setDailyAdCoins] = useState<DailyAdCoin[]>([]);
 
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
   const loginTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -317,6 +318,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         kuberRequests: [],
         kuberApprovalRequests: [],
         kuberIds: [],
+        dailyClaimedCoins: [],
     };
     
     batch.set(userDocRef, { ...newUserProfileData, createdAt: serverTimestamp() });
@@ -349,6 +351,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setShowOnboarding(false);
       setTotalUserSupportCount(0);
       setPendingTransfers([]);
+      setDailyAdCoins([]);
       return;
     }
 
@@ -963,12 +966,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (allReferrals) {
         for (const referral of allReferrals) {
             if (referral.status === 'Active' && referral.sessionEndTime) {
+                const eightHoursInMillis = 8 * 60 * 60 * 1000;
+                let effectiveReferralEndTime = referral.sessionEndTime;
+
+                if (referral.sessionEndTime - startTime > eightHoursInMillis) {
+                  effectiveReferralEndTime = startTime + eightHoursInMillis;
+                }
+
                 const newBlock: KuberBlock = {
                     id: doc(collection(firestore, 'temp')).id,
                     referralId: referral.id,
                     referralName: referral.fullName,
                     userSessionStartTime: startTime,
-                    referralSessionEndTime: referral.sessionEndTime,
+                    referralSessionEndTime: effectiveReferralEndTime,
                 };
                 newKuberBlocks.push(newBlock);
             }
@@ -2172,99 +2182,65 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     }
   }, [userProfile?.unclaimedCoins]);
   
-  // Effect to reset daily ad coins
+  // Effect to generate daily coins based on claimed history
   useEffect(() => {
     if (!user || !userProfile) return;
 
-    const resetCoins = async () => {
+    const generateDailyCoins = () => {
         const now = new Date();
-        const todayStr = now.toLocaleDateString('en-CA'); // YYYY-MM-DD format, consistent
-        const lastReset = userProfile.lastAdCoinReset ? new Date(userProfile.lastAdCoinReset) : null;
-        const lastResetStr = lastReset ? lastReset.toLocaleDateString('en-CA') : null;
-        
-        if (lastResetStr !== todayStr) {
-            const userDocRef = doc(firestore, 'users', user.uid);
-            
-            const daysToBackfill = 2;
-            const newCoins: DailyAdCoin[] = [];
-            const schedule = ['08:00', '12:00', '16:00', '22:00'];
-            
-            for (let i = 0; i < daysToBackfill; i++) {
-                const dateForCoins = new Date(now);
-                dateForCoins.setDate(now.getDate() - i);
-                const dateString = dateForCoins.toISOString().split('T')[0];
+        const claimedIds = new Set(userProfile.dailyClaimedCoins || []);
+        const schedule = ['08:00', '12:00', '16:00', '22:00'];
+        const newGeneratedCoins: DailyAdCoin[] = [];
 
-                schedule.forEach(time => {
-                    const [hour, minute] = time.split(':').map(Number);
-                    const availableAt = new Date(dateForCoins.getFullYear(), dateForCoins.getMonth(), dateForCoins.getDate(), hour, minute, 0, 0);
-                    
-                    newCoins.push({
-                        id: `${dateString}-${time}`,
-                        status: 'pending',
-                        availableAt: availableAt.getTime(),
-                        expiresAt: availableAt.getTime() + 30 * 60 * 1000,
-                        finalExpiryAt: availableAt.getTime() + 48 * 60 * 60 * 1000,
-                    });
+        // Generate the last 8 theoretical slots
+        const last8Slots: { id: string, availableAt: Date }[] = [];
+        let tempDate = new Date(now);
+        while(last8Slots.length < 8) {
+            for (let i = schedule.length - 1; i >= 0; i--) {
+                const timeSlot = schedule[i];
+                const [hour, minute] = timeSlot.split(':').map(Number);
+                const slotTime = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), hour, minute, 0, 0);
+
+                if (slotTime <= now && last8Slots.length < 8) {
+                    const dateString = slotTime.toISOString().split('T')[0];
+                    last8Slots.push({ id: `${dateString}-${timeSlot}`, availableAt: slotTime });
+                }
+            }
+            tempDate.setDate(tempDate.getDate() - 1);
+        }
+
+        for (const slot of last8Slots) {
+            if (!claimedIds.has(slot.id)) {
+                const availableAtTime = slot.availableAt.getTime();
+                const expiresAt = availableAtTime + 30 * 60 * 1000;
+                const finalExpiryAt = availableAtTime + 48 * 60 * 60 * 1000;
+
+                if (now.getTime() > finalExpiryAt) {
+                    continue; // Skip fully expired coins
+                }
+
+                const status: 'available' | 'missed' = (now.getTime() >= availableAtTime && now.getTime() < expiresAt) ? 'available' : 'missed';
+
+                newGeneratedCoins.push({
+                    id: slot.id,
+                    status,
+                    availableAt: availableAtTime,
+                    expiresAt,
+                    finalExpiryAt
                 });
             }
-
-            const existingCoins = userProfile.dailyAdCoins || [];
-            const nowMs = now.getTime();
-            const validOldCoins = existingCoins.filter(coin => coin.finalExpiryAt && nowMs < coin.finalExpiryAt);
-
-            const combinedCoinsMap = new Map<string, DailyAdCoin>();
-            validOldCoins.forEach(coin => combinedCoinsMap.set(coin.id, coin));
-            newCoins.forEach(coin => {
-                if (!combinedCoinsMap.has(coin.id) || combinedCoinsMap.get(coin.id)?.status !== 'collected') {
-                     combinedCoinsMap.set(coin.id, coin);
-                }
-            });
-            
-            const finalCoinList = Array.from(combinedCoinsMap.values());
-
-            await updateDoc(userDocRef, {
-                dailyAdCoins: finalCoinList,
-                lastAdCoinReset: now.getTime()
-            });
         }
+        
+        setDailyAdCoins(currentCoins => {
+            if (JSON.stringify(currentCoins) === JSON.stringify(newGeneratedCoins)) {
+                return currentCoins;
+            }
+            return newGeneratedCoins;
+        });
     };
 
-    resetCoins();
-}, [user, userProfile, firestore]);
-  
-  // Effect to update coin status based on time
-  useEffect(() => {
-    if (!user || !userProfile?.dailyAdCoins) return;
-
-    const interval = setInterval(async () => {
-        const now = Date.now();
-        const coins = userProfile.dailyAdCoins || [];
-        let hasChanges = false;
-        
-        const potentiallyUpdatedCoins = coins.map(coin => {
-            if (coin.status === 'pending' && now >= coin.availableAt) {
-                hasChanges = true;
-                return { ...coin, status: 'available' as 'available' };
-            }
-            if (coin.status === 'available' && now >= coin.expiresAt) {
-                hasChanges = true;
-                return { ...coin, status: 'missed' as 'missed' };
-            }
-            return coin;
-        });
-        
-        const updatedAndFilteredCoins = potentiallyUpdatedCoins.filter(coin => {
-            return !coin.finalExpiryAt || now < coin.finalExpiryAt;
-        });
-
-        if (hasChanges || updatedAndFilteredCoins.length !== coins.length) {
-            const userDocRef = doc(firestore, 'users', user.uid);
-            await updateDoc(userDocRef, { dailyAdCoins: updatedAndFilteredCoins });
-        }
-    }, 1000); // Check every second
-
-    return () => clearInterval(interval);
-}, [user, userProfile?.dailyAdCoins, firestore]);
+    generateDailyCoins();
+  }, [user, userProfile]);
 
 const collectDailyAdCoin = useCallback(async (coinId: string): Promise<number | undefined> => {
     if (!user) return;
@@ -2635,6 +2611,7 @@ const creditCrushOracleInstall = useCallback(async () => {
     respondToKuberRequest,
     clearKuberSessionLogs,
     creditCrushOracleInstall,
+    dailyAdCoins,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

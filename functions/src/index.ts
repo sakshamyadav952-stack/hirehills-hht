@@ -299,7 +299,7 @@ export const claimDailyCoin = functions.runWith({ timeoutSeconds: 30 }).https.on
     const userDocRef = db.collection("users").doc(uid);
 
     try {
-        let claimedAmount = 0;
+        const claimedAmount = 1; // Each coin is worth 1
 
         await db.runTransaction(async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
@@ -307,48 +307,22 @@ export const claimDailyCoin = functions.runWith({ timeoutSeconds: 30 }).https.on
                 throw new functions.https.HttpsError("not-found", "User document does not exist.");
             }
 
-            const profile = userDoc.data();
-            if (!profile) {
-                throw new functions.https.HttpsError("internal", "User profile is missing.");
+            const profile = userDoc.data() as UserProfile;
+            const claimedCoins: string[] = profile.dailyClaimedCoins || [];
+
+            if (claimedCoins.includes(coinId)) {
+                throw new functions.https.HttpsError("failed-precondition", "This coin has already been collected.");
             }
 
-            const dailyCoins = profile.dailyAdCoins || [];
-            const coinIndex = dailyCoins.findIndex((c: any) => c.id === coinId);
-
-            if (coinIndex === -1) {
-                throw new functions.https.HttpsError("not-found", "The specified coin does not exist or has expired.");
-            }
-
-            const coin = dailyCoins[coinIndex];
-            const now = Date.now();
-
-            if (coin.status === 'collected') {
-                 throw new functions.https.HttpsError("failed-precondition", "This coin has already been collected.");
-            }
+            claimedCoins.push(coinId);
             
-            if (isMissed) {
-                if (now < coin.expiresAt) {
-                     throw new functions.https.HttpsError("failed-precondition", "This coin is still available for free collection.");
-                }
-                if (!profile.adsUnlocked) {
-                    throw new functions.https.HttpsError("failed-precondition", "Ads are not unlocked for this user.");
-                }
-            } else { // It's a regular 'available' claim
-                if (now < coin.availableAt || now >= coin.expiresAt) {
-                     throw new functions.https.HttpsError("failed-precondition", "This coin is not currently available to collect.");
-                }
+            // Keep only the last 8
+            while (claimedCoins.length > 8) {
+                claimedCoins.shift(); // Remove the oldest
             }
-            
-            claimedAmount = 1; // Each coin is worth 1
-            dailyCoins[coinIndex] = {
-                ...coin,
-                status: 'collected',
-                collectedFromStatus: isMissed ? 'missed' : 'available',
-                collectedAt: now,
-            };
 
             const updatePayload: { [key: string]: any } = {
-                dailyAdCoins: dailyCoins,
+                dailyClaimedCoins: claimedCoins,
                 minedCoins: admin.firestore.FieldValue.increment(claimedAmount)
             };
             
@@ -356,10 +330,10 @@ export const claimDailyCoin = functions.runWith({ timeoutSeconds: 30 }).https.on
                 const adEvent = {
                     id: db.collection('temp').doc().id, // Generate ID on server
                     element: adElement || `Missed Coin ${coinId}`,
-                    timestamp: now,
+                    timestamp: Date.now(),
                 };
                 updatePayload.adWatchHistory = admin.firestore.FieldValue.arrayUnion(adEvent);
-                updatePayload.lastMissedCoinClaimTimestamp = now;
+                updatePayload.lastMissedCoinClaimTimestamp = Date.now();
             }
 
             transaction.update(userDocRef, updatePayload);

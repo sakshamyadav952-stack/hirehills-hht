@@ -126,8 +126,7 @@ export type UserProfile = {
   notifications?: string[];
   theme?: 'light' | 'dark';
 
-  dailyAdCoins?: DailyAdCoin[];
-  lastAdCoinReset?: number;
+  dailyClaimedCoins?: string[];
   lastMissedCoinClaimTimestamp?: number;
   
   // Follow status

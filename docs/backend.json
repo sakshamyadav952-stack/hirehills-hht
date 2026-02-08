@@ -1,5 +1,4 @@
 
-
 {
   "entities": {
     "User": {
@@ -103,6 +102,13 @@
         "hasUnreadUserMessage": {
             "type": "boolean",
             "description": "Indicates if the admin has an unread message from the user."
+        },
+        "dailyClaimedCoins": {
+          "type": "array",
+          "description": "An array of strings representing the IDs of the last 8 claimed daily coins.",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
@@ -500,13 +506,3 @@
     "reasoning": "The Firestore structure is designed to ensure data integrity, security, and scalability for the Token Miner application. It adheres to the principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs. User data and related information are stored in dedicated collections, promoting easy management and secure access. By storing roles directly in the database, we avoid the complexity and potential security risks associated with custom claims.\n\n**Authorization Independence:**\n*   The structure enforces Authorization Independence by using path-based ownership for `MiningSession` and `UserProfile` subcollections. This eliminates the need for `get()` calls in security rules, simplifying the rules and ensuring atomic operations.\n\n**QAPs Support:**\n*   The path-based ownership structure inherently supports secure `list` operations (QAPs). Security rules can efficiently filter data based on the requesting user's ID without requiring complex queries or additional filtering logic.\n\n**Rationale for Chosen Structure:**\n*   `/users/{userId}`: Stores core user information. This top-level collection enables easy user management and authentication.\n*   `/users/{userId}/notes/{noteId}`: Stores a user's individual notes in a subcollection, ensuring data is private and scalable.\n*   `/users/{userId}/miningSessions/{miningSessionId}`: Stores mining session data specific to each user, establishing a clear ownership hierarchy. No denormalization is required as access control is based on the path.\n*   `/users/{userId}/userProfile/{userProfileId}`: Stores user profile information. Because of the 1:1 relationship, the profileId can be fixed to 'profile' removing the need for a wildcard."
   }
 }
-    
-
-    
-
-    
-
-    
-
-    
-

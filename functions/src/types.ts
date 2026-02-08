@@ -129,8 +129,7 @@ export type UserProfile = {
   notifications?: string[];
   theme?: 'light' | 'dark';
 
-  dailyAdCoins?: DailyAdCoin[];
-  lastAdCoinReset?: number;
+  dailyClaimedCoins?: string[];
   lastMissedCoinClaimTimestamp?: number;
   
   // Follow status
@@ -186,20 +185,6 @@ export type Transaction = {
     createdAt: Timestamp;
     completedAt?: Timestamp | null;
     adminComment?: string;
-};
-
-export type ReferralRequest = {
-    id: string;
-    requesterId: string;
-    requesterName: string;
-    requesterProfileImageUrl?: string;
-    requesterProfileCode?: string;
-    targetUserId: string;
-    targetUserName?: string;
-    targetUserProfileCode?: string;
-    status: 'pending' | 'approved' | 'rejected';
-    createdAt: Timestamp;
-    isAirdrop?: boolean;
 };
 
 export type AddEmailFormValues = {
