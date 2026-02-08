@@ -13,7 +13,7 @@ import { Loader2, Search, User, Mail, Phone, Calendar, PlusCircle, MinusCircle, 
 import { useToast } from '@/hooks/use-toast';
 import { collection, getDocs, query, where, documentId, deleteDoc, doc, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
-import type { UserProfile, AdWatchEvent, DailyAdCoin } from '@/lib/types';
+import type { UserProfile, AdWatchEvent } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, formatDistanceToNow, subHours } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
@@ -155,10 +155,10 @@ function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingA
 
     const missedCoinsCollectedLast24h = useMemo(() => {
         const twentyFourHoursAgo = subHours(new Date(), 24).getTime();
-        return user.dailyAdCoins?.filter(
-            (coin) => coin.status === 'collected' && coin.collectedFromStatus === 'missed' && coin.collectedAt && coin.collectedAt > twentyFourHoursAgo
+        return user.adWatchHistory?.filter(
+            (event) => event.element.startsWith('Missed Coin') && event.timestamp > twentyFourHoursAgo
         ).length || 0;
-    }, [user.dailyAdCoins]);
+    }, [user.adWatchHistory]);
 
 
     const handleRemoveReferral = async (referralId: string) => {
@@ -762,3 +762,4 @@ export default function FindUserPage() {
     
 
     
+
