@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirestore } from '@/firebase';
 import { collection, onSnapshot, doc, updateDoc, runTransaction, arrayUnion, query, where, getDocs, writeBatch, increment, getDoc, orderBy, Timestamp, documentId } from 'firebase/firestore';
 import { Loader2, Inbox, Check, X, Coins, Smartphone } from 'lucide-react';
-import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction, ReferralRequest } from '@/lib/types';
+import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -380,6 +380,7 @@ function SendNotificationManager() {
     // Logic remains the same
     return <Card><CardHeader>...</CardHeader><CardContent>...</CardContent></Card>;
 }
+
 
 export default function AdminRequestsPage() {
   const { userProfile, respondToTransferByAdmin, loading } = useAuth();

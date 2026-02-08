@@ -26,7 +26,7 @@ import {
 } from 'firebase/auth';
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { doc, serverTimestamp, onSnapshot, updateDoc, runTransaction, arrayUnion, query, collection, where, documentId, getDocs, writeBatch, deleteDoc, setDoc, getDoc, increment, addDoc, orderBy, Timestamp, arrayRemove, Firestore } from 'firebase/firestore';
-import type { UserProfile, Transaction, PendingTransfer, ReferralRequest, WithdrawalRequest, Note, Comment, ActiveBoost, DailyAdCoin, SessionConfig, AdWatchEvent, AirdropConfig, ChatMessage, KuberBlock, KuberRequest, KuberId } from '@/lib/types';
+import type { UserProfile, Transaction, PendingTransfer, WithdrawalRequest, Note, Comment, ActiveBoost, DailyAdCoin, SessionConfig, AdWatchEvent, AirdropConfig, ChatMessage, KuberBlock, KuberRequest, KuberId } from '@/lib/types';
 import { useToast, toast as toastFn } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -2587,9 +2587,6 @@ const creditCrushOracleInstall = useCallback(async () => {
     updateMiningRate,
     applyReferralCode,
     adminApplyReferralCode,
-    // These are removed as they are obsolete
-    adminRespondToReferralRequest: async () => {},
-    adminApproveAllReferralRequests: async () => {},
     transferCoins,
     respondToTransferByAdmin,
     sendNotificationToUser,
