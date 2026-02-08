@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { ReactNode } from 'react';
@@ -102,7 +103,6 @@ interface AuthContextType {
   allReferrals: ReferralWithEarnings[];
   activeReferrals: ReferralWithEarnings[];
   inactiveReferrals: ReferralWithEarnings[];
-  pendingReferralRequests: ReferralRequest[];
   referralsLoading: boolean;
   activeReferralsCount: number;
   totalUserSupportCount: number;
@@ -175,7 +175,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [miningRateBreakdown, setMiningRateBreakdown] = useState<MiningRateBreakdown | null>(null);
   const [liveCoins, setLiveCoins] = useState(0);
   const [allReferrals, setAllReferrals] = useState<ReferralWithEarnings[]>([]);
-  const [pendingReferralRequests, setPendingReferralRequests] = useState<ReferralRequest[]>([]);
   const [referralsLoading, setReferralsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [totalUserSupportCount, setTotalUserSupportCount] = useState(0);
@@ -347,7 +346,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) {
       setUserProfile(null);
       setAllReferrals([]);
-      setPendingReferralRequests([]);
       setProfileLoading(false);
       setReferralsLoading(false);
       setShowOnboarding(false);
@@ -424,15 +422,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfileLoading(false);
     });
 
-    const requestsQuery = query(collection(firestore, 'referralRequests'), where('targetUserId', '==', user.uid), where('status', '==', 'pending'));
-    const unsubscribeRequests = onSnapshot(requestsQuery, (snapshot) => {
-        const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReferralRequest));
-        requests.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
-        setPendingReferralRequests(requests);
-    }, (err) => {
-        console.error("Error fetching referral requests:", err);
-    });
-    
     // This calculates the total unread count for the admin.
     if (userProfile?.isAdmin) {
         const allUsersQuery = query(collection(firestore, 'users'));
@@ -473,7 +462,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       unsubscribeProfile();
-      unsubscribeRequests();
       unsubscribeTransfers();
     };
   }, [user, firestore, userProfile?.isAdmin]);
@@ -712,25 +700,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!auth) throw new Error("Firebase Auth not initialized.");
     if (!user) throw new Error("User not signed in.");
 
-    if (recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current.clear();
-    }
+    recaptchaVerifierRef.current?.clear();
 
     recaptchaVerifierRef.current = new RecaptchaVerifier(auth, container, {
         'size': 'invisible',
-        'callback': (response: any) => {
-            // reCAPTCHA solved, allow signInWithPhoneNumber.
-        },
-        'expired-callback': () => {
-            // Response expired. Ask user to solve reCAPTCHA again.
-            toast({ title: 'reCAPTCHA Expired', description: 'Please try sending the code again.', variant: 'destructive' });
-        }
     });
-
-    const verifier = recaptchaVerifierRef.current;
     
-    return await linkWithPhoneNumber(user, phoneNumber, verifier);
-  }, [auth, user, toast]);
+    await recaptchaVerifierRef.current.render();
+    
+    return await linkWithPhoneNumber(user, phoneNumber, recaptchaVerifierRef.current);
+  }, [auth, user]);
 
   const confirmPhoneNumberVerification = useCallback(async (confirmationResult: ConfirmationResult, verificationCode: string): Promise<void> => {
     if (!user) throw new Error("User not signed in.");
@@ -746,17 +725,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, firestore, toast]);
 
     const initializeRecaptcha = useCallback((container: HTMLElement) => {
-        if (!auth || recaptchaVerifierRef.current) return;
-        
+        if (!auth) return;
+        recaptchaVerifierRef.current?.clear();
+
         recaptchaVerifierRef.current = new RecaptchaVerifier(auth, container, {
             'size': 'invisible',
-            'callback': () => {},
-            'expired-callback': () => {
-                toast({ title: 'reCAPTCHA Expired', description: 'Please try sending the OTP again.', variant: 'destructive' });
-                recaptchaVerifierRef.current?.clear();
-            }
         });
-    }, [auth, toast]);
+        
+        recaptchaVerifierRef.current.render();
+    }, [auth]);
 
   const signInWithPhoneNumber = useCallback(async (phoneNumber: string): Promise<ConfirmationResult> => {
     if (!auth) throw new Error("Firebase Auth not initialized.");
@@ -1449,91 +1426,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     }, [userProfile, firestore, toast]);
 
-  const respondToReferralRequest = useCallback(async (requestId: string, approve: boolean) => {
-    // This function is now largely obsolete due to the backend referral flow,
-    // but kept for handling any legacy requests that may exist.
-  }, []);
-
-  const adminRespondToReferralRequest = useCallback(async (requestId: string, requesterId: string, targetUserId: string, action: 'approve' | 'reject') => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
-    if (!isAdmin) {
-      toast({ title: 'Unauthorized', description: 'You do not have permission.', variant: 'destructive' });
-      return;
-    }
-
-    const requestDocRef = doc(firestore, 'referralRequests', requestId);
-    const targetUserDocRef = doc(firestore, 'users', targetUserId);
-    
-    try {
-      await runTransaction(firestore, async (transaction) => {
-        const requestDoc = await transaction.get(requestDocRef);
-        if (!requestDoc.exists()) throw new Error("Request not found.");
-        
-        if (action === 'approve') {
-            const targetUserDoc = await transaction.get(targetUserDocRef);
-            if (!targetUserDoc.exists()) throw new Error("Referrer account not found.");
-            
-            // Note: Reward logic is now handled by the 'applyReferralCode' cloud function.
-            // This admin function now only manages the 'referrals' array (Security Circle).
-            transaction.update(targetUserDocRef, { referrals: arrayUnion(requesterId) });
-        }
-        
-        transaction.delete(requestDocRef);
-      });
-      toast({ title: 'Success', description: `Referral request has been ${action === 'approve' ? 'processed' : 'rejected'}.` });
-    } catch (error: any) {
-      console.error("Error responding to referral request as admin:", error);
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      throw error;
-    }
-  }, [userProfile, firestore, toast]);
-
-  const adminApproveAllReferralRequests = useCallback(async () => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
-    if (!isAdmin) {
-      toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
-      return;
-    }
-
-    try {
-        const requestsQuery = query(collection(firestore, 'referralRequests'), where('status', '==', 'pending'));
-        const snapshot = await getDocs(requestsQuery);
-
-        if (snapshot.empty) {
-            toast({ title: 'No Requests', description: 'There are no pending requests to approve.' });
-            return;
-        }
-
-        const batch = writeBatch(firestore);
-        let approvedCount = 0;
-        
-        for (const requestDoc of snapshot.docs) {
-            const requestData = requestDoc.data() as ReferralRequest;
-            const targetUserDocRef = doc(firestore, 'users', requestData.targetUserId);
-            
-            const targetUserDoc = await getDoc(targetUserDocRef);
-
-            if (targetUserDoc.exists()) {
-                batch.update(targetUserDocRef, { referrals: arrayUnion(requestData.requesterId) });
-                approvedCount++;
-            }
-            // Always delete the request, whether the user exists or not
-            batch.delete(requestDoc.ref);
-        }
-
-        await batch.commit();
-        
-        if (approvedCount > 0) {
-           toast({ title: 'Success', description: `Approved ${approvedCount} pending referral requests.` });
-        } else {
-           toast({ title: 'Cleanup Complete', description: `Removed ${snapshot.size} orphaned requests.` });
-        }
-    } catch (error: any) {
-        console.error("Error approving all referral requests:", error);
-        toast({ title: 'Error', description: 'Could not approve all requests.', variant: 'destructive' });
-        throw error;
-    }
-  }, [userProfile, firestore, toast]);
+    const adminRespondToReferralRequest = useCallback(async () => {}, []);
+    const adminApproveAllReferralRequests = useCallback(async () => {}, []);
 
   const transferCoins = useCallback(async (recipientId: string, recipientName: string, amount: number) => {
     if (!user || !userProfile) {
@@ -2698,7 +2592,6 @@ const creditCrushOracleInstall = useCallback(async () => {
     updateMiningRate,
     applyReferralCode,
     adminApplyReferralCode,
-    respondToReferralRequest,
     adminRespondToReferralRequest,
     adminApproveAllReferralRequests,
     transferCoins,
@@ -2763,4 +2656,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
