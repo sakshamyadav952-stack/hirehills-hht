@@ -76,8 +76,6 @@ interface AuthContextType {
   updateMiningRate: (type: CooldownType, rateIncrease: number, adWatched: boolean) => void;
   applyReferralCode: (profileCode: string) => Promise<void>;
   adminApplyReferralCode: (referrerCode: string, refereeCode: string) => Promise<void>;
-  adminRespondToReferralRequest: (requestId: string, requesterId: string, targetUserId: string, action: 'approve' | 'reject') => Promise<void>;
-  adminApproveAllReferralRequests: () => Promise<void>;
   transferCoins: (recipientId: string, recipientName: string, amount: number) => Promise<void>;
   respondToTransferByAdmin: (transferId: string, senderId: string, receiverId: string, amount: number, action: 'approve' | 'reject', comment?: string, transactionId?: string) => Promise<void>;
   sendNotificationToUser: (profileCode: string, message: string) => Promise<void>;
@@ -1426,9 +1424,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     }, [userProfile, firestore, toast]);
 
-    const adminRespondToReferralRequest = useCallback(async () => {}, []);
-    const adminApproveAllReferralRequests = useCallback(async () => {}, []);
-
   const transferCoins = useCallback(async (recipientId: string, recipientName: string, amount: number) => {
     if (!user || !userProfile) {
       toast({ title: 'Not signed in', variant: 'destructive' });
@@ -2592,8 +2587,9 @@ const creditCrushOracleInstall = useCallback(async () => {
     updateMiningRate,
     applyReferralCode,
     adminApplyReferralCode,
-    adminRespondToReferralRequest,
-    adminApproveAllReferralRequests,
+    // These are removed as they are obsolete
+    adminRespondToReferralRequest: async () => {},
+    adminApproveAllReferralRequests: async () => {},
     transferCoins,
     respondToTransferByAdmin,
     sendNotificationToUser,
@@ -2620,7 +2616,6 @@ const creditCrushOracleInstall = useCallback(async () => {
     allReferrals,
     activeReferrals,
     inactiveReferrals,
-    pendingReferralRequests,
     referralsLoading,
     activeReferralsCount,
     totalUserSupportCount,
