@@ -192,7 +192,7 @@ export const finalizeSession = functions.https.onCall(async (data, context) => {
               sessionEndTime: null,
               sessionBaseEarnings: 0,
               sessionReferralEarnings: 0,
-              sessionMissedCoinEarnings: 0, // Reset field
+              sessionMissedCoinEarnings: 0, // Reset this field
               kuberBlocks: [],
             });
         });
@@ -308,7 +308,8 @@ export const claimDailyCoin = functions.runWith({ timeoutSeconds: 30 }).https.on
             }
 
             const profile = userDoc.data() as UserProfile;
-            const claimedCoins: string[] = profile.dailyClaimedCoins || [];
+            // Explicitly handle cases where dailyClaimedCoins might not exist for older users
+            const claimedCoins: string[] = Array.isArray(profile.dailyClaimedCoins) ? profile.dailyClaimedCoins : [];
 
             if (claimedCoins.includes(coinId)) {
                 throw new functions.https.HttpsError("failed-precondition", "This coin has already been collected.");

@@ -2188,7 +2188,11 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
 
     const generateDailyCoins = () => {
         const now = new Date();
-        const claimedIds = new Set(userProfile.dailyClaimedCoins || []);
+        
+        // For existing users without the field, default to an empty array.
+        // This correctly results in all 8 past slots being treated as 'missed'.
+        const claimedIds = new Set(Array.isArray(userProfile.dailyClaimedCoins) ? userProfile.dailyClaimedCoins : []);
+
         const schedule = ['08:00', '12:00', '16:00', '22:00'];
         const newGeneratedCoins: DailyAdCoin[] = [];
 
