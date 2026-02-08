@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { ReferralList } from '@/components/referral-list';
