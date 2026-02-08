@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirestore } from '@/firebase';
 import { collection, onSnapshot, doc, updateDoc, runTransaction, arrayUnion, query, where, getDocs, writeBatch, increment, getDoc, orderBy, Timestamp, documentId } from 'firebase/firestore';
 import { Loader2, Inbox, Check, X, Coins, Smartphone } from 'lucide-react';
-import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction, ReferralRequest } from '@/lib/types';
+import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -381,24 +381,9 @@ function SendNotificationManager() {
     return <Card><CardHeader>...</CardHeader><CardContent>...</CardContent></Card>;
 }
 
-function AdminReferralRequestsManager({
-    pendingRequests,
-    isLoading,
-    onRespond,
-    onApproveAll,
-}: {
-    pendingRequests: (ReferralRequest & {requesterProfileCode?: string, targetUserProfileCode?: string, targetUserName?: string})[];
-    isLoading: boolean;
-    onRespond: (requestId: string, requesterId: string, targetUserId: string, action: 'approve' | 'reject') => void;
-    onApproveAll: () => Promise<void>;
-}) {
-    // Logic remains mostly the same
-    return <Card><CardHeader>...</CardHeader><CardContent>...</CardContent></Card>;
-}
-
 
 export default function AdminRequestsPage() {
-  const { userProfile, respondToTransferByAdmin, loading, adminRespondToReferralRequest, adminApproveAllReferralRequests } = useAuth();
+  const { userProfile, respondToTransferByAdmin, loading } = useAuth();
   const firestore = useFirestore();
 
   const [pendingTransfers, setPendingTransfers] = useState<EnrichedPendingTransfer[]>([]);
@@ -407,8 +392,6 @@ export default function AdminRequestsPage() {
   const [rejectionTransferComment, setRejectionTransferComment] = useState('');
   const [transferToProcess, setTransferToProcess] = useState<PendingTransfer | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [pendingReferrals, setPendingReferrals] = useState<(ReferralRequest & {requesterProfileCode?: string, targetUserProfileCode?: string, targetUserName?: string})[]>([]);
-  const [isLoadingReferrals, setIsLoadingReferrals] = useState(true);
   
   const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
   
@@ -458,59 +441,8 @@ export default function AdminRequestsPage() {
         setIsLoadingTransfers(false);
     });
 
-    setIsLoadingReferrals(true);
-    const referralsQuery = query(collection(firestore, "referralRequests"), where("status", "==", "pending"));
-    const unsubscribeReferrals = onSnapshot(referralsQuery, async (snapshot) => {
-        const reqs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReferralRequest));
-        
-        if (reqs.length > 0) {
-            const userIds = new Set<string>();
-            reqs.forEach(r => {
-                userIds.add(r.requesterId);
-                userIds.add(r.targetUserId);
-            });
-
-            const usersData = new Map<string, UserProfile>();
-            const userIdArray = Array.from(userIds);
-            const chunks: string[][] = [];
-            for (let i = 0; i < userIdArray.length; i += 30) {
-              chunks.push(userIdArray.slice(i, i + 30));
-            }
-            
-            for (const chunk of chunks) {
-              if (chunk.length > 0) {
-                const userDocs = await getDocs(query(collection(firestore, 'users'), where(documentId(), 'in', chunk)));
-                userDocs.forEach(doc => {
-                    usersData.set(doc.id, doc.data() as UserProfile);
-                });
-              }
-            }
-
-            const enrichedReferrals = reqs.map(r => {
-                const requester = usersData.get(r.requesterId);
-                const target = usersData.get(r.targetUserId);
-                return {
-                    ...r,
-                    requesterProfileCode: requester?.profileCode,
-                    requesterProfileImageUrl: requester?.profileImageUrl,
-                    targetUserName: target?.fullName,
-                    targetUserProfileCode: target?.profileCode,
-                };
-            });
-            enrichedReferrals.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
-            setPendingReferrals(enrichedReferrals);
-        } else {
-            setPendingReferrals([]);
-        }
-        setIsLoadingReferrals(false);
-    }, (error) => {
-        console.error("Error fetching pending referral requests:", error);
-        setIsLoadingReferrals(false);
-    });
-
     return () => {
         unsubscribeTransfers();
-        unsubscribeReferrals();
     };
   }, [firestore, isAdmin]);
 
@@ -529,11 +461,10 @@ export default function AdminRequestsPage() {
     <div className="container mx-auto py-10 pb-24">
       <h1 className="text-3xl font-bold mb-6">Admin Requests</h1>
       <Tabs defaultValue="withdrawal-requests" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="withdrawal-requests">Withdrawals</TabsTrigger>
             <TabsTrigger value="follow-requests">Follows</TabsTrigger>
             <TabsTrigger value="coin-transfers">Transfers</TabsTrigger>
-            <TabsTrigger value="referral-requests">Referrals</TabsTrigger>
             <TabsTrigger value="send-notification">Notify</TabsTrigger>
         </TabsList>
         <TabsContent value="withdrawal-requests" className="mt-6"><WithdrawalRequestsManager /></TabsContent>
@@ -558,17 +489,12 @@ export default function AdminRequestsPage() {
                 </CardContent>
             </Card>
         </TabsContent>
-        <TabsContent value="referral-requests" className="mt-6">
-            <AdminReferralRequestsManager
-                isLoading={isLoadingReferrals}
-                pendingRequests={pendingReferrals}
-                onRespond={adminRespondToReferralRequest}
-                onApproveAll={adminApproveAllReferralRequests}
-            />
-        </TabsContent>
         <TabsContent value="send-notification" className="mt-6"><SendNotificationManager /></TabsContent>
       </Tabs>
       {/* Dialogs remain the same */}
     </div>
   );
 }
+
+
+    
