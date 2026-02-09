@@ -3,7 +3,7 @@
 
 import { useAuth } from '@/lib/auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, Mail, Phone, Calendar, Badge, ShieldCheck, ShieldAlert, Loader2, Hash, UserCheck, Edit, Trash2, LogOut, ChevronRight, Shield, Moon, Sun, Globe } from 'lucide-react';
+import { User, Mail, Phone, Calendar, Badge, ShieldCheck, ShieldAlert, Loader2, Hash, UserCheck, Edit, Trash2, LogOut, ChevronRight, Shield, Moon, Sun, Globe, Languages } from 'lucide-react';
 import { Skeleton } from './ui/skeleton';
 import { Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -18,9 +18,10 @@ import { Switch } from './ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { EditProfileForm } from './edit-profile-form';
 import Link from 'next/link';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 export function ProfileCard() {
-  const { userProfile, loading, emailVerified, sendVerificationEmail, logout, theme, setTheme } = useAuth();
+  const { userProfile, loading, emailVerified, sendVerificationEmail, logout, theme, setTheme, updateUserProfile } = useAuth();
   const { user } = useUser(); // Get the raw Firebase Auth user
   const { toast } = useToast();
   const [isSending, setIsSending] = useState(false);
@@ -194,6 +195,28 @@ export function ProfileCard() {
         </CardHeader>
         <CardContent className="p-0">
            <div className="divide-y">
+                <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-4">
+                        <Languages className="h-5 w-5 text-muted-foreground" />
+                        <Label htmlFor="language-select" className="text-sm font-medium">
+                            Language
+                        </Label>
+                    </div>
+                    <Select value={userProfile.language || 'en'} onValueChange={(value) => updateUserProfile({ language: value })}>
+                        <SelectTrigger id="language-select" className="w-[150px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="en">English</SelectItem>
+                            <SelectItem value="es">Español</SelectItem>
+                            <SelectItem value="fr">Français</SelectItem>
+                            <SelectItem value="de">Deutsch</SelectItem>
+                            <SelectItem value="hi">हिन्दी</SelectItem>
+                            <SelectItem value="pt">Português</SelectItem>
+                            <SelectItem value="zh">中文</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
                 <div className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-4">
                         {theme === 'dark' ? <Sun className="h-5 w-5 text-muted-foreground" /> : <Moon className="h-5 w-5 text-muted-foreground" />}

@@ -125,6 +125,7 @@ export type UserProfile = {
   isAdmin?: boolean;
   notifications?: string[];
   theme?: 'light' | 'dark';
+  language?: string;
 
   dailyClaimedCoins?: string[];
   lastMissedCoinClaimTimestamp?: number;

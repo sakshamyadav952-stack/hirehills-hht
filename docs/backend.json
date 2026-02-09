@@ -109,6 +109,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "language": {
+            "type": "string",
+            "description": "The user's preferred language code (e.g., 'en', 'es')."
         }
       },
       "required": [
@@ -118,6 +122,16 @@
         "createdAt",
         "profileCode"
       ]
+    },
+    "Translation": {
+        "title": "Translation",
+        "type": "object",
+        "description": "Stores a single translation pair.",
+        "properties": {
+            "originalText": { "type": "string" },
+            "translatedText": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        }
     },
     "PrivateContact": {
       "title": "PrivateContact",
@@ -365,6 +379,22 @@
             "rules": [
               "allow read: if request.auth.uid == userId;",
               "allow write: if request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true;"
+            ]
+          }
+        }
+      },
+      {
+        "path": "/translations/{languageCode}/phrases/{phraseHash}",
+        "definition": {
+          "entityName": "Translation",
+          "schema": {
+            "$ref": "#/entities/Translation"
+          },
+          "description": "A shared cache of translated phrases. Accessed via a secure cloud function.",
+          "accessControl": {
+            "reasoning": "This collection is only accessed by a server-side function with admin privileges, so client access is denied.",
+            "rules": [
+              "allow read, write: if false;"
             ]
           }
         }

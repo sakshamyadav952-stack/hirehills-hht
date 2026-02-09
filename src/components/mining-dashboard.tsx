@@ -31,6 +31,7 @@ import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { PotentialEarningsDialog } from "./potential-earnings-dialog";
 import { AirdropCard } from './airdrop-card';
+import { translateText } from "@/ai/flows/translate-flow";
 
 
 function UniversalMessageNotification() {
@@ -613,6 +614,7 @@ export function MiningDashboard() {
   const [conflictingAccounts, setConflictingAccounts] = useState<Partial<UserProfile>[]>([]);
   const [cumulativeFBloc, setCumulativeFBloc] = useState(0);
   const animationFrameRef = useRef<number>();
+  const [translations, setTranslations] = useState<Record<string, string>>({});
   
   const isSessionActive = useMemo(() => {
       if (!userProfile?.sessionEndTime) return false;
@@ -628,6 +630,33 @@ export function MiningDashboard() {
     }
     return 0;
   }, [isSessionActive, liveCoins, userProfile?.unclaimedCoins]);
+
+  // Translation logic
+  const textsToTranslate = useMemo(() => [
+    'Blistree Tokens Earned This Session',
+    'Coins Ready to Claim',
+    'Start Mining',
+    'Total Balance:',
+  ], []);
+
+  const t = useCallback((text: string) => translations[text] || text, [translations]);
+
+  useEffect(() => {
+    if (!userProfile) return;
+
+    const targetLanguage = userProfile.language || 'en';
+    if (targetLanguage === 'en') {
+      setTranslations({});
+      return;
+    }
+
+    translateText({ texts: textsToTranslate, targetLanguage })
+      .then(result => {
+        setTranslations(result.translations);
+      })
+      .catch(console.error);
+  }, [userProfile?.language, textsToTranslate, userProfile]);
+  // End translation logic
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -656,8 +685,6 @@ export function MiningDashboard() {
             } else {
                 setTimeRemaining('00:00:00');
                 clearInterval(interval);
-                // The session end and coin finalization is handled by a listener in `useAuth`
-                // to ensure it happens reliably even if the component isn't mounted.
             }
         };
 
@@ -711,7 +738,6 @@ export function MiningDashboard() {
     if (!userProfile || !userProfile.unclaimedCoins || userProfile.unclaimedCoins <= 0 || isClaiming) return;
     
     setIsClaiming(true);
-    // Add a 1-second delay
     setTimeout(async () => {
         const claimedAmount = await claimMinedCoins();
         if (claimedAmount !== undefined) {
@@ -730,7 +756,6 @@ export function MiningDashboard() {
         await adminTerminateUserSession(userProfile.id);
         toast({ title: "Session Terminated", description: "Your mining session has been ended."});
     } catch (error: any) {
-        // Error toast is handled in the hook
     } finally {
         setIsTerminating(false);
     }
@@ -797,7 +822,6 @@ export function MiningDashboard() {
 
             setCumulativeFBloc(total);
 
-            // Only continue animating if there are active calculations
             const isStillAnimating = kuberBlocks.some(block => {
                 const totalKuberPoints = (Math.max(0, block.referralSessionEndTime - block.userSessionStartTime) / (1000 * 60 * 60)) * 0.25;
                 const elapsedMsSinceStart = Math.max(0, now - block.userSessionStartTime);
@@ -943,7 +967,7 @@ export function MiningDashboard() {
         <div className="flex flex-col items-center">
             <Button size="lg" onClick={handleClaimCoins} disabled={isClaiming} className="bg-amber-500 hover:bg-amber-600 text-white shadow-[0_0_20px] shadow-amber-500/80">
               {isClaiming ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Coins className="mr-2 h-5 w-5" />}
-              Claim Coins
+              {t('Claim Coins')}
             </Button>
         </div>
       );
@@ -957,7 +981,7 @@ export function MiningDashboard() {
           >
               <div className="w-20 h-20 rounded-full border-2 border-primary/80 flex flex-col items-center justify-center">
                   <Play className="w-8 h-8 text-primary" />
-                  <span className="text-sm font-semibold text-primary mt-1">Start</span>
+                  <span className="text-sm font-semibold text-primary mt-1">{t('Start')}</span>
               </div>
           </button>
       </div>
@@ -1041,10 +1065,10 @@ export function MiningDashboard() {
                 {displayCoins.toFixed(4)}
             </h2>
             <p className="text-sm text-gray-300 mt-2">
-              {isSessionActive ? "Blistree Tokens Earned This Session" : (userProfile.unclaimedCoins || 0) > 0 ? "Coins Ready to Claim" : "Start Mining"}
+              {isSessionActive ? t("Blistree Tokens Earned This Session") : (userProfile.unclaimedCoins || 0) > 0 ? t("Coins Ready to Claim") : t("Start Mining")}
             </p>
             <p className="text-xs text-gray-400 mt-1 flex items-center justify-center gap-1">
-                <span>Total Balance: {(userProfile.minedCoins || 0).toFixed(4)}</span>
+                <span>{t('Total Balance:')} {(userProfile.minedCoins || 0).toFixed(4)}</span>
                 <span className="font-sans font-bold">₿</span>
             </p>
           </div>
