@@ -32,6 +32,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { differenceInHours } from 'date-fns';
 import { parsePhoneNumber } from 'libphonenumber-js';
+import { translateText } from '@/ai/flows/translate-flow';
 
 
 type CooldownType = '2H' | '4H' | '8H';
@@ -125,6 +126,8 @@ interface AuthContextType {
   clearKuberSessionLogs: () => Promise<void>;
   creditCrushOracleInstall: () => Promise<void>;
   dailyAdCoins: DailyAdCoin[];
+  t: (key: string) => string;
+  setLanguage: (lang: string) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -184,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [referrerProfile, setReferrerProfile] = useState<UserProfile | null>(null);
   const [referralEarnings, setReferralEarnings] = useState(0);
   const [dailyAdCoins, setDailyAdCoins] = useState<DailyAdCoin[]>([]);
+  const [translations, setTranslations] = useState<Record<string, string>>({});
 
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
   const loginTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -192,6 +196,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAdCooldownEndTime(Date.now() + 15000); // 15 seconds
   }, []);
 
+  const updateUserProfile = useCallback(async (data: Partial<UserProfile>) => {
+    if (!user) throw new Error('User not authenticated.');
+    const userDocRef = doc(firestore, 'users', user.uid);
+    
+    try {
+        await updateDoc(userDocRef, data);
+    } catch(e: any) {
+        toast({ title: 'Update Failed', description: 'Could not update your profile.', variant: 'destructive' });
+        errorEmitter.emit(
+            'permission-error',
+            new FirestorePermissionError({
+                path: userDocRef.path,
+                operation: 'update',
+                requestResourceData: data,
+            })
+        );
+        throw e;
+    }
+  }, [user, firestore, toast]);
+
+  const setLanguage = useCallback((lang: string) => {
+    if (userProfile?.language !== lang) {
+      // Clear cache when language changes
+      localStorage.removeItem(`translations_${userProfile?.language}`);
+      updateUserProfile({ language: lang });
+    }
+  }, [userProfile?.language, updateUserProfile]);
+
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
     if (user) {
@@ -199,6 +231,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateDocumentNonBlocking(userDocRef, { theme: newTheme });
     }
   };
+
+  const masterTranslationList = useMemo(() => [
+    'Blistree Tokens Earned This Session',
+    'Coins Ready to Claim',
+    'Start Mining',
+    'Total Balance:',
+    'Start',
+    'Claim Coins',
+    // Add any other static text from your components here
+  ], []);
+
+  const fetchAllTranslations = useCallback(async (lang: string) => {
+      if (!userProfile) return;
+
+      const cached = localStorage.getItem(`translations_${lang}`);
+      if (cached) {
+          setTranslations(JSON.parse(cached));
+          return; // Already have cached translations for this language
+      }
+
+      try {
+          const result = await translateText({
+              texts: masterTranslationList,
+              targetLanguage: lang,
+              isAdmin: !!userProfile.isAdmin
+          });
+
+          if (result.translations) {
+              setTranslations(result.translations);
+              localStorage.setItem(`translations_${lang}`, JSON.stringify(result.translations));
+          } else if (!userProfile.isAdmin) {
+              toast({
+                  title: "Translation Not Available",
+                  description: "Admin will add translations for this language soon.",
+                  variant: "destructive"
+              });
+          }
+      } catch (error) {
+          console.error("Translation fetch failed:", error);
+      }
+  }, [userProfile, masterTranslationList, toast]);
+
+  // Handle language change
+  useEffect(() => {
+    if (!userProfile) return;
+    const targetLanguage = userProfile.language || 'en';
+    fetchAllTranslations(targetLanguage);
+  }, [userProfile?.language, fetchAllTranslations, userProfile]);
+
+  const t = useCallback((key: string) => {
+      return translations[key] || key;
+  }, [translations]);
+
 
   useEffect(() => {
     if (userProfile?.theme) {
@@ -827,27 +912,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         delete (window as any).onGoogleLoginError;
     };
   }, [auth, createNewUserProfile, toast, router, firestore]);
-
-
-  const updateUserProfile = useCallback(async (data: Partial<UserProfile>) => {
-    if (!user) throw new Error('User not authenticated.');
-    const userDocRef = doc(firestore, 'users', user.uid);
-    
-    try {
-        await updateDoc(userDocRef, data);
-    } catch(e: any) {
-        toast({ title: 'Update Failed', description: 'Could not update your profile.', variant: 'destructive' });
-        errorEmitter.emit(
-            'permission-error',
-            new FirestorePermissionError({
-                path: userDocRef.path,
-                operation: 'update',
-                requestResourceData: data,
-            })
-        );
-        throw e;
-    }
-  }, [user, firestore, toast]);
 
   const updateUserEmail = useCallback(async (newEmail: string) => {
     if (!user) throw new Error('User not authenticated.');
@@ -2134,7 +2198,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
                 referralId: request.userName, // Note: This should ideally be a referral ID
                 referralName: request.userName,
                 userSessionStartTime: request.userSessionStartTime,
-                referralSessionEndTime: request.referrerSessionEndTime,
+                referrerSessionEndTime: request.referrerSessionEndTime,
             };
 
             const updatedKuberApprovalRequests = (userData.kuberApprovalRequests || []).filter(
@@ -2182,67 +2246,86 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     }
   }, [userProfile?.unclaimedCoins]);
   
-  // Effect to generate daily coins based on claimed history
-  useEffect(() => {
-    if (!user || !userProfile) return;
+    // Effect to generate daily coins based on claimed history
+    useEffect(() => {
+        if (!user || !userProfile) return;
 
-    const generateDailyCoins = () => {
-        const now = new Date();
-        // For existing users without the field, default to an empty array.
-        // This correctly results in all 8 past slots being treated as 'missed'.
-        const claimedIds = new Set(Array.isArray(userProfile.dailyClaimedCoins) ? userProfile.dailyClaimedCoins : []);
-        const schedule = ['08:00', '12:00', '16:00', '22:00'];
-        const newGeneratedCoins: DailyAdCoin[] = [];
+        const generateAndFilterDailyCoins = () => {
+            const now = new Date();
+            const schedule = ['22:00', '16:00', '12:00', '08:00']; // From latest to earliest
+            
+            // 1. Calculate the last 8 valid slots
+            const last8Slots: { id: string, availableAt: Date }[] = [];
+            const tempDate = new Date(now);
 
-        // Generate the last 8 theoretical slots
-        const last8Slots: { id: string, availableAt: Date }[] = [];
-        let tempDate = new Date(now);
-        while(last8Slots.length < 8) {
-            for (let i = schedule.length - 1; i >= 0; i--) {
-                const timeSlot = schedule[i];
-                const [hour, minute] = timeSlot.split(':').map(Number);
-                const slotTime = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), hour, minute, 0, 0);
+            while (last8Slots.length < 8) {
+                for (const timeSlot of schedule) {
+                    if (last8Slots.length >= 8) break;
 
-                if (slotTime <= now && last8Slots.length < 8) {
-                    const dateString = slotTime.toISOString().split('T')[0];
-                    last8Slots.push({ id: `${dateString}-${timeSlot}`, availableAt: slotTime });
+                    const [hour, minute] = timeSlot.split(':').map(Number);
+                    const slotTime = new Date(tempDate);
+                    slotTime.setHours(hour, minute, 0, 0);
+
+                    if (slotTime <= now) {
+                        const year = slotTime.getFullYear();
+                        const month = String(slotTime.getMonth() + 1).padStart(2, '0');
+                        const day = String(slotTime.getDate()).padStart(2, '0');
+                        const id = `${year}-${month}-${day}-${timeSlot}`;
+                        last8Slots.push({ id, availableAt: slotTime });
+                    }
+                }
+                tempDate.setDate(tempDate.getDate() - 1);
+            }
+
+            // 2. Prune old/invalid claimed IDs from Firestore
+            const validSlotIds = new Set(last8Slots.map(s => s.id));
+            const userClaimedIds = userProfile.dailyClaimedCoins || [];
+            const newClaimedIds = userClaimedIds.filter(id => validSlotIds.has(id));
+
+            if (newClaimedIds.length !== userClaimedIds.length) {
+                const userDocRef = doc(firestore, 'users', user.uid);
+                updateDocumentNonBlocking(userDocRef, { dailyClaimedCoins: newClaimedIds });
+            }
+
+            // 3. Generate the list of coins to be displayed (available or missed)
+            const newGeneratedCoins: DailyAdCoin[] = [];
+            const claimedIdSet = new Set(newClaimedIds);
+
+            for (const slot of last8Slots) {
+                if (!claimedIdSet.has(slot.id)) {
+                    const availableAtTime = slot.availableAt.getTime();
+                    const expiresAt = availableAtTime + 30 * 60 * 1000;
+                    const finalExpiryAt = availableAtTime + 48 * 60 * 60 * 1000;
+
+                    // Skip fully expired coins that can no longer be claimed even with an ad
+                    if (now.getTime() > finalExpiryAt) {
+                        continue;
+                    }
+
+                    const status: 'available' | 'missed' = (now.getTime() >= availableAtTime && now.getTime() < expiresAt) ? 'available' : 'missed';
+
+                    newGeneratedCoins.push({
+                        id: slot.id,
+                        status,
+                        availableAt: availableAtTime,
+                        expiresAt,
+                        finalExpiryAt
+                    });
                 }
             }
-            tempDate.setDate(tempDate.getDate() - 1);
-        }
-
-        for (const slot of last8Slots) {
-            if (!claimedIds.has(slot.id)) {
-                const availableAtTime = slot.availableAt.getTime();
-                const expiresAt = availableAtTime + 30 * 60 * 1000;
-                const finalExpiryAt = availableAtTime + 48 * 60 * 60 * 1000;
-
-                if (now.getTime() > finalExpiryAt) {
-                    continue; // Skip fully expired coins
+            
+            // 4. Update the component's state
+            setDailyAdCoins(currentCoins => {
+                if (JSON.stringify(currentCoins) === JSON.stringify(newGeneratedCoins)) {
+                  return currentCoins;
                 }
+                return newGeneratedCoins;
+            });
+        };
 
-                const status: 'available' | 'missed' = (now.getTime() >= availableAtTime && now.getTime() < expiresAt) ? 'available' : 'missed';
-
-                newGeneratedCoins.push({
-                    id: slot.id,
-                    status,
-                    availableAt: availableAtTime,
-                    expiresAt,
-                    finalExpiryAt
-                });
-            }
-        }
-        
-        setDailyAdCoins(currentCoins => {
-            if (JSON.stringify(currentCoins) === JSON.stringify(newGeneratedCoins)) {
-                return currentCoins;
-            }
-            return newGeneratedCoins;
-        });
-    };
-
-    generateDailyCoins();
-  }, [user, userProfile]);
+        generateAndFilterDailyCoins();
+        // This effect should run when the user profile changes, e.g., after claiming a coin.
+    }, [user, userProfile, firestore]);
 
 const collectDailyAdCoin = useCallback(async (coinId: string): Promise<number | undefined> => {
     if (!user) return;
@@ -2614,6 +2697,8 @@ const creditCrushOracleInstall = useCallback(async () => {
     clearKuberSessionLogs,
     creditCrushOracleInstall,
     dailyAdCoins,
+    t,
+    setLanguage
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -2626,3 +2711,4 @@ export const useAuth = () => {
   }
   return context;
 };
+
