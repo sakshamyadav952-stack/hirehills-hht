@@ -650,7 +650,7 @@ export function MiningDashboard() {
       return;
     }
 
-    translateText({ texts: textsToTranslate, targetLanguage })
+    translateText({ texts: textsToTranslate, targetLanguage, isAdmin: false })
       .then(result => {
         setTranslations(result.translations);
       })

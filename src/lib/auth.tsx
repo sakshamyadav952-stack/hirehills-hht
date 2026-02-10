@@ -1201,7 +1201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [firestore, toast]);
 
   const adminStartUserSession = useCallback(async (userId: string) => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
     if (!isAdmin) {
       toast({ title: 'Unauthorized', description: 'You do not have permission.', variant: 'destructive' });
       throw new Error('Not an admin');
@@ -1245,7 +1245,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [userProfile, firestore, toast, getGlobalSessionDuration]);
 
   const adminTerminateUserSession = useCallback(async (userId: string) => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
     if (!isAdmin) {
         toast({ title: 'Unauthorized', description: 'You do not have permission.', variant: 'destructive' });
         throw new Error('Not an admin');
@@ -1433,7 +1433,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, userProfile, firestore, toast]);
 
     const adminApplyReferralCode = useCallback(async (referrerCode: string, refereeCode: string) => {
-        const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+        const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
         if (!isAdmin) {
             toast({ title: 'Unauthorized', description: 'You do not have permission to perform this action.', variant: 'destructive' });
             return;
@@ -1664,7 +1664,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }, [user, userProfile, firestore, toast]);
 
 const respondToTransferByAdmin = useCallback(async (transferId: string, senderId: string, receiverId: string, amount: number, action: 'approve' | 'reject', comment?: string, transactionId?: string): Promise<void> => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
     if (!isAdmin) {
         toast({ title: 'Unauthorized', description: 'Only admins can perform this action.', variant: 'destructive' });
         return;
@@ -1703,7 +1703,8 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
 
 
     const sendNotificationToUser = useCallback(async (profileCode: string, message: string) => {
-        if (!userProfile?.isAdmin) {
+        const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+        if (!isAdmin) {
             toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
             throw new Error("User is not an admin.");
         }
@@ -1809,7 +1810,7 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
   }, [user, userProfile, firestore, toast]);
 
   const adminUpdateUserCoins = useCallback(async (userId: string, amount: number) => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
     if (!isAdmin) {
       toast({ title: 'Unauthorized', description: 'You do not have permission to perform this action.', variant: 'destructive' });
       return;
@@ -1828,7 +1829,7 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
   }, [userProfile, firestore, toast]);
   
   const adminRemoveReferral = useCallback(async (userId: string, referralId: string) => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
     if (!isAdmin) {
         toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
         throw new Error("User is not an admin.");
@@ -1861,7 +1862,8 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
 
 
     const setGlobalBaseMiningRate = useCallback(async (newRate: number) => {
-        if (!userProfile?.isAdmin) {
+        const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+        if (!isAdmin) {
             toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
             throw new Error("User is not an admin.");
         }
@@ -1884,7 +1886,7 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
     }, [userProfile, firestore, toast]);
 
     const setGlobalSessionDuration = useCallback(async (minutes: number) => {
-        const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+        const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
         if (!isAdmin) {
             toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
             throw new Error("User is not an admin.");
@@ -1900,7 +1902,7 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
     }, [userProfile, firestore, toast]);
 
     const grantBonusSpins = useCallback(async (spinCount: number) => {
-        const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+        const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
         if (!isAdmin) {
             toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
             throw new Error("User is not an admin.");
@@ -1926,7 +1928,8 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
     }, [userProfile, firestore, toast]);
 
     const sendUniversalMessage = useCallback(async (message: string) => {
-        if (!userProfile?.isAdmin) {
+        const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+        if (!isAdmin) {
             toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
             throw new Error("User is not an admin.");
         }
@@ -2102,7 +2105,7 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
 }, [user, firestore, auth, toast]);
 
 const adminDeleteChatMessage = useCallback(async (userId: string, messageId: string) => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
     if (!isAdmin) {
         toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
         throw new Error("User is not an admin.");
@@ -2126,7 +2129,7 @@ const adminDeleteChatMessage = useCallback(async (userId: string, messageId: str
 }, [userProfile, firestore, toast]);
 
 const adminClearOpenChats = useCallback(async () => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
     if (!isAdmin) {
       toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
       throw new Error("User is not an admin.");
@@ -2198,7 +2201,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
                 referralId: request.userName, // Note: This should ideally be a referral ID
                 referralName: request.userName,
                 userSessionStartTime: request.userSessionStartTime,
-                referrerSessionEndTime: request.referrerSessionEndTime,
+                referralSessionEndTime: request.referrerSessionEndTime,
             };
 
             const updatedKuberApprovalRequests = (userData.kuberApprovalRequests || []).filter(
@@ -2412,7 +2415,7 @@ const requestFollow = useCallback(async (platform: 'facebook' | 'x', profileName
 }, [user, firestore, toast]);
 
   const approveFollowRequest = useCallback(async (userId: string, platform: 'facebook' | 'x') => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
     if (!isAdmin) {
         toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
         return;
@@ -2445,7 +2448,7 @@ const requestFollow = useCallback(async (platform: 'facebook' | 'x', profileName
 }, [userProfile, firestore, toast]);
   
 const disapproveFollowRequest = useCallback(async (userId: string, platform: 'facebook' | 'x') => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
     if (!isAdmin) {
         toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
         return;
@@ -2471,7 +2474,8 @@ const disapproveFollowRequest = useCallback(async (userId: string, platform: 'fa
 }, [userProfile, firestore, toast]);
 
 const adminSetFollowStatus = useCallback(async (userId: string, platform: 'facebook' | 'x', status: 'followed' | 'pending' | null) => {
-    if (!userProfile?.isAdmin) {
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+    if (!isAdmin) {
         toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
         throw new Error("User is not an admin.");
     }
@@ -2513,7 +2517,7 @@ const setUserHasRatedOnPlayStore = useCallback(async () => {
   }, [user, firestore]);
 
   const updateAirdropConfig = useCallback(async (config: Partial<AirdropConfig>) => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
     if (!isAdmin) {
       toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
       throw new Error("User is not an admin.");

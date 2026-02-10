@@ -10,7 +10,7 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
   const { userProfile, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+  const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
 
   useEffect(() => {
     if (!loading && userProfile && pathname.startsWith('/admin') && !isAdmin) {

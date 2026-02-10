@@ -393,7 +393,7 @@ export default function AdminRequestsPage() {
   const [transferToProcess, setTransferToProcess] = useState<PendingTransfer | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+  const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
   
   useEffect(() => {
     if (!firestore || !isAdmin) return;

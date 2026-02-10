@@ -65,7 +65,7 @@ const translateFlow = ai.defineFlow(
                 const hash = createHash('sha256').update(text).digest('hex');
                 const docRef = db.collection('translations').doc(targetLanguage).collection('phrases').doc(hash);
                 const docSnap = await docRef.get();
-                if (docSnap.exists()) {
+                if (docSnap.exists) {
                     translations[text] = docSnap.data()?.translatedText;
                 } else {
                     textsToTranslate.push(text);

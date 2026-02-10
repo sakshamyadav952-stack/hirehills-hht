@@ -367,7 +367,7 @@ function SidebarLayoutContent({ onAssistantClick }: { onAssistantClick: () => vo
     }
 
     if (userProfile) {
-      const isAdmin = userProfile.isAdmin || userProfile.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+      const isAdmin = userProfile.isAdmin || userProfile.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
       return (
         <>
           {isAdmin ? (
@@ -454,7 +454,7 @@ function MobileProfileSheet({ onAssistantClick }: { onAssistantClick: () => void
     const handleLogout = () => { setIsOpen(false); logout(); };
     const handleAssistantClick = () => { setIsOpen(false); setTimeout(() => onAssistantClick(), 250); };
 
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
 
     return (
       <>

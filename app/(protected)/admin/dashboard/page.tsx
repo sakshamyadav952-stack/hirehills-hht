@@ -484,7 +484,7 @@ function AirdropManager() {
 function AdminDashboard() {
   const { userProfile, loading } = useAuth();
   
-  const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+  const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
   
     if (loading) {
         return (

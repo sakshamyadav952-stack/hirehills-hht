@@ -150,7 +150,7 @@ function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingA
     const [isTerminating, setIsTerminating] = useState(false);
     const [isStartingSession, setIsStartingSession] = useState(false);
     const [isDeletingConflict, setIsDeletingConflict] = useState<string | null>(null);
-    const isAdmin = adminProfile?.isAdmin || adminProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = adminProfile?.isAdmin || adminProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || adminProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
     const { toast } = useToast();
 
     const missedCoinsCollectedLast24h = useMemo(() => {
@@ -762,5 +762,6 @@ export default function FindUserPage() {
     
 
     
+
 
 

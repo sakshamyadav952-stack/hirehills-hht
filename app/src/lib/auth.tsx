@@ -2198,7 +2198,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
                 referralId: request.userName, // Note: This should ideally be a referral ID
                 referralName: request.userName,
                 userSessionStartTime: request.userSessionStartTime,
-                referrerSessionEndTime: request.referrerSessionEndTime,
+                referralSessionEndTime: request.referrerSessionEndTime,
             };
 
             const updatedKuberApprovalRequests = (userData.kuberApprovalRequests || []).filter(
