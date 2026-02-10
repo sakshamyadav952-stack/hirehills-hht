@@ -56,93 +56,94 @@ const translateFlow = ai.defineFlow(
   async ({ texts, targetLanguage, isAdmin }) => {
     const translations: Record<string, string> = {};
     const textsToTranslate: string[] = [];
-    const hashToTextMap: Record<string, string> = {};
+    const uniqueTexts = [...new Set(texts)].filter(Boolean); // Filter out empty strings
 
-    // If the database isn't configured, return original texts
-    if (!db) {
-      console.error("Firestore Admin is not available. Skipping translation.");
-      texts.forEach(text => translations[text] = text);
-      return { translations };
-    }
-
-    // 1. Check cache first
-    const uniqueTexts = [...new Set(texts)]; // Remove duplicates
-
-    for (const text of uniqueTexts) {
-      if (!text) continue;
-      const hash = createHash('sha256').update(text).digest('hex');
-      hashToTextMap[hash] = text;
-      const docRef = db
-        .collection('translations')
-        .doc(targetLanguage)
-        .collection('phrases')
-        .doc(hash);
-      
-      try {
-        const docSnap = await docRef.get();
-        if (docSnap.exists()) {
-          translations[text] = docSnap.data()?.translatedText;
-        } else {
-          textsToTranslate.push(text);
-        }
-      } catch (e) {
-        console.error(`Firestore read failed for '${text}':`, e);
-        // If reading fails, just treat it as not translated
-        textsToTranslate.push(text);
-      }
-    }
-
-    // 2. Translate texts that were not in the cache
-    if (textsToTranslate.length > 0) {
-      if (isAdmin) {
+    // 1. Check cache if db is available
+    if (db) {
         try {
-          const prompt = `Translate the following JSON array of strings from English into ${targetLanguage}.
-          Your response MUST be a valid JSON object where each key is the original English string and the value is its translation.
-          Do not include any other text or explanation in your response.
-
-          Example Input: ["Hello World", "Start Mining"]
-          Example Output for Spanish: {"Hello World": "Hola Mundo", "Start Mining": "Empezar a Minar"}
-
-          Translate this array:
-          ${JSON.stringify(textsToTranslate)}
-          `;
-
-          const aiResponse = await ai.generate({
-            prompt: prompt,
-            config: {
-              responseFormat: 'json',
-            },
-          });
-
-          const responseText = aiResponse.text.trim();
-          const newTranslations = JSON.parse(responseText);
-
-          // 3. Save new translations to cache and add to our response object
-          const batch = db.batch();
-          for (const originalText in newTranslations) {
-            if (Object.prototype.hasOwnProperty.call(newTranslations, originalText)) {
-              const translatedText = newTranslations[originalText];
-              translations[originalText] = translatedText;
-              const hash = createHash('sha256').update(originalText).digest('hex');
-              const docRef = db.collection('translations').doc(targetLanguage).collection('phrases').doc(hash);
-              batch.set(docRef, { originalText, translatedText, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+            for (const text of uniqueTexts) {
+                const hash = createHash('sha256').update(text).digest('hex');
+                const docRef = db.collection('translations').doc(targetLanguage).collection('phrases').doc(hash);
+                const docSnap = await docRef.get();
+                if (docSnap.exists()) {
+                    translations[text] = docSnap.data()?.translatedText;
+                } else {
+                    textsToTranslate.push(text);
+                }
             }
-          }
-          await batch.commit();
-
         } catch (e) {
-          console.error('AI translation and Firestore write failed:', e);
-          // In case of error, just return the original texts
-          textsToTranslate.forEach(text => {
-            translations[text] = text;
-          });
+            console.error("Firestore cache check failed. Falling back to translating all texts.", e);
+            // Clear any partial results and prepare to translate everything.
+            Object.keys(translations).forEach(key => delete translations[key]);
+            textsToTranslate.splice(0, textsToTranslate.length, ...uniqueTexts);
         }
-      } else {
-        // For non-admins, just return the original text for non-cached items.
-        textsToTranslate.forEach(text => {
-            translations[text] = text;
-        });
-      }
+    } else {
+        console.warn("Firestore Admin is not available. Skipping cache check.");
+        textsToTranslate.push(...uniqueTexts);
+    }
+    
+    // 2. Translate what's needed
+    if (textsToTranslate.length > 0) {
+        if (isAdmin) {
+            try {
+                const prompt = `Translate the following JSON array of strings from English into ${targetLanguage}.
+Your response MUST be a valid JSON object where each key is the original English string and the value is its translation.
+Do not include any other text or explanation in your response.
+
+Example Input: ["Hello World", "Start Mining"]
+Example Output for Spanish: {"Hello World": "Hola Mundo", "Start Mining": "Empezar a Minar"}
+
+Translate this array:
+${JSON.stringify(textsToTranslate)}
+`;
+
+                const aiResponse = await ai.generate({
+                    prompt: prompt,
+                    config: {
+                        responseFormat: 'json',
+                    },
+                });
+
+                const responseText = aiResponse.text.trim();
+                const newTranslations = JSON.parse(responseText);
+
+                for (const originalText in newTranslations) {
+                    if (Object.prototype.hasOwnProperty.call(newTranslations, originalText)) {
+                        translations[originalText] = newTranslations[originalText];
+                    }
+                }
+
+                // 3. Try to save new translations to cache, but don't fail the whole flow if it doesn't work
+                if (db) {
+                    try {
+                        const batch = db.batch();
+                        for (const originalText in newTranslations) {
+                            if (Object.prototype.hasOwnProperty.call(newTranslations, originalText)) {
+                                const translatedText = newTranslations[originalText];
+                                const hash = createHash('sha256').update(originalText).digest('hex');
+                                const docRef = db.collection('translations').doc(targetLanguage).collection('phrases').doc(hash);
+                                batch.set(docRef, { originalText, translatedText, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+                            }
+                        }
+                        await batch.commit();
+                    } catch (e) {
+                        console.error("Firestore cache write failed:", e);
+                        // The flow will still succeed, just without caching this time.
+                    }
+                }
+            } catch (e) {
+                console.error('AI translation failed:', e);
+                // In case of AI error, return original texts
+                textsToTranslate.forEach(text => {
+                    translations[text] = text;
+                });
+            }
+        } else {
+             // For non-admins, if text wasn't in cache, return it untranslated
+             textsToTranslate.forEach(text => {
+                translations[text] = text;
+            });
+        }
     }
 
     return { translations };
