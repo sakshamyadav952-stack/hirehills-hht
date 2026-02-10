@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useAuth } from '@/lib/auth';
@@ -195,7 +194,7 @@ export function ProfileCard() {
         </CardHeader>
         <CardContent className="p-0">
            <div className="divide-y">
-                <div className="flex items-center justify-between p-4">
+                {/* <div className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-4">
                         <Languages className="h-5 w-5 text-muted-foreground" />
                         <Label htmlFor="language-select" className="text-sm font-medium">
@@ -216,7 +215,7 @@ export function ProfileCard() {
                             <SelectItem value="zh">中文</SelectItem>
                         </SelectContent>
                     </Select>
-                </div>
+                </div> */}
                 <div className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-4">
                         {theme === 'dark' ? <Sun className="h-5 w-5 text-muted-foreground" /> : <Moon className="h-5 w-5 text-muted-foreground" />}
