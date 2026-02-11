@@ -77,6 +77,14 @@ export type KuberId = {
   lastRequestId: string;
 };
 
+export type PromoterReward = {
+  referralId: string;
+  referralName: string;
+  referralProfileCode: string;
+  usdtAmount: number;
+  timestamp: Timestamp;
+};
+
 export type UserProfile = {
   id: string;
   fullName: string;
@@ -124,6 +132,8 @@ export type UserProfile = {
   withdrawalRequests?: WithdrawalRequest[];
   isAdmin?: boolean;
   isPromoter?: boolean;
+  promoterRewards?: PromoterReward[];
+  promoterReferralCount?: number;
   notifications?: string[];
   theme?: 'light' | 'dark';
   language?: string;

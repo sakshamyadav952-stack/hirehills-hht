@@ -74,9 +74,19 @@ export const applyReferralCode = functions
         });
 
         // 5. Update Referrer's Document
+        const promoterRewardEntry = {
+            referralId: refereeUid,
+            referralName: refereeData.fullName,
+            referralProfileCode: refereeData.profileCode,
+            usdtAmount: 0.15,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
         transaction.update(referrerDoc.ref, {
             referrals: admin.firestore.FieldValue.arrayUnion(refereeUid),
             minedCoins: admin.firestore.FieldValue.increment(rewardAmount),
+            promoterRewards: admin.firestore.FieldValue.arrayUnion(promoterRewardEntry),
+            promoterReferralCount: admin.firestore.FieldValue.increment(1),
         });
       });
 
