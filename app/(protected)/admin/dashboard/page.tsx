@@ -494,16 +494,15 @@ function EligibleUsersManager() {
         setIsLoading(true);
 
         try {
-            const nowTimestamp = Date.now();
+            
             let q = query(
                 collection(firestore, 'users'),
                 where('minedCoins', '>', 100),
-                where('sessionEndTime', '>', nowTimestamp),
                 orderBy('minedCoins', 'desc'),
                 limit(PAGE_SIZE)
             );
 
-            if (startAfterDoc) {
+            if (startAfterDoc && !refresh) {
                 q = query(q, startAfter(startAfterDoc));
             }
             
@@ -536,7 +535,7 @@ function EligibleUsersManager() {
     };
 
     const handleNext = () => {
-        if (!isLastPage) {
+        if (!isLastPage && lastDoc) {
             fetchUsers(lastDoc, false);
         }
     };
@@ -548,7 +547,7 @@ function EligibleUsersManager() {
                     <div>
                         <CardTitle>Eligible Users</CardTitle>
                         <CardDescription>
-                            Active users with over 100 BLIT.
+                            Users with over 100 BLIT and their current session status.
                         </CardDescription>
                     </div>
                     <Button onClick={handleRefresh} disabled={isLoading}>
@@ -564,13 +563,13 @@ function EligibleUsersManager() {
                     <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
                         <Inbox className="h-12 w-12 text-muted-foreground" />
                         <h3 className="font-semibold">No Eligible Users Found</h3>
-                        <p className="text-sm text-muted-foreground">No active users currently meet the criteria.</p>
+                        <p className="text-sm text-muted-foreground">No users currently have over 100 BLIT.</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
                         {eligibleUsers.map(user => (
                             <Card key={user.id} className="p-4 hover:bg-muted/50 transition-colors">
-                                <div className="flex items-center justify-between gap-4">
+                               <div className="flex items-center justify-between gap-4">
                                     <div className="flex items-center gap-4">
                                         <Avatar className="h-12 w-12"><AvatarImage src={user.profileImageUrl} alt={user.fullName} /><AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback></Avatar>
                                         <div>
@@ -578,9 +577,14 @@ function EligibleUsersManager() {
                                             <p className="text-sm text-muted-foreground">{user.profileCode}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 font-semibold">
-                                        <Coins className="h-5 w-5 text-amber-400" />
-                                        <span>{user.minedCoins.toFixed(4)} BLIT</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2 font-semibold">
+                                            <Coins className="h-5 w-5 text-amber-400" />
+                                            <span>{user.minedCoins.toFixed(4)} BLIT</span>
+                                        </div>
+                                        <Badge variant={user.sessionEndTime && user.sessionEndTime > Date.now() ? 'default' : 'secondary'} className={cn(user.sessionEndTime && user.sessionEndTime > Date.now() && 'bg-green-500/80')}>
+                                            {user.sessionEndTime && user.sessionEndTime > Date.now() ? 'Active' : 'Inactive'}
+                                        </Badge>
                                     </div>
                                 </div>
                             </Card>
