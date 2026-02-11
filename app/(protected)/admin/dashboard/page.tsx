@@ -544,7 +544,7 @@ function PromotersManager() {
             if (searchTerm) {
                 q = query(baseQuery, where('profileCode', '==', searchTerm.toUpperCase()));
             } else {
-                q = query(baseQuery, orderBy('fullName'), limit(PAGE_SIZE));
+                q = query(baseQuery, orderBy(documentId()), limit(PAGE_SIZE));
                 if (startAfterDoc && !refresh) {
                     q = query(q, startAfter(startAfterDoc));
                 }
@@ -689,3 +689,5 @@ function AdminDashboard() {
 export default function AdminDashboardPage() {
     return <AdminDashboard />;
 }
+
+    
