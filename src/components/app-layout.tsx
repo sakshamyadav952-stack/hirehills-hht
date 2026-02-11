@@ -368,6 +368,8 @@ function SidebarLayoutContent({ onAssistantClick }: { onAssistantClick: () => vo
 
     if (userProfile) {
       const isAdmin = userProfile.isAdmin || userProfile.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+      const isPromoter = userProfile.isPromoter;
+      
       return (
         <>
           {isAdmin ? (
@@ -387,6 +389,9 @@ function SidebarLayoutContent({ onAssistantClick }: { onAssistantClick: () => vo
             </>
           ) : (
             <>
+              {isPromoter && (
+                  <SidebarMenuItem onClick={handleLinkClick}><SidebarMenuButton asChild tooltip="Promoter Dashboard" isActive={pathname === '/promoter/dashboard'}><Link href="/promoter/dashboard"><LayoutDashboard /><span>Dashboard</span></Link></SidebarMenuButton></SidebarMenuItem>
+              )}
               <SidebarMenuItem onClick={handleLinkClick}><SidebarMenuButton asChild tooltip="Profile" isActive={pathname === '/profile'}><Link href="/profile"><User /><span>Profile</span></Link></SidebarMenuButton></SidebarMenuItem>
               <SidebarMenuItem onClick={handleLinkClick}><SidebarMenuButton asChild tooltip="Wallet" isActive={pathname === '/wallet'}><Link href="/wallet" className="flex justify-between items-center w-full"><div className="flex items-center gap-2"><Wallet /><span>Wallet</span></div><div className="flex items-center gap-1 font-bold text-green-500"><span className="font-sans font-bold">₿</span><span>{Math.floor(userProfile.minedCoins || 0)}</span></div></Link></SidebarMenuButton></SidebarMenuItem>
               <SidebarMenuItem><SidebarMenuButton tooltip="Blistree Assistant" onClick={handleAssistantClick}><div className="flex items-center justify-between w-full"><div className="flex items-center gap-2"><Sparkles /><span>Assistant</span></div></div></SidebarMenuButton></SidebarMenuItem>
@@ -455,6 +460,7 @@ function MobileProfileSheet({ onAssistantClick }: { onAssistantClick: () => void
     const handleAssistantClick = () => { setIsOpen(false); setTimeout(() => onAssistantClick(), 250); };
 
     const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+    const isPromoter = userProfile?.isPromoter;
 
     return (
       <>
@@ -484,6 +490,9 @@ function MobileProfileSheet({ onAssistantClick }: { onAssistantClick: () => void
                           </>
                         ) : (
                           <>
+                             {isPromoter && (
+                                <Button variant="outline" onClick={() => handleLinkClick('/promoter/dashboard')} className="bg-transparent text-amber-300 border-amber-400/50 hover:bg-amber-400/10 hover:text-white justify-start"><LayoutDashboard className="mr-2 h-4 w-4" /> Promoter Dashboard</Button>
+                             )}
                             <Button variant="outline" onClick={() => handleLinkClick('/profile')} className="bg-transparent text-amber-300 border-amber-400/50 hover:bg-amber-400/10 hover:text-white justify-start"><User className="mr-2 h-4 w-4" /> View Profile</Button>
                              <Button variant="outline" onClick={handleAssistantClick} className="bg-transparent text-amber-300 border-amber-400/50 hover:bg-amber-400/10 hover:text-white justify-start relative"><Sparkles className="mr-2 h-4 w-4" /><span>Blistree Assistant</span></Button>
                              <Button variant="outline" onClick={() => handleLinkClick('/chat')} className="bg-transparent text-amber-300 border-amber-400/50 hover:bg-amber-400/10 hover:text-white justify-start relative"><MessageSquare className="mr-2 h-4 w-4" /><span>Support</span>{userProfile?.hasUnreadAdminMessage && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>}</Button>

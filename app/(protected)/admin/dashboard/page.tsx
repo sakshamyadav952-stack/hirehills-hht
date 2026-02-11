@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, onSnapshot, doc, updateDoc, runTransaction, arrayUnion, query, where, getDocs, writeBatch, increment, getDoc, orderBy, Timestamp, documentId, limit, DocumentSnapshot, startAfter } from 'firebase/firestore';
-import { Loader2, User, Shield, Inbox, Check, X, Coins, Award, Settings, MessageSquare, Send, Star, Banknote, Building2, UserCheck, Share2, AtSign, Smartphone, Gift, Save, FilePen } from 'lucide-react';
+import { Loader2, User, Shield, Inbox, Check, X, Coins, Award, Settings, MessageSquare, Send, Star, Banknote, Building2, UserCheck, Share2, AtSign, Smartphone, Gift, Save, FilePen, Search, Crown } from 'lucide-react';
 import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction, Note, Review, AirdropConfig } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
@@ -378,38 +378,48 @@ const PAGE_SIZE = 10;
 
 function EligibleUsersManager() {
     const firestore = useFirestore();
+    const { makeUserPromoter } = useAuth();
     const [eligibleUsers, setEligibleUsers] = useState<UserProfile[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
     const [isLastPage, setIsLastPage] = useState(false);
+    const [makingPromoter, setMakingPromoter] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const fetchUsers = useCallback(async (startAfterDoc: DocumentSnapshot | null = null, refresh: boolean = false) => {
         if (!firestore) return;
         setIsLoading(true);
 
         try {
-            // Fetch active users first, then filter by coins on the client
-            let q = query(
-                collection(firestore, 'users'),
-                where('sessionEndTime', '>', Date.now()),
-                orderBy('sessionEndTime', 'desc'),
-                limit(PAGE_SIZE * 2) // Fetch more to have a better chance of filling the page
-            );
-
-            if (startAfterDoc && !refresh) {
-                q = query(q, startAfter(startAfterDoc));
+            let q;
+            if (searchTerm) {
+                q = query(collection(firestore, 'users'), where('profileCode', '==', searchTerm.toUpperCase()));
+            } else {
+                q = query(
+                    collection(firestore, 'users'),
+                    where('sessionEndTime', '>', Date.now()),
+                    orderBy('sessionEndTime', 'desc'),
+                    limit(PAGE_SIZE * 2) // Fetch more to have a better chance of filling the page
+                );
+                if (startAfterDoc && !refresh) {
+                    q = query(q, startAfter(startAfterDoc));
+                }
             }
             
             const documentSnapshots = await getDocs(q);
             
-            const users = documentSnapshots.docs
-                .map(doc => ({ id: doc.id, ...doc.data() } as UserProfile))
-                .filter(user => user.minedCoins > 100);
+            let users = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
+
+            if (searchTerm) {
+                 users = users.filter(user => user.minedCoins > 100 && !user.isPromoter && user.sessionEndTime && user.sessionEndTime > Date.now());
+            } else {
+                 users = users.filter(user => user.minedCoins > 100 && !user.isPromoter);
+            }
             
             setLastDoc(documentSnapshots.docs[documentSnapshots.docs.length - 1] || null);
-            setIsLastPage(documentSnapshots.docs.length < (PAGE_SIZE * 2));
+            setIsLastPage(searchTerm ? true : documentSnapshots.docs.length < (PAGE_SIZE * 2));
 
-            if (refresh) {
+            if (refresh || searchTerm) {
                 setEligibleUsers(users);
             } else {
                 setEligibleUsers(prev => {
@@ -424,39 +434,48 @@ function EligibleUsersManager() {
         } finally {
             setIsLoading(false);
         }
-    }, [firestore]);
+    }, [firestore, searchTerm]);
 
-    useEffect(() => {
-        fetchUsers(null, true);
-    }, [fetchUsers]);
-    
-    const handleRefresh = () => {
+    const handleRefresh = useCallback(() => {
         setEligibleUsers([]);
         setLastDoc(null);
         setIsLastPage(false);
         fetchUsers(null, true);
-    };
-
+    }, [fetchUsers]);
+    
+    useEffect(() => {
+        handleRefresh();
+    }, [handleRefresh, searchTerm]);
+    
     const handleNext = () => {
         if (!isLastPage && lastDoc) {
             fetchUsers(lastDoc, false);
         }
     };
 
+    const handleMakePromoter = async (userId: string) => {
+        setMakingPromoter(userId);
+        try {
+            await makeUserPromoter(userId);
+            handleRefresh(); // Refresh the list to remove the new promoter
+        } finally {
+            setMakingPromoter(null);
+        }
+    }
+
     return (
         <Card>
             <CardHeader>
-                <div className="flex justify-between items-center">
-                    <div>
-                        <CardTitle>Eligible Users</CardTitle>
-                        <CardDescription>
-                            Showing active users with over 100 BLIT.
-                        </CardDescription>
-                    </div>
-                    <Button onClick={handleRefresh} disabled={isLoading}>
-                        {isLoading && eligibleUsers.length === 0 && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Refresh
-                    </Button>
+                <CardTitle>Eligible Users</CardTitle>
+                <CardDescription>
+                    Showing active users with over 100 BLIT who are not promoters.
+                </CardDescription>
+                <div className="flex gap-2 pt-4">
+                    <Input 
+                        placeholder="Search by profile code..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                 </div>
             </CardHeader>
             <CardContent>
@@ -466,11 +485,124 @@ function EligibleUsersManager() {
                     <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
                         <Inbox className="h-12 w-12 text-muted-foreground" />
                         <h3 className="font-semibold">No Eligible Users Found</h3>
-                        <p className="text-sm text-muted-foreground">No active users currently have over 100 BLIT.</p>
+                        <p className="text-sm text-muted-foreground">No matching users found.</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
                         {eligibleUsers.map(user => (
+                            <Card key={user.id} className="p-4 hover:bg-muted/50 transition-colors">
+                               <div className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <Avatar className="h-12 w-12"><AvatarImage src={user.profileImageUrl} alt={user.fullName} /><AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback></Avatar>
+                                        <div>
+                                            <Link href={`/admin/find-user?profileCode=${user.profileCode}`} className="font-semibold hover:underline">{user.fullName}</Link>
+                                            <p className="text-sm text-muted-foreground">{user.profileCode}</p>
+                                            <div className="flex items-center gap-2 font-semibold">
+                                                <Coins className="h-4 w-4 text-amber-400" />
+                                                <span className="text-xs">{user.minedCoins.toFixed(2)} BLIT</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <Button onClick={() => handleMakePromoter(user.id!)} disabled={makingPromoter === user.id} size="sm">
+                                      {makingPromoter === user.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4" />}
+                                      Make Promoter
+                                    </Button>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </CardContent>
+            {eligibleUsers.length > 0 && !searchTerm && (
+                <CardFooter className="flex justify-end">
+                    <Button onClick={handleNext} disabled={isLoading || isLastPage}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isLastPage ? 'End of List' : 'Next'}
+                    </Button>
+                </CardFooter>
+            )}
+        </Card>
+    );
+}
+
+function PromotersManager() {
+    const firestore = useFirestore();
+    const [promoters, setPromoters] = useState<UserProfile[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
+    const [isLastPage, setIsLastPage] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const fetchPromoters = useCallback(async (startAfterDoc: DocumentSnapshot | null = null, refresh: boolean = false) => {
+        if (!firestore) return;
+        setIsLoading(true);
+
+        try {
+            let q;
+            const baseQuery = query(collection(firestore, 'users'), where('isPromoter', '==', true));
+            
+            if (searchTerm) {
+                q = query(baseQuery, where('profileCode', '==', searchTerm.toUpperCase()));
+            } else {
+                q = query(baseQuery, orderBy('fullName'), limit(PAGE_SIZE));
+                if (startAfterDoc && !refresh) {
+                    q = query(q, startAfter(startAfterDoc));
+                }
+            }
+
+            const documentSnapshots = await getDocs(q);
+            const users = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
+
+            setLastDoc(documentSnapshots.docs[documentSnapshots.docs.length - 1] || null);
+            setIsLastPage(searchTerm ? true : documentSnapshots.docs.length < PAGE_SIZE);
+
+            if (refresh || searchTerm) {
+                setPromoters(users);
+            } else {
+                setPromoters(prev => [...prev, ...users]);
+            }
+
+        } catch (error) {
+            console.error("Error fetching promoters:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [firestore, searchTerm]);
+
+    useEffect(() => {
+        fetchPromoters(null, true);
+    }, [fetchPromoters]);
+
+    const handleSearchSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      fetchPromoters(null, true); // This now gets triggered on submit.
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Promoters</CardTitle>
+                <CardDescription>Users with promoter privileges.</CardDescription>
+                <form onSubmit={handleSearchSubmit} className="flex gap-2 pt-4">
+                    <Input 
+                        placeholder="Search by profile code..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <Button type="submit"><Search /></Button>
+                </form>
+            </CardHeader>
+            <CardContent>
+                 {isLoading && promoters.length === 0 ? (
+                    <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                ) : promoters.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
+                        <Inbox className="h-12 w-12 text-muted-foreground" />
+                        <h3 className="font-semibold">No Promoters Found</h3>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {promoters.map(user => (
                             <Card key={user.id} className="p-4 hover:bg-muted/50 transition-colors">
                                <div className="flex items-center justify-between gap-4">
                                     <div className="flex items-center gap-4">
@@ -490,11 +622,10 @@ function EligibleUsersManager() {
                     </div>
                 )}
             </CardContent>
-            {eligibleUsers.length > 0 && (
+             {promoters.length > 0 && !searchTerm && (
                 <CardFooter className="flex justify-end">
-                    <Button onClick={handleNext} disabled={isLoading || isLastPage}>
-                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isLastPage ? 'End of List' : 'Next'}
+                    <Button onClick={() => fetchPromoters(lastDoc)} disabled={isLoading || isLastPage}>
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isLastPage ? 'End of List' : 'Next'}
                     </Button>
                 </CardFooter>
             )}
@@ -532,10 +663,11 @@ function AdminDashboard() {
     <div className="container mx-auto py-10 pb-24">
       <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
       <Tabs defaultValue="total-supply" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="total-supply">Total Supply</TabsTrigger>
           <TabsTrigger value="airdrop">Airdrop</TabsTrigger>
           <TabsTrigger value="eligible">Eligible</TabsTrigger>
+          <TabsTrigger value="promoters">Promoters</TabsTrigger>
         </TabsList>
          <TabsContent value="total-supply" className="mt-6">
             <TotalSupplyManager />
@@ -545,6 +677,9 @@ function AdminDashboard() {
         </TabsContent>
         <TabsContent value="eligible" className="mt-6">
             <EligibleUsersManager />
+        </TabsContent>
+        <TabsContent value="promoters" className="mt-6">
+            <PromotersManager />
         </TabsContent>
       </Tabs>
     </div>
