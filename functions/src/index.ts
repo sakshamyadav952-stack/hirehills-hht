@@ -64,7 +64,7 @@ export const applyReferralCode = functions
         
         const rewardAmount = 10;
 
-        // 4. Update Referee's Document
+        // 4. Update Referee's Document - This happens for everyone
         transaction.update(refereeDocRef, {
             referredBy: referrerId,
             referredByName: referrerData.fullName,
@@ -73,29 +73,35 @@ export const applyReferralCode = functions
             appliedCodeBoost: 0.25,
         });
 
-        // 5. Update Referrer's Document
-        const promoterRewardEntry = {
-            referralId: refereeUid,
-            referralName: refereeData.fullName,
-            referralProfileCode: refereeData.profileCode,
-            usdtAmount: 0.15,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        };
-
-        transaction.update(referrerDoc.ref, {
+        // 5. Prepare referrer update object with standard rewards
+        const referrerUpdateData: { [key: string]: any } = {
             referrals: admin.firestore.FieldValue.arrayUnion(refereeUid),
             minedCoins: admin.firestore.FieldValue.increment(rewardAmount),
-            promoterRewards: admin.firestore.FieldValue.arrayUnion(promoterRewardEntry),
-            promoterReferralCount: admin.firestore.FieldValue.increment(1),
-        });
+        };
 
-        // 6. Update Second-Level Referrer's Document
-        if (referrerData.referredBy) {
+        // 6. If the referrer is a promoter, add promoter-specific rewards
+        if (referrerData.isPromoter === true) {
+            referrerUpdateData.promoterRewards = admin.firestore.FieldValue.arrayUnion({
+                referralId: refereeUid,
+                referralName: refereeData.fullName,
+                referralProfileCode: refereeData.profileCode,
+                usdtAmount: 0.15,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            referrerUpdateData.promoterReferralCount = admin.firestore.FieldValue.increment(1);
+        }
+
+        // Commit all updates for the direct referrer
+        transaction.update(referrerDoc.ref, referrerUpdateData);
+        
+        // 7. Second-Level Promoter Reward Logic (only if direct referrer is a promoter)
+        if (referrerData.isPromoter === true && referrerData.referredBy) {
             const secondLevelReferrerId = referrerData.referredBy;
             const secondLevelReferrerDocRef = usersRef.doc(secondLevelReferrerId);
         
             const secondLevelReferrerDoc = await transaction.get(secondLevelReferrerDocRef);
-            if (secondLevelReferrerDoc.exists) {
+            // Check if second-level referrer exists and is ALSO a promoter
+            if (secondLevelReferrerDoc.exists && secondLevelReferrerDoc.data()?.isPromoter === true) {
                 const secondLevelData = secondLevelReferrerDoc.data() as UserProfile;
                 const currentRewards = secondLevelData.secondLevelPromoterRewards || {};
                 
@@ -106,11 +112,9 @@ export const applyReferralCode = functions
                     usdtAmount: existingReward.usdtAmount + 0.05,
                 };
         
+                // Using dot notation for a cleaner update of a map field
                 transaction.update(secondLevelReferrerDocRef, {
-                    secondLevelPromoterRewards: {
-                        ...currentRewards,
-                        [referrerId]: updatedReward
-                    }
+                    [`secondLevelPromoterRewards.${referrerId}`]: updatedReward
                 });
             }
         }
