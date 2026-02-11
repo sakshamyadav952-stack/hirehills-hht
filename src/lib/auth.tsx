@@ -84,6 +84,7 @@ interface AuthContextType {
   adminClearOpenChats: () => Promise<void>;
   requestWithdrawal: (details: Partial<WithdrawalRequest>) => Promise<void>;
   adminUpdateUserCoins: (userId: string, amount: number) => Promise<void>;
+  makeUserPromoter: (userId: string) => Promise<void>;
   adminRemoveReferral: (userId: string, referralId: string) => Promise<void>;
   setGlobalBaseMiningRate: (newRate: number) => Promise<void>;
   getGlobalSessionDuration: () => Promise<number>;
@@ -1827,6 +1828,26 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
       throw error;
     }
   }, [userProfile, firestore, toast]);
+
+    const makeUserPromoter = useCallback(async (userId: string) => {
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+    if (!isAdmin) {
+        toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
+        throw new Error("User is not an admin.");
+    }
+    const targetUserDocRef = doc(firestore, 'users', userId);
+    try {
+        await updateDoc(targetUserDocRef, {
+            isPromoter: true
+        });
+        toast({ title: 'Success', description: `User has been made a promoter.` });
+    } catch (error: any) {
+        console.error("Error making user a promoter:", error);
+        toast({ title: 'Error', description: 'Failed to make user a promoter.', variant: 'destructive' });
+        throw error;
+    }
+}, [userProfile, firestore, toast]);
+
   
   const adminRemoveReferral = useCallback(async (userId: string, referralId: string) => {
     const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
@@ -2659,6 +2680,7 @@ const creditCrushOracleInstall = useCallback(async () => {
     adminClearOpenChats,
     requestWithdrawal,
     adminUpdateUserCoins,
+    makeUserPromoter,
     adminRemoveReferral,
     setGlobalBaseMiningRate,
     setGlobalSessionDuration,
@@ -2715,4 +2737,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

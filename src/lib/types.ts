@@ -123,6 +123,7 @@ export type UserProfile = {
   coverPhotoUrl?: string;
   withdrawalRequests?: WithdrawalRequest[];
   isAdmin?: boolean;
+  isPromoter?: boolean;
   notifications?: string[];
   theme?: 'light' | 'dark';
   language?: string;
