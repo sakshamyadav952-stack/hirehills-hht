@@ -88,6 +88,11 @@ export type PromoterReward = {
   timestamp: Timestamp;
 };
 
+export type SecondLevelPromoterReward = {
+  directReferralName: string;
+  usdtAmount: number;
+};
+
 export type UserProfile = {
   id: string;
   fullName: string;
@@ -136,6 +141,7 @@ export type UserProfile = {
   isAdmin?: boolean;
   isPromoter?: boolean;
   promoterRewards?: PromoterReward[];
+  secondLevelPromoterRewards?: { [key: string]: SecondLevelPromoterReward };
   promoterReferralCount?: number;
   notifications?: string[];
   theme?: 'light' | 'dark';

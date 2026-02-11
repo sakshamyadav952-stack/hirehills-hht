@@ -88,6 +88,32 @@ export const applyReferralCode = functions
             promoterRewards: admin.firestore.FieldValue.arrayUnion(promoterRewardEntry),
             promoterReferralCount: admin.firestore.FieldValue.increment(1),
         });
+
+        // 6. Update Second-Level Referrer's Document
+        if (referrerData.referredBy) {
+            const secondLevelReferrerId = referrerData.referredBy;
+            const secondLevelReferrerDocRef = usersRef.doc(secondLevelReferrerId);
+        
+            const secondLevelReferrerDoc = await transaction.get(secondLevelReferrerDocRef);
+            if (secondLevelReferrerDoc.exists) {
+                const secondLevelData = secondLevelReferrerDoc.data() as UserProfile;
+                const currentRewards = secondLevelData.secondLevelPromoterRewards || {};
+                
+                const existingReward = currentRewards[referrerId] || { usdtAmount: 0 };
+                
+                const updatedReward = {
+                    directReferralName: referrerData.fullName,
+                    usdtAmount: existingReward.usdtAmount + 0.05,
+                };
+        
+                transaction.update(secondLevelReferrerDocRef, {
+                    secondLevelPromoterRewards: {
+                        ...currentRewards,
+                        [referrerId]: updatedReward
+                    }
+                });
+            }
+        }
       });
 
       return { success: true, message: `Success! You and ${referrerCode} both received ${10} BLIT.` };
