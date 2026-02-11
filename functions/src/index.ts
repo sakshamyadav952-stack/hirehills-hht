@@ -24,17 +24,11 @@ export const applyReferralCode = functions
         const usersRef = db.collection("users");
         const now = admin.firestore.Timestamp.now(); // Generate timestamp on the server
 
+        // --- All READS must happen first ---
+
         // 1. Get referee document
         const refereeDocRef = usersRef.doc(refereeUid);
         const refereeDoc = await transaction.get(refereeDocRef);
-        if (!refereeDoc.exists) {
-          throw new functions.https.HttpsError("not-found", "Your user profile was not found.");
-        }
-        const refereeData = refereeDoc.data() as UserProfile;
-
-        if (refereeData.referredBy) {
-          throw new functions.https.HttpsError("failed-precondition", "You have already applied a referral code.");
-        }
 
         // 2. Get referrer document
         const referrerQuery = usersRef.where("profileCode", "==", referrerCode.toUpperCase());
@@ -43,9 +37,27 @@ export const applyReferralCode = functions
           throw new functions.https.HttpsError("not-found", "The referral code you entered is not valid.");
         }
         const referrerDoc = referrerSnapshot.docs[0];
-        const referrerId = referrerDoc.id;
         const referrerData = referrerDoc.data() as UserProfile;
+        
+        // 3. Conditionally get second-level referrer document upfront
+        let secondLevelReferrerDoc = null;
+        if (referrerData.isPromoter === true && referrerData.referredBy) {
+            const secondLevelReferrerDocRef = usersRef.doc(referrerData.referredBy);
+            secondLevelReferrerDoc = await transaction.get(secondLevelReferrerDocRef);
+        }
 
+        // --- All VALIDATIONS happen after reads ---
+        
+        if (!refereeDoc.exists) {
+          throw new functions.https.HttpsError("not-found", "Your user profile was not found.");
+        }
+        const refereeData = refereeDoc.data() as UserProfile;
+
+        if (refereeData.referredBy) {
+          throw new functions.https.HttpsError("failed-precondition", "You have already applied a referral code.");
+        }
+        
+        const referrerId = referrerDoc.id;
         if (referrerId === refereeUid) {
           throw new functions.https.HttpsError("invalid-argument", "You cannot use your own referral code.");
         }
@@ -64,8 +76,10 @@ export const applyReferralCode = functions
         }
         
         const rewardAmount = 10;
+        
+        // --- All WRITES happen last ---
 
-        // 4. Update Referee's Document - This happens for everyone
+        // 4. Update Referee's Document
         transaction.update(refereeDocRef, {
             referredBy: referrerId,
             referredByName: referrerData.fullName,
@@ -74,13 +88,12 @@ export const applyReferralCode = functions
             appliedCodeBoost: 0.25,
         });
 
-        // 5. Prepare referrer update object with standard rewards
+        // 5. Prepare and update referrer's document
         const referrerUpdateData: { [key: string]: any } = {
             referrals: admin.firestore.FieldValue.arrayUnion(refereeUid),
             minedCoins: admin.firestore.FieldValue.increment(rewardAmount),
         };
 
-        // 6. If the referrer is a promoter, add promoter-specific rewards
         if (referrerData.isPromoter === true) {
             referrerUpdateData.promoterRewards = admin.firestore.FieldValue.arrayUnion({
                 referralId: refereeUid,
@@ -91,33 +104,22 @@ export const applyReferralCode = functions
             });
             referrerUpdateData.promoterReferralCount = admin.firestore.FieldValue.increment(1);
         }
-
-        // Commit all updates for the direct referrer
         transaction.update(referrerDoc.ref, referrerUpdateData);
         
-        // 7. Second-Level Promoter Reward Logic (only if direct referrer is a promoter)
-        if (referrerData.isPromoter === true && referrerData.referredBy) {
-            const secondLevelReferrerId = referrerData.referredBy;
-            const secondLevelReferrerDocRef = usersRef.doc(secondLevelReferrerId);
-        
-            const secondLevelReferrerDoc = await transaction.get(secondLevelReferrerDocRef);
-            // Check if second-level referrer exists and is ALSO a promoter
-            if (secondLevelReferrerDoc.exists && secondLevelReferrerDoc.data()?.isPromoter === true) {
-                const secondLevelData = secondLevelReferrerDoc.data() as UserProfile;
-                const currentRewards = secondLevelData.secondLevelPromoterRewards || {};
-                
-                const existingReward = currentRewards[referrerId] || { usdtAmount: 0 };
-                
-                const updatedReward = {
-                    directReferralName: referrerData.fullName,
-                    usdtAmount: existingReward.usdtAmount + 0.05,
-                };
-        
-                // Using dot notation for a cleaner update of a map field
-                transaction.update(secondLevelReferrerDocRef, {
-                    [`secondLevelPromoterRewards.${referrerId}`]: updatedReward
-                });
-            }
+        // 6. Update second-level referrer document if applicable
+        if (secondLevelReferrerDoc && secondLevelReferrerDoc.exists && secondLevelReferrerDoc.data()?.isPromoter === true) {
+            const secondLevelData = secondLevelReferrerDoc.data() as UserProfile;
+            const currentRewards = secondLevelData.secondLevelPromoterRewards || {};
+            const existingReward = currentRewards[referrerId] || { usdtAmount: 0 };
+            
+            const updatedReward = {
+                directReferralName: referrerData.fullName,
+                usdtAmount: existingReward.usdtAmount + 0.05,
+            };
+
+            transaction.update(secondLevelReferrerDoc.ref, {
+                [`secondLevelPromoterRewards.${referrerId}`]: updatedReward
+            });
         }
       });
 
@@ -125,11 +127,9 @@ export const applyReferralCode = functions
 
     } catch (error: any) {
         console.error("Error in applyReferralCode Cloud Function:", error);
-        // Re-throw HttpsError to be caught by the client
         if (error instanceof functions.https.HttpsError) {
           throw error;
         }
-        // Throw a generic internal error for other cases
         throw new functions.https.HttpsError("internal", "An unexpected error occurred while applying the code. Please try again.");
     }
   });
