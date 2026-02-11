@@ -224,112 +224,6 @@ function TotalSupplyManager() {
     );
 }
 
-function FeedbacksManager() {
-    const firestore = useFirestore();
-    const [reviews, setReviews] = useState<Review[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        if (!firestore) return;
-        setIsLoading(true);
-
-        const fetchReviews = async () => {
-            try {
-                const reviewsQuery = query(collection(firestore, 'reviews'), orderBy('createdAt', 'desc'));
-                const snapshot = await getDocs(reviewsQuery);
-                const fetchedReviews = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review));
-                setReviews(fetchedReviews);
-            } catch (error) {
-                console.error("Error fetching reviews:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchReviews();
-
-        const unsubscribe = onSnapshot(query(collection(firestore, 'reviews')), (snapshot) => {
-            const fetchedReviews = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review));
-            setReviews(fetchedReviews.sort((a,b) => {
-                 if (a.createdAt && b.createdAt) {
-                    const timeA = (a.createdAt as Timestamp).toMillis();
-                    const timeB = (b.createdAt as Timestamp).toMillis();
-                    return timeB - timeA;
-                }
-                return 0;
-            }));
-        });
-        
-        return () => unsubscribe();
-
-    }, [firestore]);
-    
-    const renderStars = (rating: number) => {
-        return Array.from({ length: 5 }, (_, i) => (
-            <Star key={i} className={cn("h-5 w-5", i < rating ? "text-amber-400 fill-amber-400" : "text-gray-600")} />
-        ));
-    };
-
-    if (isLoading) {
-        return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-    }
-
-    if (!reviews || reviews.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
-                <Inbox className="h-12 w-12 text-muted-foreground" />
-                <h3 className="font-semibold">No Feedback Yet</h3>
-                <p className="text-sm text-muted-foreground">No users have submitted feedback.</p>
-            </div>
-        );
-    }
-    
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>User Feedbacks</CardTitle>
-                <CardDescription>Review all feedback submitted by users.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {reviews.map(review => {
-                    const createdAtDate = review.createdAt ? (review.createdAt as Timestamp).toDate() : null;
-                    return(
-                    <Card key={review.id}>
-                        <CardHeader>
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <CardTitle>{review.userName}</CardTitle>
-                                    <CardDescription>Profile Code: {review.profileCode}</CardDescription>
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                    {createdAtDate ? formatDistanceToNow(createdAtDate, { addSuffix: true }) : 'Just now'}
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center gap-1">
-                                {renderStars(review.rating)}
-                            </div>
-                            {review.feedback && (
-                                <div className="p-3 rounded-md bg-muted/50 text-sm">
-                                    <p className="font-semibold">Feedback:</p>
-                                    <p className="whitespace-pre-wrap">{review.feedback}</p>
-                                </div>
-                            )}
-                            {review.wasPlayStorePrompted && (
-                                <div className="p-3 rounded-md bg-green-500/10 text-sm text-green-300 flex items-center gap-2">
-                                    <Share2 className="h-4 w-4" />
-                                    <span>User was prompted to rate on the Play Store.</span>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                )})}
-            </CardContent>
-        </Card>
-    );
-}
-
 function AirdropManager() {
     const { updateAirdropConfig } = useAuth();
     const firestore = useFirestore();
@@ -638,11 +532,9 @@ function AdminDashboard() {
     <div className="container mx-auto py-10 pb-24">
       <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
       <Tabs defaultValue="total-supply" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="total-supply">Total Supply</TabsTrigger>
           <TabsTrigger value="airdrop">Airdrop</TabsTrigger>
-          <TabsTrigger value="feedbacks">Feedbacks</TabsTrigger>
-          <TabsTrigger value="daily-coins">Daily Coins</TabsTrigger>
           <TabsTrigger value="eligible">Eligible</TabsTrigger>
         </TabsList>
          <TabsContent value="total-supply" className="mt-6">
@@ -650,11 +542,6 @@ function AdminDashboard() {
         </TabsContent>
         <TabsContent value="airdrop" className="mt-6">
             <AirdropManager />
-        </TabsContent>
-        <TabsContent value="feedbacks" className="mt-6">
-            <FeedbacksManager />
-        </TabsContent>
-        <TabsContent value="daily-coins" className="mt-6">
         </TabsContent>
         <TabsContent value="eligible" className="mt-6">
             <EligibleUsersManager />
@@ -667,4 +554,3 @@ function AdminDashboard() {
 export default function AdminDashboardPage() {
     return <AdminDashboard />;
 }
-
