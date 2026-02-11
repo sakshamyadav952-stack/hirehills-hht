@@ -22,6 +22,7 @@ export const applyReferralCode = functions
     try {
       await db.runTransaction(async (transaction) => {
         const usersRef = db.collection("users");
+        const now = admin.firestore.Timestamp.now(); // Generate timestamp on the server
 
         // 1. Get referee document
         const refereeDocRef = usersRef.doc(refereeUid);
@@ -68,7 +69,7 @@ export const applyReferralCode = functions
         transaction.update(refereeDocRef, {
             referredBy: referrerId,
             referredByName: referrerData.fullName,
-            referralAppliedAt: admin.firestore.FieldValue.serverTimestamp(),
+            referralAppliedAt: now,
             minedCoins: admin.firestore.FieldValue.increment(rewardAmount),
             appliedCodeBoost: 0.25,
         });
@@ -86,7 +87,7 @@ export const applyReferralCode = functions
                 referralName: refereeData.fullName,
                 referralProfileCode: refereeData.profileCode,
                 usdtAmount: 0.15,
-                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                timestamp: now,
             });
             referrerUpdateData.promoterReferralCount = admin.firestore.FieldValue.increment(1);
         }
