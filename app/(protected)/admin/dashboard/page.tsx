@@ -494,12 +494,12 @@ function EligibleUsersManager() {
         setIsLoading(true);
 
         try {
-            
+            // Fetch active users first, then filter by coins on the client
             let q = query(
                 collection(firestore, 'users'),
-                where('minedCoins', '>', 100),
-                orderBy('minedCoins', 'desc'),
-                limit(PAGE_SIZE)
+                where('sessionEndTime', '>', Date.now()),
+                orderBy('sessionEndTime', 'desc'),
+                limit(PAGE_SIZE * 2) // Fetch more to have a better chance of filling the page
             );
 
             if (startAfterDoc && !refresh) {
@@ -507,15 +507,21 @@ function EligibleUsersManager() {
             }
             
             const documentSnapshots = await getDocs(q);
-            const users = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
+            
+            const users = documentSnapshots.docs
+                .map(doc => ({ id: doc.id, ...doc.data() } as UserProfile))
+                .filter(user => user.minedCoins > 100);
             
             setLastDoc(documentSnapshots.docs[documentSnapshots.docs.length - 1] || null);
-            setIsLastPage(documentSnapshots.docs.length < PAGE_SIZE);
+            setIsLastPage(documentSnapshots.docs.length < (PAGE_SIZE * 2));
 
             if (refresh) {
                 setEligibleUsers(users);
             } else {
-                setEligibleUsers(prev => [...prev, ...users]);
+                setEligibleUsers(prev => {
+                    const all = [...prev, ...users];
+                    return Array.from(new Map(all.map(item => [item.id, item])).values());
+                });
             }
 
         } catch (error) {
@@ -531,6 +537,9 @@ function EligibleUsersManager() {
     }, [fetchUsers]);
     
     const handleRefresh = () => {
+        setEligibleUsers([]);
+        setLastDoc(null);
+        setIsLastPage(false);
         fetchUsers(null, true);
     };
 
@@ -547,7 +556,7 @@ function EligibleUsersManager() {
                     <div>
                         <CardTitle>Eligible Users</CardTitle>
                         <CardDescription>
-                            Users with over 100 BLIT and their current session status.
+                            Showing active users with over 100 BLIT.
                         </CardDescription>
                     </div>
                     <Button onClick={handleRefresh} disabled={isLoading}>
@@ -563,7 +572,7 @@ function EligibleUsersManager() {
                     <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
                         <Inbox className="h-12 w-12 text-muted-foreground" />
                         <h3 className="font-semibold">No Eligible Users Found</h3>
-                        <p className="text-sm text-muted-foreground">No users currently have over 100 BLIT.</p>
+                        <p className="text-sm text-muted-foreground">No active users currently have over 100 BLIT.</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
@@ -577,14 +586,9 @@ function EligibleUsersManager() {
                                             <p className="text-sm text-muted-foreground">{user.profileCode}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-2 font-semibold">
-                                            <Coins className="h-5 w-5 text-amber-400" />
-                                            <span>{user.minedCoins.toFixed(4)} BLIT</span>
-                                        </div>
-                                        <Badge variant={user.sessionEndTime && user.sessionEndTime > Date.now() ? 'default' : 'secondary'} className={cn(user.sessionEndTime && user.sessionEndTime > Date.now() && 'bg-green-500/80')}>
-                                            {user.sessionEndTime && user.sessionEndTime > Date.now() ? 'Active' : 'Inactive'}
-                                        </Badge>
+                                    <div className="flex items-center gap-2 font-semibold">
+                                        <Coins className="h-5 w-5 text-amber-400" />
+                                        <span>{user.minedCoins.toFixed(4)} BLIT</span>
                                     </div>
                                 </div>
                             </Card>
@@ -663,3 +667,4 @@ function AdminDashboard() {
 export default function AdminDashboardPage() {
     return <AdminDashboard />;
 }
+
