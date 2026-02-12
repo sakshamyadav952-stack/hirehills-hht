@@ -104,11 +104,19 @@ const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers }: { user: Ranked
                 </div>
             </div>
             <div className="text-right">
-                <p className="text-lg font-bold text-amber-400 flex items-center">
+                <p className={cn(
+                    "text-lg font-bold flex items-center justify-end",
+                    prize > 0 ? "text-green-400" : "text-amber-400"
+                )}>
                     <DollarSign className="h-4 w-4 mr-0.5" />
                     {prize.toFixed(2)}
                 </p>
-                 <p className="text-xs text-muted-foreground">Prize</p>
+                <p className={cn(
+                    "text-xs",
+                    prize > 0 ? "text-green-400/80" : "text-muted-foreground"
+                )}>
+                    {prize > 0 ? "Currently Winning" : "Prize"}
+                </p>
             </div>
         </div>
     )
