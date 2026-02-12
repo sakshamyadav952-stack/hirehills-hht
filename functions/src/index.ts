@@ -438,8 +438,13 @@ export const enrollUsersInTournament = functions.runWith({ timeoutSeconds: 60 })
         throw new functions.https.HttpsError("unauthenticated", "User must be authenticated.");
     }
 
-    const adminDoc = await db.collection('users').doc(context.auth.uid).get();
-    if (!adminDoc.exists || adminDoc.data()?.isAdmin !== true) {
+    const adminUid = context.auth.uid;
+    const adminDoc = await db.collection('users').doc(adminUid).get();
+    
+    const isSuperAdmin = adminUid === 'obaW90LhdhPDvbvh06wWwBfucTk1' || adminUid === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdminByField = adminDoc.exists && adminDoc.data()?.isAdmin === true;
+
+    if (!isSuperAdmin && !isAdminByField) {
          throw new functions.https.HttpsError("permission-denied", "User must be an admin.");
     }
 
@@ -481,8 +486,13 @@ export const unenrollAllUsersFromTournament = functions.runWith({ timeoutSeconds
         throw new functions.https.HttpsError("unauthenticated", "User must be authenticated.");
     }
 
-    const adminDoc = await db.collection('users').doc(context.auth.uid).get();
-    if (!adminDoc.exists || adminDoc.data()?.isAdmin !== true) {
+    const adminUid = context.auth.uid;
+    const adminDoc = await db.collection('users').doc(adminUid).get();
+
+    const isSuperAdmin = adminUid === 'obaW90LhdhPDvbvh06wWwBfucTk1' || adminUid === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdminByField = adminDoc.exists && adminDoc.data()?.isAdmin === true;
+    
+    if (!isSuperAdmin && !isAdminByField) {
          throw new functions.https.HttpsError("permission-denied", "User must be an admin.");
     }
 
