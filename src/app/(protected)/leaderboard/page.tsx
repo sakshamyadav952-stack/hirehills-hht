@@ -5,10 +5,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useFirestore } from '@/firebase';
 import { useAuth } from '@/lib/auth';
 import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp } from 'firebase/firestore';
-import type { UserProfile, TournamentConfig } from '@/lib/types';
+import type { UserProfile, TournamentConfig, PrizeTier } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Trophy, User, ArrowLeft, Crown, Medal } from 'lucide-react';
+import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign, Medal } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,109 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 
 type RankedUser = UserProfile & { rank: number };
+
+const Countdown = ({ expiryDate }: { expiryDate: Date | Timestamp }) => {
+    const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+    const [isExpired, setIsExpired] = useState(false);
+
+    useEffect(() => {
+        const endDate = expiryDate instanceof Timestamp ? expiryDate.toDate() : expiryDate;
+        const interval = setInterval(() => {
+            const now = new Date();
+            const difference = endDate.getTime() - now.getTime();
+
+            if (difference > 0) {
+                const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+                const minutes = Math.floor((difference / 1000 / 60) % 60);
+                const seconds = Math.floor((difference / 1000) % 60);
+                setTimeLeft({ days, hours, minutes, seconds });
+                setIsExpired(false);
+            } else {
+                setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+                setIsExpired(true);
+                clearInterval(interval);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [expiryDate]);
+
+    if (isExpired) {
+        return <div className="text-red-400 font-bold text-sm">Ended</div>;
+    }
+
+    return (
+        <div className="flex justify-center gap-1.5">
+            <TimeUnit value={timeLeft.days} label="Days" />
+            <TimeUnit value={timeLeft.hours} label="Hrs" />
+            <TimeUnit value={timeLeft.minutes} label="Mins" />
+            <TimeUnit value={timeLeft.seconds} label="Secs" />
+        </div>
+    );
+};
+
+const TimeUnit = ({ value, label }: { value: number; label: string; }) => (
+    <div className="p-1 bg-black/20 rounded-md text-center min-w-[32px] border border-slate-700">
+        <div className="font-mono font-bold text-slate-200 text-base">{String(value).padStart(2, '0')}</div>
+        <div className="text-[10px] text-slate-400 uppercase leading-tight">{label}</div>
+    </div>
+);
+
+const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers }: { user: RankedUser, isCurrentUser: boolean, prizeTiers: PrizeTier[] }) => {
+    const rank = user.rank;
+
+    const getPrizeForRank = (rank: number, tiers: PrizeTier[]): number => {
+        const tier = tiers.find(t => rank >= t.startRank && rank <= t.endRank);
+        return tier ? tier.prize : 0;
+    };
+    
+    const prize = getPrizeForRank(rank, prizeTiers);
+
+    const rankColor = useMemo(() => {
+        if (isCurrentUser) return "border-blue-500 bg-blue-900/30 text-blue-200 shadow-[0_0_20px_rgba(59,130,246,0.6)]";
+        if (rank === 1) return "border-amber-400 bg-amber-900/30 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.4)]";
+        if (rank === 2) return "border-slate-400 bg-slate-800/50 text-slate-300 shadow-[0_0_15px_rgba(156,163,175,0.4)]";
+        if (rank === 3) return "border-orange-500 bg-orange-900/30 text-orange-300 shadow-[0_0_15px_rgba(249,115,22,0.4)]";
+        return "border-slate-700 bg-slate-800/40";
+    }, [rank, isCurrentUser]);
+
+    return (
+        <div className={cn(
+            "border-2 p-3 rounded-xl transition-all",
+            rankColor,
+        )}>
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0 w-20 text-center">
+                        {rank === 1 && <Crown className="mx-auto h-6 w-6 text-amber-400 mb-1" />}
+                        {rank === 2 && <Medal className="mx-auto h-6 w-6 text-slate-300 mb-1" />}
+                        {rank === 3 && <Medal className="mx-auto h-6 w-6 text-orange-400 mb-1" />}
+                        <p className="font-bold text-lg">Rank #{rank}</p>
+                    </div>
+                    <Avatar className="h-12 w-12">
+                        <AvatarImage src={user.profileImageUrl} alt={user.fullName} />
+                        <AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="truncate">
+                        <p className="font-semibold text-white truncate">{user.fullName}{isCurrentUser && " (You)"}</p>
+                        <p className="text-sm text-slate-400">Score: {user.tournamentScore || 0}</p>
+                    </div>
+                </div>
+                <div className="text-right flex-shrink-0 ml-4">
+                     <p className={cn("text-lg font-bold flex items-center justify-end", prize > 0 ? "text-green-400" : "text-white")}>
+                        <DollarSign className="h-4 w-4 mr-0.5" />
+                        {prize.toFixed(2)}
+                    </p>
+                    <p className={cn("text-xs", prize > 0 ? "text-green-400/80" : "text-muted-foreground")}>
+                        {prize > 0 ? "Currently Winning" : "Prize"}
+                    </p>
+                </div>
+            </div>
+        </div>
+    )
+};
+
 
 export default function LeaderboardPage() {
     const { userProfile: currentUser, loading: authLoading } = useAuth();
@@ -53,7 +156,6 @@ export default function LeaderboardPage() {
             const usersQuery = query(
                 collection(firestore, 'users'),
                 where('tournamentId', '==', activeTournament.id),
-                where('tournamentScore', '>', 0),
                 orderBy('tournamentScore', 'desc'),
                 orderBy('tournamentScoreLastUpdated', 'asc')
             );
@@ -85,29 +187,12 @@ export default function LeaderboardPage() {
         fetchLeaderboard();
     }, [fetchLeaderboard]);
 
-    const currentUserOnBoard = useMemo(() => {
-        if (!currentUser || !leaderboard) return null;
-        return leaderboard.find(u => u.id === currentUser.id);
+    const { currentUserOnBoard, otherUsers } = useMemo(() => {
+        if (!currentUser || !leaderboard) return { currentUserOnBoard: null, otherUsers: leaderboard || [] };
+        const userOnBoard = leaderboard.find(u => u.id === currentUser.id);
+        const others = leaderboard.filter(u => u.id !== currentUser.id);
+        return { currentUserOnBoard: userOnBoard, otherUsers: others };
     }, [currentUser, leaderboard]);
-
-    const otherUsers = useMemo(() => {
-        if (!currentUser || !leaderboard) return [];
-        return leaderboard.filter(u => u.id !== currentUser.id);
-    }, [currentUser, leaderboard]);
-
-    const getRankColor = (rank: number) => {
-        if (rank === 1) return "border-amber-400 bg-amber-900/50 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.5)]";
-        if (rank === 2) return "border-slate-400 bg-slate-800/50 text-slate-300 shadow-[0_0_15px_rgba(156,163,175,0.5)]";
-        if (rank === 3) return "border-orange-500 bg-orange-900/50 text-orange-300 shadow-[0_0_15px_rgba(249,115,22,0.5)]";
-        return "border-slate-700 bg-slate-800/40";
-    };
-
-    const getRankIcon = (rank: number) => {
-        if (rank === 1) return <Crown className="h-6 w-6 text-amber-400" />;
-        if (rank === 2) return <Medal className="h-6 w-6 text-slate-400" />;
-        if (rank === 3) return <Medal className="h-6 w-6 text-orange-400" />;
-        return <span className="font-bold text-lg w-6 text-center">{rank}</span>;
-    };
 
     if (authLoading || (isLoading && leaderboard.length === 0)) {
         return (
@@ -148,73 +233,58 @@ export default function LeaderboardPage() {
             </header>
 
             <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-                <div className="text-center">
-                    <h2 className="text-3xl font-bold text-white">{tournamentConfig.headline}</h2>
-                    <p className="text-indigo-200/80 mt-1">{tournamentConfig.tagline}</p>
-                    <div className="mt-2">
+                <div className="flex justify-between items-start mb-6">
+                    {/* Left: Tiers */}
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold text-indigo-200">Prize Tiers (USDC)</p>
+                        <div className="flex flex-col gap-1 items-start">
+                            {tournamentConfig.prizeTiers?.map(tier => (
+                                <div key={tier.id} className="text-left p-1 px-2 bg-black/30 rounded-md border border-indigo-400/30">
+                                    <p className="text-[10px] font-bold text-indigo-300">
+                                    {tier.startRank === tier.endRank ? `Rank ${tier.startRank}` : `Rank ${tier.startRank}-${tier.endRank}`}
+                                    </p>
+                                    <p className="text-xs font-semibold text-white flex items-center gap-0.5">
+                                    <DollarSign className="h-3 w-3" />
+                                    {tier.prize}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    {/* Center: Headline & Countdown */}
+                    <div className="text-center">
+                        <h2 className="text-3xl font-bold text-white">{tournamentConfig.headline}</h2>
+                        <p className="text-indigo-200/80 mt-1">{tournamentConfig.tagline}</p>
+                        {tournamentConfig.endDate && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
+                    </div>
+
+                    {/* Right: Status */}
+                    <div className="flex justify-end">
                         {!tournamentConfig.isActive ? <Badge variant="destructive">Withdrawn</Badge> : isTournamentEnded ? <Badge>Ended</Badge> : <Badge variant="secondary">Active</Badge>}
                     </div>
                 </div>
 
-                <div className="space-y-3">
-                    {currentUserOnBoard && (
-                        <div className={cn(
-                            "border-2 p-3 rounded-xl transition-all",
-                            "border-blue-500 bg-blue-900/30 text-blue-200 shadow-[0_0_20px_rgba(59,130,246,0.6)]"
-                        )}>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 text-center font-bold text-2xl">{currentUserOnBoard.rank}</div>
-                                    <Avatar className="h-12 w-12 border-2 border-blue-400">
-                                        <AvatarImage src={currentUserOnBoard.profileImageUrl} alt={currentUserOnBoard.fullName} />
-                                        <AvatarFallback>{currentUserOnBoard.fullName.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <p className="font-semibold text-white">{currentUserOnBoard.fullName} (You)</p>
-                                        <p className="text-xs text-blue-300/80">{currentUserOnBoard.profileCode}</p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-bold text-lg text-white">{currentUserOnBoard.tournamentScore || 0}</p>
-                                    <p className="text-xs text-blue-300/80">Score</p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {isLoading && leaderboard.length === 0 && (
+                {currentUserOnBoard && (
+                    <div className="sticky top-0 z-20 py-2 bg-slate-900/80 backdrop-blur-sm -mx-4 px-4 shadow-lg shadow-black/30">
+                        <LeaderboardListItem user={currentUserOnBoard} isCurrentUser={true} prizeTiers={tournamentConfig.prizeTiers || []}/>
+                    </div>
+                )}
+                
+                <div className="space-y-2">
+                    {isLoading && otherUsers.length === 0 && !currentUserOnBoard ? (
                         <div className="flex justify-center items-center h-64">
                             <Loader2 className="h-10 w-10 animate-spin" />
                         </div>
-                    )}
-
-                    {!isLoading && otherUsers.length === 0 && !currentUserOnBoard ? (
-                        <div className="text-center p-12 border-2 border-dashed border-slate-700 rounded-xl">
+                    ) : otherUsers.length === 0 && !currentUserOnBoard ? (
+                         <div className="text-center p-12 border-2 border-dashed border-slate-700 rounded-xl">
                             <Trophy className="mx-auto h-12 w-12 text-slate-500" />
                             <h3 className="mt-4 text-lg font-semibold">Leaderboard is Empty</h3>
-                            <p className="mt-1 text-sm text-muted-foreground">No users have scored points in this tournament yet.</p>
+                            <p className="mt-1 text-sm text-muted-foreground">No users have been enrolled in this tournament yet.</p>
                         </div>
                     ) : (
                         otherUsers.map(user => (
-                            <div key={user.id} className={cn("border-2 p-3 rounded-xl", getRankColor(user.rank))}>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 flex justify-center">{getRankIcon(user.rank)}</div>
-                                        <Avatar className="h-12 w-12">
-                                            <AvatarImage src={user.profileImageUrl} alt={user.fullName} />
-                                            <AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="font-semibold text-white">{user.fullName}</p>
-                                            <p className="text-xs text-slate-400">{user.profileCode}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="font-bold text-lg text-white">{user.tournamentScore || 0}</p>
-                                        <p className="text-xs text-slate-400">Score</p>
-                                    </div>
-                                </div>
-                            </div>
+                            <LeaderboardListItem key={user.id} user={user} isCurrentUser={false} prizeTiers={tournamentConfig.prizeTiers || []}/>
                         ))
                     )}
                 </div>
@@ -223,4 +293,3 @@ export default function LeaderboardPage() {
         </div>
     );
 }
-
