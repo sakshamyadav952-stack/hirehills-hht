@@ -1,4 +1,5 @@
 
+
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { UserProfile, TournamentConfig, ConcludedTournament } from "./types";
@@ -675,7 +676,12 @@ export const requestUsdcWithdrawal = functions.runWith({secrets: ["SOLANA_FEE_WA
     const userDocRef = db.collection('users').doc(uid);
 
     return db.runTransaction(async (transaction) => {
+        // --- ALL READS FIRST ---
         const userDoc = await transaction.get(userDocRef);
+        const concludedTournamentsQuery = db.collection('concludedTournaments').orderBy('concludedAt', 'desc').limit(1);
+        const concludedTournamentsSnapshot = await transaction.get(concludedTournamentsQuery);
+        
+        // --- VALIDATIONS ---
         if (!userDoc.exists) {
             throw new functions.https.HttpsError('not-found', 'User not found.');
         }
@@ -685,22 +691,22 @@ export const requestUsdcWithdrawal = functions.runWith({secrets: ["SOLANA_FEE_WA
         if (winningAmount <= 0) {
             throw new functions.https.HttpsError('failed-precondition', 'No winnings available to withdraw.');
         }
-
+        
+        // --- EXTERNAL CALL ---
         // Amount in micro-USDC (6 decimal places)
         const amountMicroUsdc = Math.floor(winningAmount * 1_000_000);
-        
         const transactionSignature = await transferUsdc(usdcAddress, amountMicroUsdc);
 
+        // --- ALL WRITES LAST ---
         transaction.update(userDocRef, {
             usdcAddress: usdcAddress,
             tournamentWinning: 0
         });
 
-        const concludedTournamentsQuery = db.collection('concludedTournaments').orderBy('concludedAt', 'desc').limit(1);
-        const concludedTournamentsSnapshot = await transaction.get(concludedTournamentsQuery);
         if (!concludedTournamentsSnapshot.empty) {
             const concludedDoc = concludedTournamentsSnapshot.docs[0];
-            if (concludedDoc.data().payouts[uid]) {
+            // Check if the user is in the payouts map before trying to update.
+            if (concludedDoc.data().payouts && concludedDoc.data().payouts[uid]) {
                 transaction.update(concludedDoc.ref, {
                     [`payouts.${uid}`]: 'paid'
                 });
@@ -711,3 +717,4 @@ export const requestUsdcWithdrawal = functions.runWith({secrets: ["SOLANA_FEE_WA
     });
 });
     
+
