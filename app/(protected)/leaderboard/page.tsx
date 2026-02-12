@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -153,6 +152,14 @@ export default function LeaderboardPage() {
             setIsVerified(true);
         }
     }, [currentUser?.usdcAddress]);
+
+    useEffect(() => {
+        if (leaderboard.length > 0) {
+            requestAnimationFrame(() => {
+                window.dispatchEvent(new Event('resize'));
+            });
+        }
+    }, [leaderboard]);
     
 
     const fetchActiveLeaderboard = useCallback(async (config: TournamentConfig, startAfterDoc: DocumentSnapshot | null = null) => {
@@ -403,130 +410,134 @@ export default function LeaderboardPage() {
                 </Button>
             </header>
 
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-                {isConcluded && (
-                    <Card className="text-center bg-green-900/50 border-green-500 shadow-[0_0_20px_rgba(74,222,128,0.4)]">
-                        <CardHeader>
-                            <CardTitle className="text-2xl text-green-300">Congratulations to the Winners!</CardTitle>
-                            <CardDescription className="text-green-200/80">The tournament has concluded. Prizes will be distributed shortly.</CardDescription>
-                        </CardHeader>
-                        {isCurrentUserWinner && (
-                            <CardContent className="pt-4 mt-4 border-t border-green-500/20">
-                                <div className="text-left space-y-4">
-                                    <p className="text-center text-lg font-semibold text-white">
-                                        You've won ${currentUserPrize.toFixed(2)}!
-                                    </p>
-                                    <Alert variant="destructive">
-                                        <ShieldAlert className="h-4 w-4" />
-                                        <AlertTitle>Important Warning</AlertTitle>
-                                        <AlertDescription>
-                                            You must provide your main Solana (SOL) wallet address. We will send USDC to this address. Do not use an address from another blockchain (e.g., Ethereum, BSC), as this will result in the permanent loss of your reward. If you are unsure, please contact support.
-                                        </AlertDescription>
-                                    </Alert>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="usdc-address" className="text-white">Your Solana Wallet Address</Label>
-                                        <div className="flex gap-2 items-center">
-                                            <Input 
-                                                id="usdc-address"
-                                                placeholder="Enter your Solana address"
-                                                className="bg-slate-800 border-slate-600 text-white flex-1"
-                                                value={usdcAddress}
-                                                onChange={(e) => {
-                                                    setUsdcAddress(e.target.value);
-                                                    setIsVerified(false);
-                                                    setVerificationError(null);
-                                                }}
-                                                disabled={isVerifying || isWithdrawing}
-                                            />
-                                            <Button onClick={handleVerify} disabled={isVerifying || isVerified}>
-                                                {isVerifying ? <Loader2 className="h-4 w-4 animate-spin"/> : isVerified ? <Check className="h-4 w-4 text-green-400" /> : 'Verify'}
-                                            </Button>
+            <main className="flex-1 overflow-y-auto">
+                <div className="p-4 sm:p-6 space-y-6">
+                    {isConcluded && (
+                        <Card className="text-center bg-green-900/50 border-green-500 shadow-[0_0_20px_rgba(74,222,128,0.4)]">
+                            <CardHeader>
+                                <CardTitle className="text-2xl text-green-300">Congratulations to the Winners!</CardTitle>
+                                <CardDescription className="text-green-200/80">The tournament has concluded. Prizes will be distributed shortly.</CardDescription>
+                            </CardHeader>
+                            {isCurrentUserWinner && (
+                                <CardContent className="pt-4 mt-4 border-t border-green-500/20">
+                                    <div className="text-left space-y-4">
+                                        <p className="text-center text-lg font-semibold text-white">
+                                            You've won ${currentUserPrize.toFixed(2)}!
+                                        </p>
+                                        <Alert variant="destructive">
+                                            <ShieldAlert className="h-4 w-4" />
+                                            <AlertTitle>Important Warning</AlertTitle>
+                                            <AlertDescription>
+                                                You must provide your main Solana (SOL) wallet address. We will send USDC to this address. Do not use an address from another blockchain (e.g., Ethereum, BSC), as this will result in the permanent loss of your reward. If you are unsure, please contact support.
+                                            </AlertDescription>
+                                        </Alert>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="usdc-address" className="text-white">Your Solana Wallet Address</Label>
+                                            <div className="flex gap-2 items-center">
+                                                <Input 
+                                                    id="usdc-address"
+                                                    placeholder="Enter your Solana address"
+                                                    className="bg-slate-800 border-slate-600 text-white flex-1"
+                                                    value={usdcAddress}
+                                                    onChange={(e) => {
+                                                        setUsdcAddress(e.target.value);
+                                                        setIsVerified(false);
+                                                        setVerificationError(null);
+                                                    }}
+                                                    disabled={isVerifying || isWithdrawing}
+                                                />
+                                                <Button onClick={handleVerify} disabled={isVerifying || isVerified}>
+                                                    {isVerifying ? <Loader2 className="h-4 w-4 animate-spin"/> : isVerified ? <Check className="h-4 w-4 text-green-400" /> : 'Verify'}
+                                                </Button>
+                                            </div>
+                                            {verificationError && <p className="text-sm text-red-400">{verificationError}</p>}
                                         </div>
-                                        {verificationError && <p className="text-sm text-red-400">{verificationError}</p>}
-                                    </div>
-                                    <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold" onClick={handleWithdraw} disabled={!isVerified || isWithdrawing || amountToWithdraw <= 0}>
-                                        {isWithdrawing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        Withdraw {amountToWithdraw.toFixed(2)} USDC
-                                    </Button>
-                                     {transactionId && (
-                                        <Button asChild variant="link" className="w-full mt-2 text-cyan-300 hover:text-white">
-                                            <Link href={`https://solscan.io/tx/${transactionId}`} target="_blank" rel="noopener noreferrer">
-                                                Verify on Solscan <ExternalLink className="ml-2 h-4 w-4" />
-                                            </Link>
+                                        <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold" onClick={handleWithdraw} disabled={!isVerified || isWithdrawing || amountToWithdraw <= 0}>
+                                            {isWithdrawing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                            Withdraw {amountToWithdraw.toFixed(2)} USDC
                                         </Button>
-                                    )}
-                                </div>
-                            </CardContent>
-                        )}
-                    </Card>
-                )}
+                                        {transactionId && (
+                                            <Button asChild variant="link" className="w-full mt-2 text-cyan-300 hover:text-white">
+                                                <Link href={`https://solscan.io/tx/${transactionId}`} target="_blank" rel="noopener noreferrer">
+                                                    Verify on Solscan <ExternalLink className="ml-2 h-4 w-4" />
+                                                </Link>
+                                            </Button>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            )}
+                        </Card>
+                    )}
 
-                <div className="flex justify-between items-start mb-6">
-                    <div className="space-y-2">
-                        <p className="text-xs font-semibold text-indigo-200">Prize Tiers (USDC)</p>
-                        <div className="flex flex-col gap-1 items-start">
-                            {tournamentConfig.prizeTiers?.map(tier => (
-                                <div key={tier.id} className="text-left p-1 px-2 bg-black/30 rounded-md border border-indigo-400/30">
-                                    <p className="text-[10px] font-bold text-indigo-300">
-                                    {tier.startRank === tier.endRank ? `Rank ${tier.startRank}` : `Rank ${tier.startRank}-${tier.endRank}`}
-                                    </p>
-                                    <p className="text-xs font-semibold text-white flex items-center gap-0.5">
-                                    <DollarSign className="h-3 w-3" />
-                                    {tier.prize}
-                                    </p>
-                                </div>
-                            ))}
+                    <div className="flex justify-between items-start">
+                        <div className="space-y-2">
+                            <p className="text-xs font-semibold text-indigo-200">Prize Tiers (USDC)</p>
+                            <div className="flex flex-col gap-1 items-start">
+                                {tournamentConfig.prizeTiers?.map(tier => (
+                                    <div key={tier.id} className="text-left p-1 px-2 bg-black/30 rounded-md border border-indigo-400/30">
+                                        <p className="text-[10px] font-bold text-indigo-300">
+                                        {tier.startRank === tier.endRank ? `Rank ${tier.startRank}` : `Rank ${tier.startRank}-${tier.endRank}`}
+                                        </p>
+                                        <p className="text-xs font-semibold text-white flex items-center gap-0.5">
+                                        <DollarSign className="h-3 w-3" />
+                                        {tier.prize}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div className="text-center">
-                        <h2 className="text-3xl font-bold text-white">{tournamentConfig.headline}</h2>
-                        <p className="text-indigo-200/80 mt-1">{tournamentConfig.tagline}</p>
-                        {!isConcluded && tournamentConfig.endDate && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
-                    </div>
+                        
+                        <div className="text-center">
+                            <h2 className="text-3xl font-bold text-white">{tournamentConfig.headline}</h2>
+                            <p className="text-indigo-200/80 mt-1">{tournamentConfig.tagline}</p>
+                            {!isConcluded && tournamentConfig.endDate && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
+                        </div>
 
-                    <div className="flex flex-col items-end gap-2">
-                       {isConcluded ? <Badge>Concluded</Badge> : <Badge variant="secondary">Active</Badge>}
-                        <div className="flex items-center gap-2 p-2 rounded-md bg-black/30 border border-slate-700">
-                            <Users className="h-4 w-4 text-indigo-300" />
-                            <span className="text-sm font-semibold">{totalPlayers} Players</span>
+                        <div className="flex flex-col items-end gap-2">
+                        {isConcluded ? <Badge>Concluded</Badge> : <Badge variant="secondary">Active</Badge>}
+                            <div className="flex items-center gap-2 p-2 rounded-md bg-black/30 border border-slate-700">
+                                <Users className="h-4 w-4 text-indigo-300" />
+                                <span className="text-sm font-semibold">{totalPlayers} Players</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                 {currentUserOnBoard && (
-                     <div className="sticky top-16 z-20 bg-slate-900/95 backdrop-blur-md border-b border-indigo-400/20 py-2">
+                {currentUserOnBoard && (
+                    <div className="sticky top-16 z-20 bg-slate-900/95 backdrop-blur-md border-b border-indigo-400/20 py-2 px-4 sm:px-6">
                         <LeaderboardListItem user={currentUserOnBoard} isCurrentUser={true} prizeTiers={tournamentConfig.prizeTiers || []}/>
                     </div>
                 )}
                 
-                <div className="space-y-2">
-                    {isLoading && otherUsers.length === 0 && !currentUserOnBoard ? (
-                        <div className="flex justify-center items-center h-64">
-                            <Loader2 className="h-10 w-10 animate-spin" />
-                        </div>
-                    ) : otherUsers.length === 0 && !currentUserOnBoard ? (
-                         <div className="text-center p-12 border-2 border-dashed border-slate-700 rounded-xl">
-                            <Trophy className="mx-auto h-12 w-12 text-slate-500" />
-                            <h3 className="mt-4 text-lg font-semibold">Leaderboard is Empty</h3>
-                            <p className="mt-1 text-sm text-muted-foreground">{isConcluded ? 'There were no winners in this tournament.' : 'No users have been enrolled yet.'}</p>
-                        </div>
-                    ) : (
-                        otherUsers.map(user => (
-                            <LeaderboardListItem key={user.id} user={user} isCurrentUser={false} prizeTiers={tournamentConfig.prizeTiers || []}/>
-                        ))
+                <div className="p-4 sm:p-6">
+                    <div className="space-y-2">
+                        {isLoading && otherUsers.length === 0 && !currentUserOnBoard ? (
+                            <div className="flex justify-center items-center h-64">
+                                <Loader2 className="h-10 w-10 animate-spin" />
+                            </div>
+                        ) : otherUsers.length === 0 && !currentUserOnBoard ? (
+                            <div className="text-center p-12 border-2 border-dashed border-slate-700 rounded-xl">
+                                <Trophy className="mx-auto h-12 w-12 text-slate-500" />
+                                <h3 className="mt-4 text-lg font-semibold">Leaderboard is Empty</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">{isConcluded ? 'There were no winners in this tournament.' : 'No users have been enrolled yet.'}</p>
+                            </div>
+                        ) : (
+                            otherUsers.map(user => (
+                                <LeaderboardListItem key={user.id} user={user} isCurrentUser={false} prizeTiers={tournamentConfig.prizeTiers || []}/>
+                            ))
+                        )}
+                    </div>
+
+                    {!isLastPage && !isConcluded && (
+                        <CardFooter className="mt-6 flex justify-center p-0">
+                            <Button onClick={handleNext} disabled={isLoadingMore}>
+                                {isLoadingMore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Next'}
+                            </Button>
+                        </CardFooter>
                     )}
+
+                    <div className="h-20 md:hidden" />
                 </div>
-
-                {!isLastPage && !isConcluded && (
-                    <CardFooter className="mt-6 flex justify-center">
-                        <Button onClick={handleNext} disabled={isLoadingMore}>
-                            {isLoadingMore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Next'}
-                        </Button>
-                    </CardFooter>
-                )}
-
-                 <div className="h-20 md:hidden" />
             </main>
              <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
                 <AlertDialogContent className="text-white border-green-400/50" style={{ background: 'linear-gradient(145deg, #1a2e2e, #163e3e)' }}>
@@ -552,4 +563,3 @@ export default function LeaderboardPage() {
         </div>
     );
 }
-
