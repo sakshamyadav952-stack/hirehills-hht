@@ -33,6 +33,7 @@ import { Input } from "./ui/input";
 import { PotentialEarningsDialog } from "./potential-earnings-dialog";
 import { AirdropCard } from './airdrop-card';
 import { translateText } from "@/ai/flows/translate-flow";
+import { TournamentCard } from "./tournament-card";
 
 
 function UniversalMessageNotification() {
@@ -510,168 +511,6 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
   );
 }
 
-function TournamentCard() {
-    const { userProfile } = useAuth();
-    const firestore = useFirestore();
-    const router = useRouter();
-    const [config, setConfig] = useState<TournamentConfig | null>(null);
-
-    useEffect(() => {
-        const configDocRef = doc(firestore, 'config', 'tournament');
-        const unsubscribe = onSnapshot(configDocRef, (doc) => {
-            if (doc.exists()) {
-                setConfig({ id: doc.id, ...doc.data() } as TournamentConfig);
-            } else {
-                setConfig(null);
-            }
-        });
-        return () => unsubscribe();
-    }, [firestore]);
-
-    const Countdown = ({ expiryDate }: { expiryDate: Date | Timestamp }) => {
-        const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-        const [isExpired, setIsExpired] = useState(false);
-
-        useEffect(() => {
-            const endDate = expiryDate instanceof Timestamp ? expiryDate.toDate() : expiryDate;
-            const interval = setInterval(() => {
-                const now = new Date();
-                const difference = endDate.getTime() - now.getTime();
-
-                if (difference > 0) {
-                    const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-                    const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
-                    const minutes = Math.floor((difference / 1000 / 60) % 60);
-                    const seconds = Math.floor((difference / 1000) % 60);
-                    setTimeLeft({ days, hours, minutes, seconds });
-                    setIsExpired(false);
-                } else {
-                    setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-                    setIsExpired(true);
-                    clearInterval(interval);
-                }
-            }, 1000);
-
-            return () => clearInterval(interval);
-        }, [expiryDate]);
-
-        if (isExpired) {
-            return <div className="text-red-400 font-bold">Ended</div>;
-        }
-
-        return (
-            <div className="flex justify-center gap-1.5 sm:gap-2">
-                <TimeUnit value={timeLeft.days} label="Days" />
-                <TimeUnit value={timeLeft.hours} label="Hrs" />
-                <TimeUnit value={timeLeft.minutes} label="Mins" />
-                <TimeUnit value={timeLeft.seconds} label="Secs" />
-            </div>
-        );
-    };
-
-    const TimeUnit = ({ value, label }: { value: number; label: string; }) => (
-        <div className="p-1.5 bg-black/20 rounded-md text-center min-w-[40px] border border-slate-700">
-            <div className="font-mono font-bold text-slate-200 text-lg">{String(value).padStart(2, '0')}</div>
-            <div className="text-xs text-slate-400 uppercase leading-tight">{label}</div>
-        </div>
-    );
-    
-    if (!config || !config.isActive || !userProfile?.tournamentId || userProfile.tournamentId !== config.id) {
-        return null;
-    }
-    
-    const isEnded = (config.endDate as Timestamp).toMillis() < Date.now();
-
-    return (
-        <Card className="relative overflow-hidden border-2 border-indigo-500 bg-gradient-to-br from-indigo-900/50 via-slate-900 to-indigo-900/30 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]">
-            <CardHeader className="p-3 sm:p-4">
-                 <CardTitle className="text-base sm:text-lg font-bold text-indigo-300 tracking-wider flex items-center gap-2">
-                    <Trophy className="h-4 w-4 sm:h-5 sm:w-5" />
-                    {config.headline}
-                </CardTitle>
-                <CardDescription className="text-indigo-200/90 text-xs">{isEnded ? "The tournament has ended. Check the results!" : config.tagline}</CardDescription>
-            </CardHeader>
-             <CardContent className="space-y-3 p-3 pt-0 sm:p-4 sm:pt-2">
-                {!isEnded && config.endDate && <Countdown expiryDate={config.endDate} />}
-                 <Button onClick={() => router.push('/leaderboard')} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg border-b-4 border-indigo-800 active:border-b-0 h-9">
-                    View Leaderboard <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-            </CardContent>
-        </Card>
-    );
-}
-
-
-function CrushOracleCard() {
-  const { userProfile, creditCrushOracleInstall } = useAuth();
-  const [isClaiming, setIsClaiming] = useState(false);
-
-  const handleInstallClick = async () => {
-    if (isClaiming) return;
-
-    window.open('https://play.google.com/store/apps/details?id=com.crushoracle.app', '_blank');
-    
-    if (userProfile?.crushOracleInstalled) {
-      return;
-    }
-
-    setIsClaiming(true);
-    try {
-      await creditCrushOracleInstall();
-    } catch (e) {
-      // Error is handled by toast in the auth hook
-    } finally {
-      // The button will be disabled via snapshot update, but let's reset loading state for responsiveness
-      setTimeout(() => setIsClaiming(false), 2000);
-    }
-  };
-
-  const isInstalled = userProfile?.crushOracleInstalled === true;
-
-  return (
-    <Card className="text-white border-purple-400/50 bg-gradient-to-br from-purple-900/50 to-rose-900/30">
-      <CardHeader className="flex flex-row items-center gap-4">
-        <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-purple-400/50 flex-shrink-0">
-            <Image
-              src="https://firebasestorage.googleapis.com/v0/b/studio-7279145746-e15dc.firebasestorage.app/o/icon.png?alt=media&token=d58a68e6-fc86-4614-b288-151d96b972ae"
-              alt="CrushOracle Icon"
-              width={64}
-              height={64}
-              className="transform scale-125"
-            />
-        </div>
-        <div>
-          <CardTitle className="text-purple-300">CrushOracle</CardTitle>
-          <CardDescription className="text-rose-200/80">Turn Feelings into Clarity</CardDescription>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-center text-sm mb-4">
-          Install our new app and get <span className="font-bold text-amber-300">10 BLIT</span> instantly!
-        </p>
-        <Button
-          onClick={handleInstallClick}
-          disabled={isInstalled || isClaiming}
-          className="w-full bg-rose-500 text-white font-bold shadow-lg border-b-4 border-rose-800 hover:bg-rose-600 active:border-b-0"
-        >
-          {isInstalled ? (
-            <>
-              <Check className="mr-2 h-5 w-5" />
-              Reward Claimed
-            </>
-          ) : isClaiming ? (
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          ) : (
-            <>
-              <Download className="mr-2 h-5 w-5" />
-              Get it on Google Play
-            </>
-          )}
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
 
 
 function maskEmail(email: string) {
@@ -1184,9 +1023,10 @@ export function MiningDashboard() {
       <div className="grid gap-6 mt-6 px-4 md:px-6 pb-24">
         
         <AirdropCard />
-        <TournamentCard />
-
+        
         {isSessionActive && userProfile.adsUnlocked && <DailyCoins isSessionActive={isSessionActive} />}
+
+        <TournamentCard />
 
         <Card className="text-white border-amber-400/50 bg-slate-900/50">
             <CardHeader>
