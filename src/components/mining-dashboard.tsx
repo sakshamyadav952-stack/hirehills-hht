@@ -525,6 +525,52 @@ function maskMobile(mobile: string) {
     return `******${mobile.slice(-4)}`;
 }
 
+function CrushOracleCard() {
+  const { userProfile, creditCrushOracleInstall } = useAuth();
+  const [isCredited, setIsCredited] = useState(false);
+  const [isAndroidApp, setIsAndroidApp] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    setIsAndroidApp(typeof window.Android !== 'undefined');
+  }, []);
+
+  if (!userProfile || userProfile.crushOracleInstalled || isCredited) {
+    return null;
+  }
+
+  const handleInstallClick = async () => {
+    if (!isAndroidApp) {
+        // On web, we just link to the privacy policy as a placeholder.
+        router.push("/privacy-policy-2");
+        return;
+    }
+    // On Android, we credit and open the store link.
+    await creditCrushOracleInstall();
+    setIsCredited(true);
+    // The package name is a guess, but seems plausible.
+    window.open("https://play.google.com/store/apps/details?id=com.blistree.crushoracle", "_blank");
+  };
+
+  return (
+    <Card className="text-white border-purple-400/50" style={{ background: 'linear-gradient(145deg, #2c1a2e, #1e163e)' }}>
+        <CardHeader>
+            <CardTitle className="text-purple-300">🎉 Special Offer</CardTitle>
+            <CardDescription className="text-purple-200/80">Install our new app & get a bonus!</CardDescription>
+        </CardHeader>
+        <CardContent className="text-center">
+            <h3 className="text-xl font-bold">Crush Oracle</h3>
+            <p className="text-muted-foreground my-2">Get <span className="font-bold text-amber-400">10 BLIT</span> instantly when you install Crush Oracle.</p>
+            <Button onClick={handleInstallClick} className="mt-4 bg-purple-500 text-white hover:bg-purple-600">
+                <Download className="mr-2 h-4 w-4" />
+                Install & Claim Reward
+            </Button>
+        </CardContent>
+    </Card>
+  );
+}
+
+
 export function MiningDashboard() {
   const { userProfile, updateMiningState, loading, liveCoins, claimMinedCoins, getGlobalSessionDuration, adminTerminateUserSession, requestFollow, deleteAccount, isFinalizing } = useAuth();
   const router = useRouter();
