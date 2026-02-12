@@ -535,13 +535,13 @@ export default function LeaderboardPage() {
                             <Check className="h-8 w-8 text-green-400" />
                         </div>
                         <AlertDialogTitle className="text-xl font-bold text-green-300 text-center">Withdrawal Successful!</AlertDialogTitle>
-                        <AlertDialogDescription className="text-green-200/80 text-center pt-2">
-                            <div className="font-bold">{withdrawnAmount.toFixed(2)} USDC</div>
-                            <div>has been sent to the address:</div>
-                            <div className="font-mono text-xs break-all mt-2 p-2 bg-black/20 rounded-md">{usdcAddress}</div>
-                            <div className="mt-4">It may take a few moments to reflect in your wallet.</div>
-                        </AlertDialogDescription>
                     </AlertDialogHeader>
+                    <div className="text-sm text-green-200/80 text-center pt-2">
+                        <div className="font-bold">{withdrawnAmount.toFixed(2)} USDC</div>
+                        <div>has been sent to the address:</div>
+                        <div className="font-mono text-xs break-all mt-2 p-2 bg-black/20 rounded-md">{usdcAddress}</div>
+                        <div className="mt-4">It may take a few moments to reflect in your wallet.</div>
+                    </div>
                     <AlertDialogFooter>
                         <AlertDialogAction onClick={() => setShowSuccessDialog(false)} className="w-full bg-green-500 text-white hover:bg-green-600">
                             Great!
