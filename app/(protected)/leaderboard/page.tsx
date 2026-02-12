@@ -36,7 +36,7 @@ const LeaderboardListItem = ({ user, isCurrentUser }: { user: RankedUser, isCurr
                     </Avatar>
                     {rank <= 3 && (
                         <Crown className={cn(
-                            "absolute -top-2 -right-2 h-5 w-5 transform rotate-12",
+                            "absolute -top-3 left-1/2 -translate-x-1/2 h-5 w-5",
                             rank === 1 && "text-amber-400",
                             rank === 2 && "text-slate-400",
                             rank === 3 && "text-orange-500"
