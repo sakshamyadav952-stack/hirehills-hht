@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -185,14 +186,13 @@ export default function LeaderboardPage() {
             return { currentUserOnBoard: null, otherUsers: leaderboard || [] };
         }
         
-        const isTournamentEnded = (tournamentConfig.endDate as Timestamp).toMillis() < Date.now();
-        const isDeactivatedAndEnded = !tournamentConfig.isActive && isTournamentEnded;
+        const isConcluded = !tournamentConfig.isActive;
 
         // The current user's strip should always be based on the full, unfiltered leaderboard
         const userOnBoard = leaderboard.find(u => u.id === currentUser.id);
 
         let displayList = leaderboard;
-        if (isDeactivatedAndEnded) {
+        if (isConcluded) {
             displayList = leaderboard.filter(user => 
                 getPrizeForRank(user.rank, tournamentConfig.prizeTiers || []) > 0
             );
@@ -229,7 +229,7 @@ export default function LeaderboardPage() {
     }
     
     const isTournamentEnded = (tournamentConfig.endDate as Timestamp).toMillis() < Date.now();
-    const isDeactivatedAndEnded = !tournamentConfig.isActive && isTournamentEnded;
+    const isConcluded = !tournamentConfig.isActive;
 
     return (
         <div className="flex flex-col h-screen app-background">
@@ -244,7 +244,7 @@ export default function LeaderboardPage() {
             </header>
 
             <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-                {isDeactivatedAndEnded && (
+                {isConcluded && (
                     <Card className="text-center bg-green-900/50 border-green-500 shadow-[0_0_20px_rgba(74,222,128,0.4)]">
                         <CardHeader>
                             <CardTitle className="text-2xl text-green-300">Congratulations to the Winners!</CardTitle>
@@ -274,11 +274,11 @@ export default function LeaderboardPage() {
                     <div className="text-center">
                         <h2 className="text-3xl font-bold text-white">{tournamentConfig.headline}</h2>
                         <p className="text-indigo-200/80 mt-1">{tournamentConfig.tagline}</p>
-                        {tournamentConfig.endDate && !isTournamentEnded && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
+                        {tournamentConfig.endDate && tournamentConfig.isActive && !isTournamentEnded && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
                     </div>
 
                     <div className="flex justify-end">
-                       {isDeactivatedAndEnded ? <Badge>Concluded</Badge> : isTournamentEnded ? <Badge>Ended</Badge> : tournamentConfig.isActive ? <Badge variant="secondary">Active</Badge> : <Badge variant="outline">Upcoming</Badge>}
+                       {isConcluded ? <Badge>Concluded</Badge> : isTournamentEnded ? <Badge>Ended</Badge> : <Badge variant="secondary">Active</Badge>}
                     </div>
                 </div>
 
@@ -310,4 +310,5 @@ export default function LeaderboardPage() {
         </div>
     );
 }
+
 

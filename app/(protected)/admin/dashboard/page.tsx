@@ -761,9 +761,29 @@ function TournamentManager() {
                 
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-4">
-                        <Button onClick={config.isActive ? () => handleUpdate('isActive', false) : handleLaunch}>
-                            {config.isActive ? 'Deactivate' : 'Launch'}
-                        </Button>
+                        {config.isActive ? (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="outline">Stop Tournament</Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will stop the tournament, finalize rankings, and prevent new scores. This cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleUpdate('isActive', false)}>Confirm Stop</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        ) : (
+                            <Button onClick={handleLaunch}>
+                                Launch
+                            </Button>
+                        )}
                          {config.isActive && (
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -1075,5 +1095,6 @@ function AdminDashboard() {
 export default function AdminDashboardPage() {
     return <AdminDashboard />;
 }
+
 
 
