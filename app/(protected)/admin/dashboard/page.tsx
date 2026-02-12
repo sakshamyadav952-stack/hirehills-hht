@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, onSnapshot, doc, updateDoc, runTransaction, arrayUnion, query, where, getDocs, writeBatch, increment, getDoc, orderBy, Timestamp, documentId, limit, DocumentSnapshot, startAfter } from 'firebase/firestore';
-import { Loader2, User, Shield, Inbox, Check, X, Coins, Award, Settings, MessageSquare, Send, Star, Banknote, Building2, UserCheck, Share2, AtSign, Smartphone, Gift, Save, FilePen, Search, Crown, Trash2 } from 'lucide-react';
+import { Loader2, User, Shield, Inbox, Check, X, Coins, Award, Settings, MessageSquare, Send, Star, Banknote, Building2, UserCheck, Share2, AtSign, Smartphone, Gift, Save, FilePen, Search, Crown, Trash2, Trophy } from 'lucide-react';
 import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction, Note, Review, AirdropConfig, TournamentConfig, PrizeTier } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
@@ -468,7 +468,7 @@ function EligibleUsersManager({ showEnrollButton = false }: { showEnrollButton?:
         setEnrolling(userId);
         try {
             await enrollUserInTournament(userId);
-            // Optionally remove from list or show a success state
+            setEligibleUsers(prev => prev.filter(u => u.id !== userId));
         } finally {
             setEnrolling(null);
         }
@@ -752,6 +752,149 @@ function TournamentManager() {
     );
 }
 
+function EnrolledUsersManager() {
+    const firestore = useFirestore();
+    const [enrolledUsers, setEnrolledUsers] = useState<UserProfile[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
+    const [isLastPage, setIsLastPage] = useState(false);
+    const [tournamentId, setTournamentId] = useState<string | null>(null);
+
+    const fetchUsers = useCallback(async (startAfterDoc: DocumentSnapshot | null = null) => {
+        if (!firestore || !tournamentId) {
+            setIsLoading(false);
+            return;
+        }
+        setIsLoading(true);
+
+        try {
+            let q = query(
+                collection(firestore, 'users'),
+                where('tournamentId', '==', tournamentId),
+                orderBy('tournamentScore', 'desc'),
+                limit(PAGE_SIZE)
+            );
+            if (startAfterDoc) {
+                q = query(q, startAfter(startAfterDoc));
+            }
+            
+            const documentSnapshots = await getDocs(q);
+            const users = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
+
+            setLastDoc(documentSnapshots.docs[documentSnapshots.docs.length - 1] || null);
+            setIsLastPage(documentSnapshots.docs.length < PAGE_SIZE);
+
+            if (startAfterDoc) {
+                 setEnrolledUsers(prev => [...prev, ...users]);
+            } else {
+                setEnrolledUsers(users);
+            }
+
+        } catch (error) {
+            console.error("Error fetching enrolled users:", error);
+            setIsLastPage(true);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [firestore, tournamentId]);
+
+    useEffect(() => {
+        if (!firestore) return;
+        setIsLoading(true);
+        const configDocRef = doc(firestore, 'config', 'tournament');
+        getDoc(configDocRef).then(docSnap => {
+            if (docSnap.exists() && docSnap.data().isActive) {
+                setTournamentId(docSnap.id);
+            } else {
+                setTournamentId(null);
+                setIsLoading(false);
+            }
+        });
+    }, [firestore]);
+
+    useEffect(() => {
+        if (tournamentId) {
+            fetchUsers(null);
+        } else if (firestore) {
+            setIsLoading(false);
+        }
+    }, [tournamentId, fetchUsers, firestore]);
+
+    const handleNext = () => {
+        if (!isLastPage && lastDoc) {
+            fetchUsers(lastDoc);
+        }
+    };
+
+    if (isLoading && enrolledUsers.length === 0) {
+        return <Card><CardContent className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
+    }
+
+    if (!tournamentId) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Enrolled Users</CardTitle>
+                    <CardDescription>Users enrolled in the current tournament.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
+                        <Inbox className="h-12 w-12 text-muted-foreground" />
+                        <h3 className="font-semibold">No Active Tournament</h3>
+                        <p className="text-sm text-muted-foreground">There is no active tournament to show enrolled users for.</p>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Enrolled Users</CardTitle>
+                <CardDescription>Users enrolled in the current tournament.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {isLoading && enrolledUsers.length === 0 ? (
+                    <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                ) : enrolledUsers.length === 0 ? (
+                     <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
+                        <Inbox className="h-12 w-12 text-muted-foreground" />
+                        <h3 className="font-semibold">No Users Enrolled</h3>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {enrolledUsers.map(user => (
+                            <Card key={user.id} className="p-4 hover:bg-muted/50 transition-colors">
+                               <div className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <Avatar className="h-12 w-12"><AvatarImage src={user.profileImageUrl} alt={user.fullName} /><AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback></Avatar>
+                                        <div>
+                                            <Link href={`/admin/find-user?profileCode=${user.profileCode}`} className="font-semibold hover:underline">{user.fullName}</Link>
+                                            <p className="text-sm text-muted-foreground">{user.profileCode}</p>
+                                        </div>
+                                    </div>
+                                     <div className="flex items-center gap-2 font-semibold">
+                                        <Trophy className="h-5 w-5 text-amber-400" />
+                                        <span className="text-lg">{user.tournamentScore || 0}</span>
+                                    </div>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </CardContent>
+             {enrolledUsers.length > 0 && !isLastPage && (
+                <CardFooter className="flex justify-end">
+                    <Button onClick={handleNext} disabled={isLoading || isLastPage}>
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isLastPage ? 'End of List' : 'Next'}
+                    </Button>
+                </CardFooter>
+            )}
+        </Card>
+    );
+}
+
 function AdminDashboard() {
   const { userProfile, loading } = useAuth();
   
@@ -810,15 +953,19 @@ function AdminDashboard() {
         </TabsContent>
         <TabsContent value="rt" className="mt-6">
             <Tabs defaultValue="tournament" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="tournament">Set Tournament</TabsTrigger>
                     <TabsTrigger value="eligible-rt">RT Eligible</TabsTrigger>
+                    <TabsTrigger value="enrolled">Enrolled</TabsTrigger>
                 </TabsList>
                 <TabsContent value="tournament" className="mt-6">
                     <TournamentManager />
                 </TabsContent>
                 <TabsContent value="eligible-rt" className="mt-6">
                     <EligibleUsersManager showEnrollButton={true} />
+                </TabsContent>
+                <TabsContent value="enrolled" className="mt-6">
+                    <EnrolledUsersManager />
                 </TabsContent>
             </Tabs>
         </TabsContent>
