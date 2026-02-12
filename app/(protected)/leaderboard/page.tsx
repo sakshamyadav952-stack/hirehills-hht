@@ -300,7 +300,7 @@ export default function LeaderboardPage() {
             const { isValid } = await verifyUsdcAddress(usdcAddress);
             setIsVerified(isValid);
             if (!isValid) {
-                setVerificationError("This is not a valid Solana USDC address. Please double-check.");
+                setVerificationError("This is not a valid Solana address. Please double-check.");
             }
         } catch (error) {
             console.error(error);
@@ -315,7 +315,7 @@ export default function LeaderboardPage() {
         if (!isVerified || !usdcAddress.trim()) {
             toast({
                 title: "Address Not Verified",
-                description: "Please verify your USDC address first.",
+                description: "Please verify your wallet address first.",
                 variant: "destructive",
             });
             return;
@@ -407,15 +407,15 @@ export default function LeaderboardPage() {
                                         <ShieldAlert className="h-4 w-4" />
                                         <AlertTitle>Important Warning</AlertTitle>
                                         <AlertDescription>
-                                            You must provide a Solana (SOL) blockchain USDC address. Sending to any other blockchain address (e.g., Ethereum, BSC) will result in the permanent loss of your reward. If you are unsure, please contact support.
+                                            You must provide your main Solana (SOL) wallet address. We will send USDC to this address. Do not use an address from another blockchain (e.g., Ethereum, BSC), as this will result in the permanent loss of your reward. If you are unsure, please contact support.
                                         </AlertDescription>
                                     </Alert>
                                     <div className="space-y-2">
-                                        <Label htmlFor="usdc-address" className="text-white">Your Solana USDC Address</Label>
+                                        <Label htmlFor="usdc-address" className="text-white">Your Solana Wallet Address</Label>
                                         <div className="flex gap-2 items-center">
                                             <Input 
                                                 id="usdc-address"
-                                                placeholder="Enter your Solana USDC address"
+                                                placeholder="Enter your Solana address"
                                                 className="bg-slate-800 border-slate-600 text-white flex-1"
                                                 value={usdcAddress}
                                                 onChange={(e) => {

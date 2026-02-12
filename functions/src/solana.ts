@@ -1,6 +1,8 @@
+
 import { Connection, PublicKey, Keypair, Transaction, clusterApiUrl } from '@solana/web3.js';
-import { getOrCreateAssociatedTokenAccount, createTransferInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { getOrCreateAssociatedTokenAccount, createTransferInstruction, getAssociatedTokenAddress } from '@solana/spl-token';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+import * as functions from "firebase-functions/v1";
 
 const secretClient = new SecretManagerServiceClient();
 
@@ -27,32 +29,18 @@ async function loadWallet(secretName: string): Promise<Keypair> {
 const USDC_MINT_ADDRESS = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"); // Mainnet USDC
 const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed');
 
-export async function isValidUsdcAccount(address: string): Promise<boolean> {
+export async function isValidSolanaAddress(address: string): Promise<boolean> {
     try {
         const publicKey = new PublicKey(address);
-        const accountInfo = await connection.getParsedAccountInfo(publicKey);
-
-        if (!accountInfo.value) return false;
-
-        const data = accountInfo.value.data;
-
-        // ✅ Safe type guard for ParsedAccountData
-        if (typeof data === "object" && "parsed" in data) {
-            const parsedData: any = data.parsed;
-
-            return (
-                accountInfo.value.owner.toBase58() === TOKEN_PROGRAM_ID.toBase58() &&
-                parsedData.info?.mint === USDC_MINT_ADDRESS.toBase58()
-            );
-        }
-
-        return false;
-
+        // A simple check to see if it's a valid public key on the curve.
+        return PublicKey.isOnCurve(publicKey.toBuffer());
     } catch (error) {
-        console.error("Error validating USDC account:", error);
+        // If new PublicKey(address) fails (e.g., invalid base58 string), it will throw.
+        console.error("Error validating Solana address:", error);
         return false;
     }
 }
+
 
 export async function transferUsdc(toAddressString: string, amountMicroUsdc: number): Promise<string> {
     try {
@@ -91,9 +79,9 @@ export async function transferUsdc(toAddressString: string, amountMicroUsdc: num
         console.error("USDC Transfer failed:", error);
 
         if (error instanceof Error) {
-            throw new Error(`USDC Transfer failed: ${error.message}`);
+            throw new functions.https.HttpsError('internal', `USDC Transfer failed: ${error.message}`);
         }
 
-        throw new Error("Unknown error during USDC transfer");
+        throw new functions.https.HttpsError('internal', "Unknown error during USDC transfer");
     }
 }

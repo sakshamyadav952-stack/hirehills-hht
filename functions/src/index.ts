@@ -2,7 +2,7 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { UserProfile, TournamentConfig, ConcludedTournament } from "./types";
-import { isValidUsdcAccount, transferUsdc } from "./solana";
+import { isValidSolanaAddress, transferUsdc } from "./solana";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -522,7 +522,7 @@ export const claimDailyCoin = functions.runWith({ timeoutSeconds: 30 }).https.on
     } catch (error) {
         console.error("Error in claimDailyCoin function:", error);
         if (error instanceof functions.https.HttpsError) {
-            throw error;
+          throw error;
         }
         throw new functions.https.HttpsError(
             "internal",
@@ -653,7 +653,7 @@ export const verifySolanaAddress = functions.https.onCall(async (data) => {
     if (!address || typeof address !== 'string') {
         throw new functions.https.HttpsError('invalid-argument', 'Address must be a string.');
     }
-    const isValid = await isValidUsdcAccount(address);
+    const isValid = await isValidSolanaAddress(address);
     return { isValid };
 });
 
@@ -667,9 +667,9 @@ export const requestUsdcWithdrawal = functions.runWith({secrets: ["SOLANA_FEE_WA
         throw new functions.https.HttpsError('invalid-argument', 'USDC address must be provided.');
     }
 
-    const isValid = await isValidUsdcAccount(usdcAddress);
+    const isValid = await isValidSolanaAddress(usdcAddress);
     if (!isValid) {
-        throw new functions.https.HttpsError('invalid-argument', 'The provided address is not a valid Solana USDC wallet.');
+        throw new functions.https.HttpsError('invalid-argument', 'The provided address is not a valid Solana wallet address.');
     }
 
     const userDocRef = db.collection('users').doc(uid);
@@ -711,4 +711,3 @@ export const requestUsdcWithdrawal = functions.runWith({secrets: ["SOLANA_FEE_WA
     });
 });
     
-
