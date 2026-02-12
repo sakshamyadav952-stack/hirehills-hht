@@ -2267,84 +2267,15 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
         throw new Error("User is not an admin.");
     }
     
-    const configDocRef = doc(firestore, 'config', 'tournament');
-
     try {
-        const currentConfigDoc = await getDoc(configDocRef);
-        const currentConfig = currentConfigDoc.exists() ? currentConfigDoc.data() as TournamentConfig : { isActive: false, prizeTiers: [] };
-        
-        const isStoppingTournament = currentConfig.isActive && config.isActive === false;
-        
-        if (isStoppingTournament) {
-            // Logic to finalize the tournament and save winners
-            const tournamentId = 'tournament'; // Since it's from /config/tournament
-
-            const usersQuery = query(collection(firestore, 'users'), where('tournamentId', '==', tournamentId));
-            const usersSnapshot = await getDocs(usersQuery);
-            const enrolledUsers = usersSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile));
-
-            enrolledUsers.sort((a, b) => (b.tournamentScore || 0) - (a.tournamentScore || 0));
-
-            const winners: ConcludedTournament['winners'] = [];
-            const payouts: ConcludedTournament['payouts'] = {};
-
-            enrolledUsers.forEach((user, index) => {
-                const rank = index + 1;
-                const prizeTier = currentConfig.prizeTiers?.find(t => rank >= t.startRank && rank <= t.endRank);
-                if (prizeTier && prizeTier.prize > 0) {
-                    winners.push({
-                        userId: user.id,
-                        fullName: user.fullName,
-                        profileCode: user.profileCode,
-                        rank: rank,
-                        score: user.tournamentScore || 0,
-                        prize: prizeTier.prize
-                    });
-                    payouts[user.id] = 'pending';
-                }
-            });
-
-            const concludedTournamentData: Omit<ConcludedTournament, 'id'> = {
-                headline: currentConfig.headline,
-                tagline: currentConfig.tagline,
-                concludedAt: serverTimestamp() as Timestamp,
-                endDate: currentConfig.endDate,
-                prizeTiers: currentConfig.prizeTiers || [],
-                winners: winners,
-                payouts: payouts,
-                isActive: false,
-            };
-
-            const batch = writeBatch(firestore);
-            const concludedDocRef = doc(collection(firestore, 'concludedTournaments'));
-            batch.set(concludedDocRef, concludedTournamentData);
-            
-            // Mark the current tournament as inactive instead of deleting it.
-            batch.update(configDocRef, { isActive: false });
-
-            await batch.commit();
-            toast({ title: 'Tournament Stopped', description: 'Winner data has been saved. You can now withdraw the tournament to start a new one.' });
-
-        } else {
-             // Standard config update logic
-            let endDate: Date | null = null;
-            if (config.endDate) {
-                endDate = config.endDate instanceof Timestamp ? config.endDate.toDate() : new Date(config.endDate);
-                endDate.setHours(23, 59, 59, 999);
-            }
-             const dataToUpdate = {
-                ...config,
-                ...(endDate && { endDate: Timestamp.fromDate(endDate) })
-            };
-            await setDoc(configDocRef, dataToUpdate, { merge: true });
-            toast({ title: 'Tournament Config Updated', description: 'The tournament configuration has been saved.' });
-        }
-
+        const functions = getFunctions();
+        const updateFunction = httpsCallable(functions, 'updateTournamentConfig');
+        await updateFunction(config);
     } catch (error) {
         console.error("Error updating tournament config:", error);
         toast({ title: 'Error', description: 'Could not save tournament configuration.', variant: 'destructive' });
     }
-  }, [userProfile, firestore, toast]);
+  }, [userProfile, toast]);
 
     const adminUpdatePayoutStatus = useCallback(async (concludedTournamentId: string, userId: string, status: 'pending' | 'paid' | 'failed') => {
         const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1' || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
@@ -3005,4 +2936,3 @@ export const useAuth = () => {
 
 
     
-

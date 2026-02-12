@@ -503,13 +503,18 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Eligible Users</CardTitle>
-                <CardDescription>
-                     {forTournament 
-                        ? "Showing active users with over 100 BLIT who are not enrolled in the tournament."
-                        : "Showing active users with over 100 BLIT who are not promoters."
-                    }
-                </CardDescription>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle>Eligible Users</CardTitle>
+                        <CardDescription>
+                            {forTournament 
+                                ? "Showing active users with over 100 BLIT who are not enrolled in the tournament."
+                                : "Showing active users with over 100 BLIT who are not promoters."
+                            }
+                        </CardDescription>
+                    </div>
+                     <Badge variant="secondary" className="text-lg">Total: {eligibleUsers.length}</Badge>
+                </div>
                  <div className="pt-4 space-y-2">
                     <Input 
                         placeholder="Search by profile code..."
@@ -870,6 +875,7 @@ function EnrolledUsersManager() {
     const [searchTerm, setSearchTerm] = useState('');
     const [isUnenrolling, setIsUnenrolling] = useState<string | null>(null);
     const [isUnenrollingAll, setIsUnenrollingAll] = useState(false);
+    const [totalEnrolled, setTotalEnrolled] = useState(0);
 
     const fetchUsers = useCallback(async (startAfterDoc: DocumentSnapshot | null = null, refresh: boolean = false) => {
         if (!firestore || !tournamentId) {
@@ -934,14 +940,20 @@ function EnrolledUsersManager() {
         if (!firestore) return;
         setIsLoading(true);
         const configDocRef = doc(firestore, 'config', 'tournament');
-        getDoc(configDocRef).then(docSnap => {
-            if (docSnap.exists()) {
+        const unsub = onSnapshot(configDocRef, (docSnap) => {
+            if (docSnap.exists() && docSnap.data().isActive) {
                 setTournamentId(docSnap.id);
+                 const countQuery = query(collection(firestore, 'users'), where('tournamentId', '==', docSnap.id));
+                 getDocs(countQuery).then(countSnap => {
+                    setTotalEnrolled(countSnap.size);
+                 });
             } else {
                 setTournamentId(null);
+                setTotalEnrolled(0);
                 setIsLoading(false);
             }
         });
+        return () => unsub();
     }, [firestore]);
 
 
@@ -956,6 +968,7 @@ function EnrolledUsersManager() {
         try {
             await unenrollUserFromTournament(userId);
             setEnrolledUsers(prev => prev.filter(u => u.id !== userId));
+            setTotalEnrolled(prev => prev - 1);
         } finally {
             setIsUnenrolling(null);
         }
@@ -966,6 +979,7 @@ function EnrolledUsersManager() {
         try {
             await unenrollAllTournamentUsers();
             setEnrolledUsers([]);
+            setTotalEnrolled(0);
         } finally {
             setIsUnenrollingAll(false);
         }
@@ -996,8 +1010,13 @@ function EnrolledUsersManager() {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Enrolled Users</CardTitle>
-                <CardDescription>Users enrolled in the current tournament.</CardDescription>
+                 <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle>Enrolled Users</CardTitle>
+                        <CardDescription>Users enrolled in the current tournament.</CardDescription>
+                    </div>
+                     <Badge variant="secondary" className="text-lg">Total: {totalEnrolled}</Badge>
+                </div>
                  <div className="flex gap-2 pt-4">
                     <form onSubmit={(e) => { e.preventDefault(); handleRefresh(); }} className="flex gap-2 flex-1">
                         <Input 
@@ -1292,6 +1311,7 @@ export default function AdminDashboardPage() {
 
 
     
+
 
 
 
