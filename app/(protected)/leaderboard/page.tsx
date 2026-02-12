@@ -1,16 +1,19 @@
 
+
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useFirestore } from '@/firebase';
 import { useAuth } from '@/lib/auth';
-import { collection, query, where, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp } from 'firebase/firestore';
 import type { UserProfile, TournamentConfig } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Trophy, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 type RankedUser = UserProfile & { rank: number };
 
@@ -30,7 +33,7 @@ export default function LeaderboardPage() {
             const configDocRef = doc(firestore, 'config', 'tournament');
             const configDoc = await getDoc(configDocRef);
 
-            if (!configDoc.exists() || !configDoc.data()?.isActive) {
+            if (!configDoc.exists()) {
                 setTournamentConfig(null);
                 setLeaderboard([]);
                 setIsLoading(false);
@@ -40,10 +43,18 @@ export default function LeaderboardPage() {
             const activeTournament = { id: configDoc.id, ...configDoc.data() } as TournamentConfig;
             setTournamentConfig(activeTournament);
 
+            // Don't fetch leaderboard if tournament is withdrawn
+            if (!activeTournament.isActive && (activeTournament.endDate as Timestamp).toMillis() > Date.now()) {
+                 setLeaderboard([]);
+                 setIsLoading(false);
+                 return;
+            }
+
             const usersQuery = query(
                 collection(firestore, 'users'),
                 where('tournamentId', '==', activeTournament.id),
-                orderBy('tournamentScore', 'desc')
+                orderBy('tournamentScore', 'desc'),
+                orderBy('tournamentScoreLastUpdated', 'asc')
             );
             const querySnapshot = await getDocs(usersQuery);
             const users = querySnapshot.docs.map((doc, index) => ({
@@ -56,6 +67,15 @@ export default function LeaderboardPage() {
 
         } catch (error) {
             console.error("Error fetching leaderboard:", error);
+            // Inform user about index creation
+            if ((error as any).code === 'failed-precondition') {
+                 toast({
+                    title: "Leaderboard Indexing",
+                    description: "The leaderboard requires a new database index. Please check the developer console for a link to create it.",
+                    variant: "destructive",
+                    duration: 10000
+                });
+            }
         } finally {
             setIsLoading(false);
         }
@@ -83,7 +103,7 @@ export default function LeaderboardPage() {
         );
     }
     
-    if (!tournamentConfig) {
+    if (!tournamentConfig || (!tournamentConfig.isActive && (tournamentConfig.endDate as Timestamp).toMillis() > Date.now())) {
         return (
              <div className="flex h-screen items-center justify-center app-background text-center p-4">
                 <Card className="futuristic-card-bg-secondary">
@@ -98,6 +118,8 @@ export default function LeaderboardPage() {
             </div>
         )
     }
+    
+    const isTournamentEnded = (tournamentConfig.endDate as Timestamp).toMillis() < Date.now();
 
     return (
         <div className="container mx-auto py-10">
@@ -105,8 +127,11 @@ export default function LeaderboardPage() {
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <div>
-                            <CardTitle>Tournament Leaderboard</CardTitle>
-                            <CardDescription>Rankings are based on completed tasks.</CardDescription>
+                            <CardTitle className="flex items-center gap-2">
+                                Tournament Leaderboard
+                                {!tournamentConfig.isActive ? <Badge variant="destructive">Withdrawn</Badge> : isTournamentEnded ? <Badge>Ended</Badge> : <Badge variant="secondary">Active</Badge>}
+                            </CardTitle>
+                            <CardDescription>Rankings are based on completed referrals.</CardDescription>
                         </div>
                         <Button onClick={fetchLeaderboard} variant="outline" size="sm" disabled={isLoading}>
                             <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />

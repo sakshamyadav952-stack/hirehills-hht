@@ -194,6 +194,7 @@ export type UserProfile = {
   crushOracleInstalled?: boolean;
   tournamentId?: string | null;
   tournamentScore?: number;
+  tournamentScoreLastUpdated?: Timestamp;
 };
 
 export type PendingTransfer = {

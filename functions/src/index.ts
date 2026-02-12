@@ -1,5 +1,4 @@
 
-
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { UserProfile } from "./types";
@@ -104,9 +103,10 @@ export const applyReferralCode = functions
 
         if (tournamentDoc && tournamentDoc.exists) {
             const tournamentData = tournamentDoc.data();
-            if (tournamentData && tournamentData.isActive && tournamentData.endDate.toMillis() > now.toMillis()) {
+            if (referrerData.isPromoter === true && tournamentData && tournamentData.isActive && tournamentData.endDate.toMillis() > now.toMillis()) {
                 if (referrerData.tournamentId === tournamentDoc.id) {
                     referrerUpdateData.tournamentScore = admin.firestore.FieldValue.increment(1);
+                    referrerUpdateData.tournamentScoreLastUpdated = now;
                 }
             }
         }
@@ -181,7 +181,7 @@ export const finalizeSession = functions.https.onCall(async (data, context) => {
             }
 
             // Authorization: Must be the user themselves or an admin
-            const isSuperAdmin = callerUid === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || callerUid === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+            const isSuperAdmin = callerUid === 'obaW90LhdhPDvbvh06wWwBfucTk1' || callerUid === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
             const callerIsAdmin = (callerDoc && callerDoc.exists && callerDoc.data()?.isAdmin === true) || isSuperAdmin;
             if (callerUid !== targetUserId && !callerIsAdmin) {
                  throw new functions.https.HttpsError(
