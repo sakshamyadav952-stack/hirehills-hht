@@ -227,30 +227,36 @@ export default function LeaderboardPage() {
             </header>
 
             <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-                <div className="text-center">
-                    <h2 className="text-3xl font-bold text-white">{tournamentConfig.headline}</h2>
-                    <p className="text-indigo-200/80 mt-1">{tournamentConfig.tagline}</p>
-                    {tournamentConfig.endDate && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
-                    <div className="mt-4">
+                <div className="flex justify-between items-start mb-6">
+                    {/* Left: Tiers */}
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold text-indigo-200">Prize Tiers (USDC)</p>
+                        <div className="flex flex-col gap-1 items-start">
+                            {tournamentConfig.prizeTiers?.map(tier => (
+                                <div key={tier.id} className="text-left p-1 px-2 bg-black/30 rounded-md border border-indigo-400/30">
+                                    <p className="text-[10px] font-bold text-indigo-300">
+                                    {tier.startRank === tier.endRank ? `Rank ${tier.startRank}` : `Rank ${tier.startRank}-${tier.endRank}`}
+                                    </p>
+                                    <p className="text-xs font-semibold text-white flex items-center gap-0.5">
+                                    <DollarSign className="h-3 w-3" />
+                                    {tier.prize}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    {/* Center: Headline & Countdown */}
+                    <div className="text-center">
+                        <h2 className="text-3xl font-bold text-white">{tournamentConfig.headline}</h2>
+                        <p className="text-indigo-200/80 mt-1">{tournamentConfig.tagline}</p>
+                        {tournamentConfig.endDate && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
+                    </div>
+
+                    {/* Right: Status */}
+                    <div className="flex justify-end">
                         {!tournamentConfig.isActive ? <Badge variant="destructive">Withdrawn</Badge> : isTournamentEnded ? <Badge>Ended</Badge> : <Badge variant="secondary">Active</Badge>}
                     </div>
-                </div>
-
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-center text-indigo-200">Prize Tiers (USDC)</p>
-                  <div className="flex justify-center gap-2 flex-wrap">
-                    {tournamentConfig.prizeTiers?.map(tier => (
-                      <div key={tier.id} className="text-center p-1.5 px-2 bg-black/30 rounded-md border border-indigo-400/30">
-                        <p className="text-[10px] font-bold text-indigo-300">
-                          {tier.startRank === tier.endRank ? `Rank ${tier.startRank}` : `Rank ${tier.startRank}-${tier.endRank}`}
-                        </p>
-                        <p className="text-xs font-semibold text-white flex items-center justify-center gap-0.5">
-                          <DollarSign className="h-3 w-3" />
-                          {tier.prize}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
                 </div>
                 
                 {isLoading && leaderboard.length === 0 ? (
@@ -281,4 +287,3 @@ export default function LeaderboardPage() {
         </div>
     );
 }
-
