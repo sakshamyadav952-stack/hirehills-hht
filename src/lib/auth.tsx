@@ -131,7 +131,7 @@ interface AuthContextType {
   enrollAllEligibleUsers: (userIds: string[]) => Promise<void>;
   unenrollAllTournamentUsers: () => Promise<void>;
   verifyUsdcAddress: (address: string) => Promise<{ isValid: boolean }>;
-  requestUsdcWithdrawal: (address: string) => Promise<void>;
+  requestUsdcWithdrawal: (address: string) => Promise<{ transactionId: string } | undefined>;
   referralEarnings: number;
   respondToKuberRequest: (request: KuberRequest) => Promise<void>;
   clearKuberSessionLogs: () => Promise<void>;
@@ -2445,7 +2445,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
             const result = await verifyFunction({ address });
             return result.data as { isValid: boolean };
         } catch (error: any) {
-            console.error("Error verifying USDC address:", error);
+            console.error("Error verifying Solana address:", error);
             toast({
                 title: 'Verification Failed',
                 description: error.message || 'Could not verify the address.',
@@ -2455,14 +2455,15 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
         }
     }, [toast]);
     
-    const requestUsdcWithdrawal = useCallback(async (address: string) => {
+    const requestUsdcWithdrawal = useCallback(async (address: string): Promise<{ transactionId: string } | undefined> => {
         if (!user) {
             throw new Error("User not authenticated.");
         }
         try {
             const functions = getFunctions();
             const withdrawFunction = httpsCallable(functions, 'requestUsdcWithdrawal');
-            await withdrawFunction({ usdcAddress: address });
+            const result = await withdrawFunction({ usdcAddress: address });
+            return result.data as { transactionId: string };
         } catch (error: any) {
             console.error("Error requesting USDC withdrawal:", error);
             throw error;

@@ -8,7 +8,7 @@ import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp, lim
 import type { UserProfile, TournamentConfig, PrizeTier, ConcludedTournament } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign, Medal, Users, ShieldAlert, Check } from 'lucide-react';
+import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign, Medal, Users, ShieldAlert, Check, ExternalLink } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import Link from 'next/link';
 
 type RankedUser = UserProfile & { rank: number };
 const PAGE_SIZE = 10;
@@ -140,6 +142,8 @@ export default function LeaderboardPage() {
     const [isVerified, setIsVerified] = useState(false);
     const [isWithdrawing, setIsWithdrawing] = useState(false);
     const [verificationError, setVerificationError] = useState<string | null>(null);
+    const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+    const [transactionId, setTransactionId] = useState<string | null>(null);
     
     const amountToWithdraw = currentUser?.tournamentWinning || 0;
 
@@ -324,11 +328,16 @@ export default function LeaderboardPage() {
         }
         setIsWithdrawing(true);
         try {
-            await requestUsdcWithdrawal(usdcAddress);
-            toast({
-                title: "Withdrawal Requested",
-                description: "Your withdrawal is being processed. It may take a few minutes to reflect in your wallet."
-            });
+            const result = await requestUsdcWithdrawal(usdcAddress);
+            if (result?.transactionId) {
+                setTransactionId(result.transactionId);
+                setShowSuccessDialog(true);
+            } else {
+                 toast({
+                    title: "Withdrawal Sent",
+                    description: "Your withdrawal is processing. We couldn't get a transaction ID, but please check your wallet shortly.",
+                });
+            }
         } catch (error: any) {
             toast({
                 title: "Withdrawal Failed",
@@ -437,6 +446,13 @@ export default function LeaderboardPage() {
                                         {isWithdrawing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                         Withdraw {amountToWithdraw.toFixed(2)} USDC
                                     </Button>
+                                     {transactionId && (
+                                        <Button asChild variant="link" className="w-full mt-2 text-cyan-300 hover:text-white">
+                                            <Link href={`https://solscan.io/tx/${transactionId}`} target="_blank" rel="noopener noreferrer">
+                                                Verify on Solscan <ExternalLink className="ml-2 h-4 w-4" />
+                                            </Link>
+                                        </Button>
+                                    )}
                                 </div>
                             </CardContent>
                         )}
@@ -510,6 +526,27 @@ export default function LeaderboardPage() {
 
                  <div className="h-20 md:hidden" />
             </main>
+             <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+                <AlertDialogContent className="text-white border-green-400/50" style={{ background: 'linear-gradient(145deg, #1a2e2e, #163e3e)' }}>
+                    <AlertDialogHeader>
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20 mb-4 border-2 border-green-500/50">
+                            <Check className="h-8 w-8 text-green-400" />
+                        </div>
+                        <AlertDialogTitle className="text-xl font-bold text-green-300 text-center">Withdrawal Successful!</AlertDialogTitle>
+                        <AlertDialogDescription className="text-green-200/80 text-center pt-2">
+                            <p className="font-bold">{amountToWithdraw.toFixed(2)} USDC</p>
+                            <p>has been sent to the address:</p>
+                            <p className="font-mono text-xs break-all mt-2 p-2 bg-black/20 rounded-md">{usdcAddress}</p>
+                            <p className="mt-4">It may take a few moments to reflect in your wallet.</p>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction onClick={() => setShowSuccessDialog(false)} className="w-full bg-green-500 text-white hover:bg-green-600">
+                            Great!
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
