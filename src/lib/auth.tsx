@@ -25,7 +25,7 @@ import {
 } from 'firebase/auth';
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { doc, serverTimestamp, onSnapshot, updateDoc, runTransaction, arrayUnion, query, collection, where, documentId, getDocs, writeBatch, deleteDoc, setDoc, getDoc, increment, addDoc, orderBy, Timestamp, arrayRemove, Firestore } from 'firebase/firestore';
-import type { UserProfile, Transaction, PendingTransfer, WithdrawalRequest, Note, Comment, ActiveBoost, DailyAdCoin, SessionConfig, AdWatchEvent, AirdropConfig, ChatMessage, KuberBlock, KuberRequest, KuberId, TournamentConfig } from '@/lib/types';
+import type { UserProfile, Transaction, PendingTransfer, WithdrawalRequest, Note, Comment, ActiveBoost, DailyAdCoin, SessionConfig, AdWatchEvent, AirdropConfig, ChatMessage, KuberBlock, KuberRequest, KuberId, TournamentConfig, PrizeTier } from '@/lib/types';
 import { useToast, toast as toastFn } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -571,7 +571,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setReferralsLoading(false);
         return;
     }
-
+    
     const referralUids = userProfile.referrals || [];
     if (referralUids.length === 0) {
         setAllReferrals([]);
@@ -2254,7 +2254,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     }
 }, [user, userProfile, firestore, toast]);
 
-const updateTournamentConfig = useCallback(async (config: Partial<TournamentConfig>) => {
+  const updateTournamentConfig = useCallback(async (config: Partial<TournamentConfig>) => {
     const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1' || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
     if (!isAdmin) {
       toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
@@ -2320,6 +2320,7 @@ const updateTournamentConfig = useCallback(async (config: Partial<TournamentConf
         throw new Error("There is no active tournament to enroll in.");
       }
       
+      const tournamentData = tournamentDoc.data() as TournamentConfig;
       const tournamentId = tournamentDoc.id;
 
       await updateDoc(userToEnrollRef, {

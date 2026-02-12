@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -5,8 +6,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, onSnapshot, doc, updateDoc, runTransaction, arrayUnion, query, where, getDocs, writeBatch, increment, getDoc, orderBy, Timestamp, documentId, limit, DocumentSnapshot, startAfter } from 'firebase/firestore';
-import { Loader2, User, Shield, Inbox, Check, X, Coins, Award, Settings, MessageSquare, Send, Star, Banknote, Building2, UserCheck, Share2, AtSign, Smartphone, Gift, Save, FilePen, Search, Crown } from 'lucide-react';
-import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction, Note, Review, AirdropConfig } from '@/lib/types';
+import { Loader2, User, Shield, Inbox, Check, X, Coins, Award, Settings, MessageSquare, Send, Star, Banknote, Building2, UserCheck, Share2, AtSign, Smartphone, Gift, Save, FilePen, Search, Crown, Trash2 } from 'lucide-react';
+import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction, Note, Review, AirdropConfig, TournamentConfig, PrizeTier } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -377,12 +378,13 @@ const PAGE_SIZE = 10;
 
 function EligibleUsersManager({ showEnrollButton = false }: { showEnrollButton?: boolean }) {
     const firestore = useFirestore();
-    const { makeUserPromoter } = useAuth();
+    const { makeUserPromoter, enrollUserInTournament } = useAuth();
     const [eligibleUsers, setEligibleUsers] = useState<UserProfile[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
     const [isLastPage, setIsLastPage] = useState(false);
     const [makingPromoter, setMakingPromoter] = useState<string | null>(null);
+    const [enrolling, setEnrolling] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
 
     const fetchUsers = useCallback(async (startAfterDoc: DocumentSnapshot | null = null, refresh: boolean = false) => {
@@ -462,6 +464,16 @@ function EligibleUsersManager({ showEnrollButton = false }: { showEnrollButton?:
         }
     }
 
+    const handleEnrollUser = async (userId: string) => {
+        setEnrolling(userId);
+        try {
+            await enrollUserInTournament(userId);
+            // Optionally remove from list or show a success state
+        } finally {
+            setEnrolling(null);
+        }
+    };
+
     return (
         <Card>
             <CardHeader>
@@ -503,7 +515,10 @@ function EligibleUsersManager({ showEnrollButton = false }: { showEnrollButton?:
                                         </div>
                                     </div>
                                     {showEnrollButton ? (
-                                        <Button size="sm" disabled>Enroll</Button>
+                                        <Button onClick={() => handleEnrollUser(user.id!)} disabled={enrolling === user.id} size="sm">
+                                            {enrolling === user.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                            Enroll
+                                        </Button>
                                     ) : (
                                         <Button onClick={() => handleMakePromoter(user.id!)} disabled={makingPromoter === user.id} size="sm">
                                             {makingPromoter === user.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4" />}
@@ -636,6 +651,107 @@ function PromotersManager() {
     );
 }
 
+function TournamentManager() {
+    const { updateTournamentConfig } = useAuth();
+    const firestore = useFirestore();
+    const [config, setConfig] = useState<Partial<TournamentConfig>>({});
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const configDocRef = doc(firestore, 'config', 'tournament');
+        const unsubscribe = onSnapshot(configDocRef, (doc) => {
+            if (doc.exists()) {
+                const data = doc.data() as TournamentConfig;
+                const endDate = data.endDate ? (data.endDate as Timestamp).toDate() : undefined;
+                setConfig({ ...data, endDate });
+            } else {
+                setConfig({
+                    headline: "Referral Tournament",
+                    tagline: "Refer friends to climb the leaderboard!",
+                    prizeTiers: [{ id: '1', startRank: 1, endRank: 1, prize: 100 }],
+                    isActive: false,
+                });
+            }
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, [firestore]);
+
+    const handleUpdate = (field: keyof TournamentConfig, value: any) => {
+        setConfig(prev => ({ ...prev, [field]: value }));
+    };
+
+    const addTier = () => {
+        const newTiers = [...(config.prizeTiers || []), { id: Date.now().toString(), startRank: 0, endRank: 0, prize: 0 }];
+        handleUpdate('prizeTiers', newTiers);
+    };
+
+    const removeTier = (id: string) => {
+        const newTiers = config.prizeTiers?.filter(tier => tier.id !== id) || [];
+        handleUpdate('prizeTiers', newTiers);
+    };
+
+    const updateTier = (id: string, field: keyof PrizeTier, value: any) => {
+        const newTiers = config.prizeTiers?.map(tier => {
+            if (tier.id === id) {
+                return { ...tier, [field]: parseFloat(value) || 0 };
+            }
+            return tier;
+        }) || [];
+        handleUpdate('prizeTiers', newTiers);
+    };
+
+    const handleSave = async () => {
+        await updateTournamentConfig(config);
+    };
+
+    if (isLoading) {
+        return <Card><CardContent className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Set Tournament</CardTitle>
+                <CardDescription>Configure and launch the referral tournament.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="space-y-2">
+                    <Label htmlFor="headline">Headline</Label>
+                    <Input id="headline" value={config.headline || ''} onChange={(e) => handleUpdate('headline', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="tagline">Tagline</Label>
+                    <Input id="tagline" value={config.tagline || ''} onChange={(e) => handleUpdate('tagline', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                    <Label>End Date</Label>
+                    <DatePicker date={config.endDate as Date} onDateChange={(date) => handleUpdate('endDate', date)} />
+                </div>
+
+                <div className="space-y-4">
+                    <Label>Prize Tiers (USDC)</Label>
+                    {config.prizeTiers?.map((tier) => (
+                        <div key={tier.id} className="flex items-center gap-2 p-2 border rounded-md">
+                            <Input type="number" placeholder="Rank" value={tier.startRank} onChange={(e) => updateTier(tier.id, 'startRank', e.target.value)} className="w-20" />
+                            <span>-</span>
+                            <Input type="number" placeholder="Rank" value={tier.endRank} onChange={(e) => updateTier(tier.id, 'endRank', e.target.value)} className="w-20" />
+                            <Input type="number" placeholder="Prize" value={tier.prize} onChange={(e) => updateTier(tier.id, 'prize', e.target.value)} className="flex-1" />
+                            <Button variant="ghost" size="icon" onClick={() => removeTier(tier.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
+                    ))}
+                    <Button variant="outline" onClick={addTier}>Add Prize Tier</Button>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <Button onClick={() => handleUpdate('isActive', !config.isActive)}>{config.isActive ? 'Deactivate' : 'Launch'}</Button>
+                    <Button onClick={handleSave} className="w-full mt-4"><Save className="mr-2 h-4 w-4" />Save Configuration</Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 function AdminDashboard() {
   const { userProfile, loading } = useAuth();
   
@@ -693,11 +809,15 @@ function AdminDashboard() {
             </Tabs>
         </TabsContent>
         <TabsContent value="rt" className="mt-6">
-            <Tabs defaultValue="eligible" className="w-full">
-                <TabsList className="grid w-full grid-cols-1">
-                    <TabsTrigger value="eligible">Eligible</TabsTrigger>
+            <Tabs defaultValue="tournament" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="tournament">Set Tournament</TabsTrigger>
+                    <TabsTrigger value="eligible-rt">Eligible</TabsTrigger>
                 </TabsList>
-                <TabsContent value="eligible" className="mt-6">
+                <TabsContent value="tournament" className="mt-6">
+                    <TournamentManager />
+                </TabsContent>
+                <TabsContent value="eligible-rt" className="mt-6">
                     <EligibleUsersManager showEnrollButton={true} />
                 </TabsContent>
             </Tabs>
