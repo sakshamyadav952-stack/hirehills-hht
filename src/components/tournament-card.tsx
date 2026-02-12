@@ -37,11 +37,11 @@ const Countdown = ({ expiryDate }: { expiryDate: Date | Timestamp }) => {
     }, [expiryDate]);
 
     if (isExpired) {
-        return <div className="text-red-400 font-bold">Ended</div>;
+        return <div className="text-red-400 font-bold text-sm">Ended</div>;
     }
 
     return (
-        <div className="flex justify-center gap-1.5 sm:gap-2">
+        <div className="flex justify-center gap-1.5">
             <TimeUnit value={timeLeft.days} label="Days" />
             <TimeUnit value={timeLeft.hours} label="Hrs" />
             <TimeUnit value={timeLeft.minutes} label="Mins" />
@@ -51,9 +51,9 @@ const Countdown = ({ expiryDate }: { expiryDate: Date | Timestamp }) => {
 };
 
 const TimeUnit = ({ value, label }: { value: number; label: string; }) => (
-    <div className="p-1.5 bg-black/20 rounded-md text-center min-w-[40px] border border-slate-700">
-        <div className="font-mono font-bold text-slate-200 text-lg">{String(value).padStart(2, '0')}</div>
-        <div className="text-xs text-slate-400 uppercase leading-tight">{label}</div>
+    <div className="p-1 bg-black/20 rounded-md text-center min-w-[32px] border border-slate-700">
+        <div className="font-mono font-bold text-slate-200 text-base">{String(value).padStart(2, '0')}</div>
+        <div className="text-[10px] text-slate-400 uppercase leading-tight">{label}</div>
     </div>
 );
 
@@ -84,26 +84,29 @@ export function TournamentCard() {
   return (
     <Card className="relative overflow-hidden border-2 border-indigo-500 bg-gradient-to-br from-indigo-900/50 via-slate-900 to-indigo-900/30 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]">
       <CardHeader className="p-3 sm:p-4">
-        <CardTitle className="text-base sm:text-lg font-bold text-indigo-300 tracking-wider flex items-center gap-2">
-          <Trophy className="h-4 w-4 sm:h-5 sm:w-5" />
-          {config.headline}
-        </CardTitle>
-        <CardDescription className="text-indigo-200/90 text-xs">
-          {isEnded ? "The tournament has ended. Check the results!" : config.tagline}
-        </CardDescription>
+        <div className="flex justify-between items-start gap-2">
+            <div className="flex-1">
+                <CardTitle className="text-base sm:text-lg font-bold text-indigo-300 tracking-wider flex items-center gap-2">
+                    <Trophy className="h-4 w-4 sm:h-5 sm:w-5" />
+                    {config.headline}
+                </CardTitle>
+                <CardDescription className="text-indigo-200/90 text-xs">
+                    {isEnded ? "The tournament has ended. Check the results!" : config.tagline}
+                </CardDescription>
+            </div>
+            {!isEnded && config.endDate && <Countdown expiryDate={config.endDate} />}
+        </div>
       </CardHeader>
-      <CardContent className="space-y-3 p-3 pt-0 sm:p-4 sm:pt-2">
-        {!isEnded && config.endDate && <Countdown expiryDate={config.endDate} />}
-        
-        <div className="space-y-2 pt-2">
+      <CardContent className="space-y-2 p-3 pt-0 sm:p-4 sm:pt-2">
+        <div className="space-y-1">
           <p className="text-xs font-semibold text-center text-indigo-200">Prize Tiers (USDC)</p>
           <div className="flex justify-center gap-2 flex-wrap">
             {config.prizeTiers?.map(tier => (
-              <div key={tier.id} className="text-center p-2 bg-black/30 rounded-md border border-indigo-400/30">
-                <p className="text-xs font-bold text-indigo-300">
+              <div key={tier.id} className="text-center p-1.5 px-2 bg-black/30 rounded-md border border-indigo-400/30">
+                <p className="text-[10px] font-bold text-indigo-300">
                   {tier.startRank === tier.endRank ? `Rank ${tier.startRank}` : `Rank ${tier.startRank}-${tier.endRank}`}
                 </p>
-                <p className="text-sm font-semibold text-white flex items-center justify-center gap-1">
+                <p className="text-xs font-semibold text-white flex items-center justify-center gap-0.5">
                   <DollarSign className="h-3 w-3" />
                   {tier.prize}
                 </p>
