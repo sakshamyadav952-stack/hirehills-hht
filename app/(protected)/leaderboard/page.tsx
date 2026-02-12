@@ -144,7 +144,8 @@ export default function LeaderboardPage() {
     const [verificationError, setVerificationError] = useState<string | null>(null);
     const [showSuccessDialog, setShowSuccessDialog] = useState(false);
     const [transactionId, setTransactionId] = useState<string | null>(null);
-    
+    const [withdrawnAmount, setWithdrawnAmount] = useState(0);
+
     const amountToWithdraw = currentUser?.tournamentWinning || 0;
 
     useEffect(() => {
@@ -318,7 +319,7 @@ export default function LeaderboardPage() {
     };
 
     const handleWithdraw = async () => {
-        if (!isVerified || !usdcAddress.trim()) {
+        if (!isVerified || !usdcAddress.trim() || amountToWithdraw <= 0) {
             toast({
                 title: "Address Not Verified",
                 description: "Please verify your wallet address first.",
@@ -326,6 +327,7 @@ export default function LeaderboardPage() {
             });
             return;
         }
+        setWithdrawnAmount(amountToWithdraw);
         setIsWithdrawing(true);
         try {
             const result = await requestUsdcWithdrawal(usdcAddress);
@@ -534,10 +536,10 @@ export default function LeaderboardPage() {
                         </div>
                         <AlertDialogTitle className="text-xl font-bold text-green-300 text-center">Withdrawal Successful!</AlertDialogTitle>
                         <AlertDialogDescription className="text-green-200/80 text-center pt-2">
-                            <p className="font-bold">{amountToWithdraw.toFixed(2)} USDC</p>
-                            <p>has been sent to the address:</p>
-                            <p className="font-mono text-xs break-all mt-2 p-2 bg-black/20 rounded-md">{usdcAddress}</p>
-                            <p className="mt-4">It may take a few moments to reflect in your wallet.</p>
+                            <div className="font-bold">{withdrawnAmount.toFixed(2)} USDC</div>
+                            <div>has been sent to the address:</div>
+                            <div className="font-mono text-xs break-all mt-2 p-2 bg-black/20 rounded-md">{usdcAddress}</div>
+                            <div className="mt-4">It may take a few moments to reflect in your wallet.</div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
