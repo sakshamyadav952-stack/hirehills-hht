@@ -812,7 +812,7 @@ function AdminDashboard() {
             <Tabs defaultValue="tournament" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="tournament">Set Tournament</TabsTrigger>
-                    <TabsTrigger value="eligible-rt">Eligible</TabsTrigger>
+                    <TabsTrigger value="eligible-rt">RT Eligible</TabsTrigger>
                 </TabsList>
                 <TabsContent value="tournament" className="mt-6">
                     <TournamentManager />
