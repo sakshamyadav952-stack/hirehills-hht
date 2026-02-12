@@ -217,6 +217,7 @@ export type UserProfile = {
   tournamentScore?: number;
   tournamentScoreLastUpdated?: Timestamp;
   usdcAddress?: string;
+  tournamentWinning?: number;
 };
 
 export type PendingTransfer = {
@@ -306,4 +307,3 @@ export type Review = {
     wasPlayStorePrompted?: boolean;
     updatedAt?: Timestamp;
 };
-

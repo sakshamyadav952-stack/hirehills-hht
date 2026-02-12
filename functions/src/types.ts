@@ -46,6 +46,27 @@ export type TournamentConfig = {
   isActive: boolean;
 };
 
+export type ConcludedTournament = {
+  id: string; // original config doc id
+  headline: string;
+  tagline: string;
+  concludedAt: Timestamp;
+  endDate: Timestamp | Date;
+  prizeTiers: PrizeTier[];
+  winners: {
+    userId: string;
+    fullName: string;
+    profileCode: string;
+    rank: number;
+    score: number;
+    prize: number;
+  }[];
+  payouts: {
+    [userId: string]: 'pending' | 'paid' | 'failed';
+  };
+  isActive: boolean;
+};
+
 export type WithdrawalRequest = {
   requestId: string;
   withdrawalMethod: 'upi' | 'bank';
@@ -197,6 +218,9 @@ export type UserProfile = {
   crushOracleInstalled?: boolean;
   tournamentId?: string | null;
   tournamentScore?: number;
+  tournamentScoreLastUpdated?: Timestamp;
+  usdcAddress?: string;
+  tournamentWinning?: number;
 };
 
 export type PendingTransfer = {
