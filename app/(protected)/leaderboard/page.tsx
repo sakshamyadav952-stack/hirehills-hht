@@ -8,7 +8,7 @@ import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp } fr
 import type { UserProfile, TournamentConfig } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, Medal } from 'lucide-react';
+import { Loader2, RefreshCw, Trophy, ArrowLeft } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -19,36 +19,26 @@ type RankedUser = UserProfile & { rank: number };
 
 const LeaderboardListItem = ({ user, isCurrentUser }: { user: RankedUser, isCurrentUser: boolean }) => {
     const rank = user.rank;
-    
-    const rankIcon = {
-        1: <Crown className="h-6 w-6 text-amber-400" />,
-        2: <Medal className="h-5 w-5 text-slate-300" />,
-        3: <Medal className="h-5 w-5 text-orange-400" />,
-    };
 
     return (
         <div className={cn(
-            "flex items-center justify-between p-3 rounded-lg transition-colors", 
-            isCurrentUser 
-                ? "bg-blue-900/40 border border-blue-500" 
+            "flex items-center justify-between p-3 rounded-lg transition-colors",
+            isCurrentUser
+                ? "bg-blue-900/40 border border-blue-500"
                 : "border-b border-slate-800 hover:bg-slate-800/30"
         )}>
             <div className="flex items-center gap-3">
-                <div className="font-bold text-base w-8 text-center flex items-center justify-center text-slate-400">
-                    {rankIcon[rank as keyof typeof rankIcon] || `#${rank}`}
-                </div>
                 <Avatar className="h-10 w-10">
                     <AvatarImage src={user.profileImageUrl} alt={user.fullName} />
                     <AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
                     <p className="font-semibold text-white">{user.fullName}{isCurrentUser && " (You)"}</p>
-                    <p className="text-xs text-slate-400">{user.profileCode}</p>
+                    <p className="text-xs text-slate-400">Score: {user.tournamentScore || 0}</p>
                 </div>
             </div>
-            <div className="text-right">
-                <p className="font-bold text-lg text-white">{user.tournamentScore || 0}</p>
-                <p className="text-xs text-slate-400">Score</p>
+            <div className="text-right font-bold text-lg text-white">
+                Rank #{rank}
             </div>
         </div>
     )
