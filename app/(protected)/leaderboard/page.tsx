@@ -267,7 +267,7 @@ export default function LeaderboardPage() {
                      <div className="text-center p-12 border-2 border-dashed border-slate-700 rounded-xl">
                         <Trophy className="mx-auto h-12 w-12 text-slate-500" />
                         <h3 className="mt-4 text-lg font-semibold">Leaderboard is Empty</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">No users have scored points in this tournament yet.</p>
+                        <p className="mt-1 text-sm text-muted-foreground">No users have been enrolled in this tournament yet.</p>
                     </div>
                 ) : (
                     <div className="space-y-2">
