@@ -4,11 +4,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useFirestore } from '@/firebase';
 import { useAuth } from '@/lib/auth';
-import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp, limit, startAfter, DocumentSnapshot } from 'firebase/firestore';
 import type { UserProfile, TournamentConfig, PrizeTier } from '@/lib/types';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign, Medal } from 'lucide-react';
+import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign, Medal, Users } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 
 type RankedUser = UserProfile & { rank: number };
+const PAGE_SIZE = 10;
 
 const Countdown = ({ expiryDate }: { expiryDate: Date | Timestamp }) => {
     const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -126,40 +127,49 @@ export default function LeaderboardPage() {
     const { toast } = useToast();
     const [leaderboard, setLeaderboard] = useState<RankedUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [tournamentConfig, setTournamentConfig] = useState<TournamentConfig | null>(null);
+    const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
+    const [isLastPage, setIsLastPage] = useState(false);
+    const [totalPlayers, setTotalPlayers] = useState(0);
 
-    const fetchLeaderboard = useCallback(async () => {
-        if (!firestore) return;
-        setIsLoading(true);
+    const fetchLeaderboardData = useCallback(async (startAfterDoc: DocumentSnapshot | null = null) => {
+        if (!firestore || !tournamentConfig) return;
+        
+        const loader = startAfterDoc ? setIsLoadingMore : setIsLoading;
+        loader(true);
 
         try {
-            const configDocRef = doc(firestore, 'config', 'tournament');
-            const configDoc = await getDoc(configDocRef);
-
-            if (!configDoc.exists()) {
-                setTournamentConfig(null);
-                setLeaderboard([]);
-                setIsLoading(false);
-                return;
-            }
-
-            const activeTournament = { id: configDoc.id, ...configDoc.data() } as TournamentConfig;
-            setTournamentConfig(activeTournament);
-
-            const usersQuery = query(
+            const baseQuery = query(
                 collection(firestore, 'users'),
-                where('tournamentId', '==', activeTournament.id),
+                where('tournamentId', '==', tournamentConfig.id),
                 orderBy('tournamentScore', 'desc'),
                 orderBy('tournamentScoreLastUpdated', 'asc')
             );
-            const querySnapshot = await getDocs(usersQuery);
-            const users = querySnapshot.docs.map((doc, index) => ({
+            
+            let finalQuery = query(baseQuery, limit(PAGE_SIZE));
+            if(startAfterDoc) {
+                finalQuery = query(finalQuery, startAfter(startAfterDoc));
+            }
+
+            const querySnapshot = await getDocs(finalQuery);
+            const newUsers = querySnapshot.docs.map((doc) => ({
                 id: doc.id,
                 ...doc.data(),
-                rank: index + 1,
-            } as RankedUser));
+            } as UserProfile));
+
+            setLastDoc(querySnapshot.docs[querySnapshot.docs.length - 1] || null);
+            setIsLastPage(querySnapshot.docs.length < PAGE_SIZE);
             
-            setLeaderboard(users);
+            setLeaderboard(prev => {
+                const prevUsers = startAfterDoc ? prev : [];
+                const combinedUsers = [...prevUsers, ...newUsers];
+                // Recalculate ranks for the entire displayed list
+                return combinedUsers.map((user, index) => ({
+                    ...user,
+                    rank: index + 1
+                }));
+            });
 
         } catch (error) {
             console.error("Error fetching leaderboard:", error);
@@ -172,14 +182,57 @@ export default function LeaderboardPage() {
                 });
             }
         } finally {
+            loader(false);
+        }
+    }, [firestore, tournamentConfig, toast]);
+
+    const fetchInitialData = useCallback(async () => {
+        if (!firestore) return;
+        setIsLoading(true);
+
+        try {
+            const configDocRef = doc(firestore, 'config', 'tournament');
+            const configDoc = await getDoc(configDocRef);
+
+            if (!configDoc.exists()) {
+                setTournamentConfig(null);
+                setLeaderboard([]);
+                setTotalPlayers(0);
+            } else {
+                const activeTournament = { id: configDoc.id, ...configDoc.data() } as TournamentConfig;
+                setTournamentConfig(activeTournament);
+
+                // Fetch total player count
+                const usersQuery = query(collection(firestore, 'users'), where('tournamentId', '==', activeTournament.id));
+                const countSnapshot = await getDocs(usersQuery);
+                setTotalPlayers(countSnapshot.size);
+
+                // Fetch first page of leaderboard
+                setLeaderboard([]); // Clear existing leaderboard before fetching new
+                setLastDoc(null);
+                await fetchLeaderboardData(null);
+            }
+        } catch (error) {
+            console.error("Error fetching initial data:", error);
+        } finally {
             setIsLoading(false);
         }
-    }, [firestore, toast]);
-
-    useEffect(() => {
-        fetchLeaderboard();
-    }, [fetchLeaderboard]);
+    }, [firestore, fetchLeaderboardData]);
     
+    // Effect to fetch initial config and count
+    useEffect(() => {
+        if (firestore) {
+            fetchInitialData();
+        }
+    }, [firestore]);
+
+
+    const handleNext = () => {
+        if (!isLastPage && lastDoc) {
+            fetchLeaderboardData(lastDoc);
+        }
+    }
+
     const { currentUserOnBoard, otherUsers } = useMemo(() => {
         if (!currentUser || !leaderboard || !tournamentConfig) {
             return { currentUserOnBoard: null, otherUsers: leaderboard || [] };
@@ -237,7 +290,7 @@ export default function LeaderboardPage() {
                     <ArrowLeft className="h-6 w-6" />
                 </Button>
                 <h1 className="text-xl font-bold flex items-center gap-2"><Trophy className="text-indigo-300" /> Leaderboard</h1>
-                <Button onClick={fetchLeaderboard} variant="ghost" size="icon" disabled={isLoading}>
+                <Button onClick={fetchInitialData} variant="ghost" size="icon" disabled={isLoading}>
                     <RefreshCw className={cn("h-5 w-5", isLoading && "animate-spin")} />
                 </Button>
             </header>
@@ -276,8 +329,12 @@ export default function LeaderboardPage() {
                         {tournamentConfig.endDate && tournamentConfig.isActive && !isTournamentEnded && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
                     </div>
 
-                    <div className="flex justify-end">
+                    <div className="flex flex-col items-end gap-2">
                        {isConcluded ? <Badge>Concluded</Badge> : isTournamentEnded ? <Badge>Ended</Badge> : <Badge variant="secondary">Active</Badge>}
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-black/30 border border-slate-700">
+                            <Users className="h-4 w-4 text-indigo-300" />
+                            <span className="text-sm font-semibold">{totalPlayers} Players</span>
+                        </div>
                     </div>
                 </div>
 
@@ -304,6 +361,15 @@ export default function LeaderboardPage() {
                         ))
                     )}
                 </div>
+
+                {!isLastPage && (
+                    <CardFooter className="mt-6 flex justify-center">
+                        <Button onClick={handleNext} disabled={isLoadingMore}>
+                            {isLoadingMore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Next'}
+                        </Button>
+                    </CardFooter>
+                )}
+
                  <div className="h-20 md:hidden" />
             </main>
         </div>
