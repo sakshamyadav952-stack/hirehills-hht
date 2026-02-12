@@ -8,7 +8,7 @@ import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp, lim
 import type { UserProfile, TournamentConfig, PrizeTier, ConcludedTournament } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign, Medal, Users, ShieldAlert } from 'lucide-react';
+import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign, Medal, Users, ShieldAlert, Check } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -124,7 +124,7 @@ const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers }: { user: Ranked
 
 
 export default function LeaderboardPage() {
-    const { userProfile: currentUser, loading: authLoading } = useAuth();
+    const { userProfile: currentUser, loading: authLoading, verifyUsdcAddress, requestUsdcWithdrawal } = useAuth();
     const firestore = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
@@ -135,7 +135,18 @@ export default function LeaderboardPage() {
     const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
     const [isLastPage, setIsLastPage] = useState(false);
     const [totalPlayers, setTotalPlayers] = useState(0);
-    const [usdcAddress, setUsdcAddress] = useState('');
+    const [usdcAddress, setUsdcAddress] = useState(currentUser?.usdcAddress || '');
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [isVerified, setIsVerified] = useState(false);
+    const [isWithdrawing, setIsWithdrawing] = useState(false);
+    const [verificationError, setVerificationError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if(currentUser?.usdcAddress) {
+            setIsVerified(true);
+        }
+    }, [currentUser?.usdcAddress]);
+    
 
     const fetchActiveLeaderboard = useCallback(async (config: TournamentConfig, startAfterDoc: DocumentSnapshot | null = null) => {
         if (!firestore) return;
@@ -278,19 +289,53 @@ export default function LeaderboardPage() {
         }
     }
     
-    const handleWithdraw = () => {
+    const handleVerify = async () => {
         if (!usdcAddress.trim()) {
+            setVerificationError("Address cannot be empty.");
+            return;
+        }
+        setIsVerifying(true);
+        setVerificationError(null);
+        try {
+            const { isValid } = await verifyUsdcAddress(usdcAddress);
+            setIsVerified(isValid);
+            if (!isValid) {
+                setVerificationError("This is not a valid Solana USDC address. Please double-check.");
+            }
+        } catch (error) {
+            console.error(error);
+            setVerificationError("Verification failed. Please try again.");
+            setIsVerified(false);
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    const handleWithdraw = async () => {
+        if (!isVerified || !usdcAddress.trim()) {
             toast({
-                title: "Address Required",
-                description: "Please enter your USDC address.",
+                title: "Address Not Verified",
+                description: "Please verify your USDC address first.",
                 variant: "destructive",
             });
             return;
         }
-        toast({
-            title: "Coming Soon",
-            description: "Withdrawal functionality is under development. Your address is noted."
-        });
+        setIsWithdrawing(true);
+        try {
+            await requestUsdcWithdrawal(usdcAddress);
+            toast({
+                title: "Withdrawal Requested",
+                description: "Your withdrawal is being processed. It may take a few minutes to reflect in your wallet."
+            });
+        } catch (error: any) {
+            toast({
+                title: "Withdrawal Failed",
+                description: error.message || "An unknown error occurred.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsWithdrawing(false);
+        }
     };
 
     const { currentUserOnBoard, otherUsers, isCurrentUserWinner, currentUserPrize } = useMemo(() => {
@@ -367,15 +412,27 @@ export default function LeaderboardPage() {
                                     </Alert>
                                     <div className="space-y-2">
                                         <Label htmlFor="usdc-address" className="text-white">Your Solana USDC Address</Label>
-                                        <Input 
-                                            id="usdc-address"
-                                            placeholder="Enter your Solana USDC address"
-                                            className="bg-slate-800 border-slate-600 text-white"
-                                            value={usdcAddress}
-                                            onChange={(e) => setUsdcAddress(e.target.value)}
-                                        />
+                                        <div className="flex gap-2 items-center">
+                                            <Input 
+                                                id="usdc-address"
+                                                placeholder="Enter your Solana USDC address"
+                                                className="bg-slate-800 border-slate-600 text-white flex-1"
+                                                value={usdcAddress}
+                                                onChange={(e) => {
+                                                    setUsdcAddress(e.target.value);
+                                                    setIsVerified(false);
+                                                    setVerificationError(null);
+                                                }}
+                                                disabled={isVerifying || isWithdrawing}
+                                            />
+                                            <Button onClick={handleVerify} disabled={isVerifying || isVerified}>
+                                                {isVerifying ? <Loader2 className="h-4 w-4 animate-spin"/> : isVerified ? <Check className="h-4 w-4 text-green-400" /> : 'Verify'}
+                                            </Button>
+                                        </div>
+                                        {verificationError && <p className="text-sm text-red-400">{verificationError}</p>}
                                     </div>
-                                    <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold" onClick={handleWithdraw}>
+                                    <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold" onClick={handleWithdraw} disabled={!isVerified || isWithdrawing}>
+                                        {isWithdrawing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                         Request Withdrawal
                                     </Button>
                                 </div>
@@ -455,4 +512,3 @@ export default function LeaderboardPage() {
     );
 }
 
-    

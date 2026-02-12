@@ -2,6 +2,7 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { UserProfile, TournamentConfig, ConcludedTournament } from "./types";
+import { isValidUsdcAccount, transferUsdc } from "./solana";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -647,5 +648,67 @@ export const unenrollAllUsersFromTournament = functions.runWith({ timeoutSeconds
     }
 });
 
+export const verifySolanaAddress = functions.https.onCall(async (data) => {
+    const { address } = data;
+    if (!address || typeof address !== 'string') {
+        throw new functions.https.HttpsError('invalid-argument', 'Address must be a string.');
+    }
+    const isValid = await isValidUsdcAccount(address);
+    return { isValid };
+});
 
+export const requestUsdcWithdrawal = functions.runWith({secrets: ["SOLANA_FEE_WALLET_KEY", "SOLANA_HOT_WALLET_KEY"]}).https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "You must be logged in.");
+    }
+    const uid = context.auth.uid;
+    const { usdcAddress } = data;
+    if (!usdcAddress || typeof usdcAddress !== 'string') {
+        throw new functions.https.HttpsError('invalid-argument', 'USDC address must be provided.');
+    }
+
+    const isValid = await isValidUsdcAccount(usdcAddress);
+    if (!isValid) {
+        throw new functions.https.HttpsError('invalid-argument', 'The provided address is not a valid Solana USDC wallet.');
+    }
+
+    const userDocRef = db.collection('users').doc(uid);
+
+    return db.runTransaction(async (transaction) => {
+        const userDoc = await transaction.get(userDocRef);
+        if (!userDoc.exists) {
+            throw new functions.https.HttpsError('not-found', 'User not found.');
+        }
+        const userProfile = userDoc.data() as UserProfile;
+        const winningAmount = userProfile.tournamentWinning || 0;
+
+        if (winningAmount <= 0) {
+            throw new functions.https.HttpsError('failed-precondition', 'No winnings available to withdraw.');
+        }
+
+        // Amount in micro-USDC (6 decimal places)
+        const amountMicroUsdc = Math.floor(winningAmount * 1_000_000);
+        
+        const transactionSignature = await transferUsdc(usdcAddress, amountMicroUsdc);
+
+        transaction.update(userDocRef, {
+            usdcAddress: usdcAddress,
+            tournamentWinning: 0
+        });
+
+        const concludedTournamentsQuery = db.collection('concludedTournaments').orderBy('concludedAt', 'desc').limit(1);
+        const concludedTournamentsSnapshot = await transaction.get(concludedTournamentsQuery);
+        if (!concludedTournamentsSnapshot.empty) {
+            const concludedDoc = concludedTournamentsSnapshot.docs[0];
+            if (concludedDoc.data().payouts[uid]) {
+                transaction.update(concludedDoc.ref, {
+                    [`payouts.${uid}`]: 'paid'
+                });
+            }
+        }
+        
+        return { success: true, transactionId: transactionSignature };
+    });
+});
     
+
