@@ -76,11 +76,12 @@ const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers }: { user: Ranked
     const prize = getPrizeForRank(rank, prizeTiers);
 
     const rankColor = useMemo(() => {
+        if (isCurrentUser) return "border-blue-500 bg-blue-900/30 text-blue-200 shadow-[0_0_20px_rgba(59,130,246,0.6)]";
         if (rank === 1) return "border-amber-400 bg-amber-900/30 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.4)]";
         if (rank === 2) return "border-slate-400 bg-slate-800/50 text-slate-300 shadow-[0_0_15px_rgba(156,163,175,0.4)]";
         if (rank === 3) return "border-orange-500 bg-orange-900/30 text-orange-300 shadow-[0_0_15px_rgba(249,115,22,0.4)]";
         return "border-slate-700 bg-slate-800/40";
-    }, [rank]);
+    }, [rank, isCurrentUser]);
 
     return (
         <div className={cn(
@@ -185,6 +186,13 @@ export default function LeaderboardPage() {
     useEffect(() => {
         fetchLeaderboard();
     }, [fetchLeaderboard]);
+    
+    const { currentUserOnBoard, otherUsers } = useMemo(() => {
+        if (!currentUser || !leaderboard) return { currentUserOnBoard: null, otherUsers: leaderboard || [] };
+        const userOnBoard = leaderboard.find(u => u.id === currentUser.id);
+        const others = leaderboard.filter(u => u.id !== currentUser.id);
+        return { currentUserOnBoard: userOnBoard, otherUsers: others };
+    }, [currentUser, leaderboard]);
 
     if (authLoading || (isLoading && leaderboard.length === 0)) {
         return (
@@ -256,24 +264,30 @@ export default function LeaderboardPage() {
                         {!tournamentConfig.isActive ? <Badge variant="destructive">Withdrawn</Badge> : isTournamentEnded ? <Badge>Ended</Badge> : <Badge variant="secondary">Active</Badge>}
                     </div>
                 </div>
-                
-                {isLoading && leaderboard.length === 0 ? (
-                    <div className="flex justify-center items-center h-64">
-                        <Loader2 className="h-10 w-10 animate-spin" />
-                    </div>
-                ) : leaderboard.length === 0 ? (
-                     <div className="text-center p-12 border-2 border-dashed border-slate-700 rounded-xl">
-                        <Trophy className="mx-auto h-12 w-12 text-slate-500" />
-                        <h3 className="mt-4 text-lg font-semibold">Leaderboard is Empty</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">No users have been enrolled in this tournament yet.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-2">
-                        {leaderboard.map(user => (
-                            <LeaderboardListItem key={user.id} user={user} isCurrentUser={user.id === currentUser?.id} prizeTiers={tournamentConfig.prizeTiers || []}/>
-                        ))}
+
+                 {currentUserOnBoard && (
+                    <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-md border-b border-indigo-400/20 py-2">
+                        <LeaderboardListItem user={currentUserOnBoard} isCurrentUser={true} prizeTiers={tournamentConfig.prizeTiers || []}/>
                     </div>
                 )}
+                
+                <div className="space-y-2">
+                    {isLoading && otherUsers.length === 0 && !currentUserOnBoard ? (
+                        <div className="flex justify-center items-center h-64">
+                            <Loader2 className="h-10 w-10 animate-spin" />
+                        </div>
+                    ) : otherUsers.length === 0 && !currentUserOnBoard ? (
+                         <div className="text-center p-12 border-2 border-dashed border-slate-700 rounded-xl">
+                            <Trophy className="mx-auto h-12 w-12 text-slate-500" />
+                            <h3 className="mt-4 text-lg font-semibold">Leaderboard is Empty</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">No users have been enrolled in this tournament yet.</p>
+                        </div>
+                    ) : (
+                        otherUsers.map(user => (
+                            <LeaderboardListItem key={user.id} user={user} isCurrentUser={false} prizeTiers={tournamentConfig.prizeTiers || []}/>
+                        ))
+                    )}
+                </div>
                  <div className="h-20 md:hidden" />
             </main>
         </div>
