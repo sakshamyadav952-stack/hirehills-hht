@@ -509,16 +509,16 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
                         : "Showing active users with over 100 BLIT who are not promoters."
                     }
                 </CardDescription>
-                <div className="flex gap-2 pt-4">
+                 <div className="pt-4 space-y-2">
                     <Input 
                         placeholder="Search by profile code..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                      {showEnrollButton && (
-                        <Button onClick={handleEnrollAll} disabled={isEnrollingAll || !eligibleUsers.length}>
-                            {isEnrollingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <UsersIcon className="h-4 w-4" />}
-                            <span className="ml-2 hidden sm:inline">Enroll All</span>
+                        <Button onClick={handleEnrollAll} disabled={isEnrollingAll || !eligibleUsers.length} className="w-full">
+                            {isEnrollingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UsersIcon className="mr-2 h-4 w-4" />}
+                            Enroll All Eligible
                         </Button>
                     )}
                 </div>
@@ -1181,3 +1181,4 @@ export default function AdminDashboardPage() {
 
 
     
+
