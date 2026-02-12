@@ -800,6 +800,7 @@ export function MiningDashboard() {
 
             setCumulativeFBloc(total);
 
+            // Only continue animating if there are active calculations
             const isStillAnimating = kuberBlocks.some(block => {
                 const totalKuberPoints = (Math.max(0, block.referralSessionEndTime - block.userSessionStartTime) / (1000 * 60 * 60)) * 0.25;
                 const elapsedMsSinceStart = Math.max(0, now - block.userSessionStartTime);
@@ -1071,8 +1072,8 @@ export function MiningDashboard() {
         <AirdropCard />
         
         {isSessionActive && userProfile.adsUnlocked && <DailyCoins isSessionActive={isSessionActive} />}
-
-        <TournamentCard />
+        
+        {userProfile.tournamentId && <TournamentCard />}
 
         <Card className="text-white border-amber-400/50 bg-slate-900/50">
             <CardHeader>
