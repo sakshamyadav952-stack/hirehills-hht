@@ -14,7 +14,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      let isSuperAdmin = request.auth.uid == 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+      let isSuperAdmin = request.auth.uid == 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || request.auth.uid == 'obaW90LhdhPDvbvh06wWwBfucTk1';
       // Use exists() to prevent errors on non-existent user docs (e.g., during creation)
       let hasAdminFlag = exists(/databases/$(database)/documents/users/$(request.auth.uid))
                          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;

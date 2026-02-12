@@ -165,7 +165,7 @@ function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingA
         setIsRemoving(referralId);
         try {
             await adminRemoveReferral(user.id, referralId);
-            onUpdate(); // Re-fetch user data to update the list
+            onUpdate(); // Trigger a re-fetch of the user data
         } finally {
             setIsRemoving(null);
         }
@@ -762,6 +762,7 @@ export default function FindUserPage() {
     
 
     
+
 
 
 

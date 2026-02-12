@@ -2022,7 +2022,8 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
     }, [user, userProfile, firestore, toast]);
 
     const setWithdrawalRate = useCallback(async (userId: string, requestId: string, rate: { amount: number; currency: 'inr' | 'usd'; blistreeCoins: number }) => {
-    if (!userProfile?.isAdmin) {
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+    if (!isAdmin) {
       toast({ title: 'Unauthorized', description: 'You do not have permission.', variant: 'destructive' });
       return;
     }
@@ -2254,7 +2255,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
 }, [user, userProfile, firestore, toast]);
 
 const updateTournamentConfig = useCallback(async (config: Partial<TournamentConfig>) => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1' || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
     if (!isAdmin) {
       toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
       throw new Error("User is not an admin.");
@@ -2304,7 +2305,7 @@ const updateTournamentConfig = useCallback(async (config: Partial<TournamentConf
   }, [userProfile, firestore, toast]);
 
   const enrollUserInTournament = useCallback(async (userId: string) => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1' || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
     if (!isAdmin) {
       toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
       throw new Error("User is not an admin.");
