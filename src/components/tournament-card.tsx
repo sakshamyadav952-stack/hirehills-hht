@@ -66,7 +66,7 @@ export function TournamentCard() {
     if (!firestore) return;
     const configDocRef = doc(firestore, 'config', 'tournament');
     const unsubscribe = onSnapshot(configDocRef, (doc) => {
-      if (doc.exists() && doc.data().isActive) {
+      if (doc.exists()) {
         setConfig({ id: doc.id, ...doc.data() } as TournamentConfig);
       } else {
         setConfig(null);
@@ -94,7 +94,7 @@ export function TournamentCard() {
                     {isEnded ? "The tournament has ended. Check the results!" : config.tagline}
                 </CardDescription>
             </div>
-            {!isEnded && config.endDate && <Countdown expiryDate={config.endDate} />}
+            {!isEnded && config.isActive && config.endDate && <Countdown expiryDate={config.endDate} />}
         </div>
       </CardHeader>
       <CardContent className="space-y-2 p-3 pt-0 sm:p-4 sm:pt-2">

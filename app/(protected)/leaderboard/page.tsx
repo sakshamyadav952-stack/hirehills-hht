@@ -233,7 +233,7 @@ export default function LeaderboardPage() {
 
     return (
         <div className="flex flex-col h-screen app-background">
-            <header className="sticky top-0 z-30 flex items-center justify-between p-4 bg-slate-900/50 backdrop-blur-md border-b border-indigo-400/20">
+            <header className="sticky top-0 z-30 flex items-center justify-between p-4 bg-slate-900/50 backdrop-blur-md border-b border-indigo-400/20 h-16">
                 <Button variant="ghost" size="icon" onClick={() => router.back()}>
                     <ArrowLeft className="h-6 w-6" />
                 </Button>
@@ -310,5 +310,6 @@ export default function LeaderboardPage() {
         </div>
     );
 }
+
 
 

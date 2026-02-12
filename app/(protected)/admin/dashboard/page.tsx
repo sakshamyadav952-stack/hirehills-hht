@@ -654,6 +654,7 @@ function PromotersManager() {
 
 function TournamentManager() {
     const { updateTournamentConfig, withdrawTournament } = useAuth();
+    const { toast } = useToast();
     const firestore = useFirestore();
     const [config, setConfig] = useState<Partial<TournamentConfig>>({});
     const [isLoading, setIsLoading] = useState(true);
@@ -665,7 +666,7 @@ function TournamentManager() {
             if (doc.exists()) {
                 const data = doc.data() as TournamentConfig;
                 const endDate = data.endDate ? (data.endDate as Timestamp).toDate() : undefined;
-                setConfig({ ...data, endDate });
+                setConfig({ id: doc.id, ...data, endDate });
             } else {
                 setConfig({
                     headline: "Referral Tournament",
@@ -679,15 +680,23 @@ function TournamentManager() {
         return () => unsubscribe();
     }, [firestore]);
 
-    const handleUpdate = async (field: keyof TournamentConfig, value: any) => {
-        const newConfig = { ...config, [field]: value };
-        setConfig(newConfig);
-        if (field === 'isActive' && value === false) { // Handle deactivation
-             await updateTournamentConfig(newConfig);
-        }
+    const handleUpdate = (field: keyof TournamentConfig, value: any) => {
+        setConfig(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleStop = async () => {
+        await updateTournamentConfig({ ...config, isActive: false });
     };
 
     const handleLaunch = async () => {
+         if (!config.endDate) {
+            toast({
+                title: 'End Date Required',
+                description: 'Please set an end date before launching the tournament.',
+                variant: 'destructive',
+            });
+            return;
+        }
          await updateTournamentConfig({ ...config, isActive: true });
     };
 
@@ -725,6 +734,8 @@ function TournamentManager() {
         return <Card><CardContent className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
     }
 
+    const documentExists = !!config.id;
+
     return (
         <Card>
             <CardHeader>
@@ -759,7 +770,7 @@ function TournamentManager() {
                     <Button variant="outline" onClick={addTier}>Add Prize Tier</Button>
                 </div>
                 
-                <div className="flex flex-col gap-4">
+                 <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-4">
                         {config.isActive ? (
                             <AlertDialog>
@@ -775,20 +786,15 @@ function TournamentManager() {
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleUpdate('isActive', false)}>Confirm Stop</AlertDialogAction>
+                                        <AlertDialogAction onClick={handleStop}>Confirm Stop</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
-                        ) : (
-                            <Button onClick={handleLaunch}>
-                                Launch
-                            </Button>
-                        )}
-                         {config.isActive && (
+                        ) : documentExists ? (
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="destructive" disabled={isWithdrawing}>
-                                         {isWithdrawing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        {isWithdrawing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                         Withdraw Tournament
                                     </Button>
                                 </AlertDialogTrigger>
@@ -796,7 +802,7 @@ function TournamentManager() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            This will withdraw the tournament, set it to inactive, and reset all player scores. This action cannot be undone.
+                                            This will withdraw the tournament and reset all player scores, preparing for a new launch. This action cannot be undone.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
@@ -805,6 +811,10 @@ function TournamentManager() {
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
+                        ) : (
+                            <Button onClick={handleLaunch}>
+                                Launch
+                            </Button>
                         )}
                     </div>
                     <Button onClick={handleSave} className="w-full"><Save className="mr-2 h-4 w-4" />Save Configuration</Button>
@@ -1095,6 +1105,8 @@ function AdminDashboard() {
 export default function AdminDashboardPage() {
     return <AdminDashboard />;
 }
+
+
 
 
 
