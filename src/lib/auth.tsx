@@ -1221,7 +1221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const targetUserDocRef = doc(firestore, 'users', userId);
     try {
       const userDoc = await getDoc(targetUserDocRef);
-      if (!userDoc.exists) throw new Error("User not found.");
+      if (!userDoc.exists()) throw new Error("User not found.");
 
       const profile = userDoc.data() as UserProfile;
       if (profile.sessionEndTime && Date.now() < profile.sessionEndTime) {
@@ -2312,24 +2312,18 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
                 prizeTiers: currentConfig.prizeTiers || [],
                 winners: winners,
                 payouts: payouts,
-                isActive: false
+                isActive: false,
             };
 
             const batch = writeBatch(firestore);
             const concludedDocRef = doc(collection(firestore, 'concludedTournaments'));
             batch.set(concludedDocRef, concludedTournamentData);
-            batch.delete(configDocRef);
-
-            usersSnapshot.docs.forEach(userDoc => {
-                batch.update(userDoc.ref, {
-                    tournamentId: null,
-                    tournamentScore: 0,
-                    tournamentScoreLastUpdated: null
-                });
-            });
+            
+            // Mark the current tournament as inactive instead of deleting it.
+            batch.update(configDocRef, { isActive: false });
 
             await batch.commit();
-            toast({ title: 'Tournament Concluded', description: 'Winner data has been saved and the tournament has been reset.' });
+            toast({ title: 'Tournament Stopped', description: 'Winner data has been saved. You can now withdraw the tournament to start a new one.' });
 
         } else {
              // Standard config update logic
@@ -2393,7 +2387,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
       if (!usersSnapshot.empty) {
         toast({ title: 'Processing...', description: 'Resetting tournament data for all users. This may take a moment.' });
         const batch = writeBatch(firestore);
-        usersSnapshot.forEach(userDoc => {
+        usersSnapshot.docs.forEach(userDoc => {
           batch.update(userDoc.ref, {
             tournamentId: null,
             tournamentScore: 0,
@@ -2449,7 +2443,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
 
     try {
       const tournamentDoc = await getDoc(tournamentConfigRef);
-      if (!tournamentDoc.exists || !tournamentDoc.data()?.isActive) {
+      if (!tournamentDoc.exists() || !tournamentDoc.data()?.isActive) {
         throw new Error("There is no active tournament to enroll in.");
       }
       
@@ -3011,3 +3005,4 @@ export const useAuth = () => {
 
 
     
+

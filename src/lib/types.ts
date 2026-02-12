@@ -48,6 +48,7 @@ export type ConcludedTournament = {
   headline: string;
   tagline: string;
   concludedAt: Timestamp;
+  endDate: Timestamp | Date;
   prizeTiers: PrizeTier[];
   winners: {
     userId: string;
@@ -60,6 +61,7 @@ export type ConcludedTournament = {
   payouts: {
     [userId: string]: 'pending' | 'paid' | 'failed';
   };
+  isActive: boolean;
 };
 
 export type WithdrawalRequest = {
@@ -304,3 +306,4 @@ export type Review = {
     wasPlayStorePrompted?: boolean;
     updatedAt?: Timestamp;
 };
+
