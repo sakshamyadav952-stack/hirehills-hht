@@ -663,11 +663,10 @@ function AdminDashboard() {
     <div className="container mx-auto py-10 pb-24">
       <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
       <Tabs defaultValue="total-supply" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="total-supply">Total Supply</TabsTrigger>
           <TabsTrigger value="airdrop">Airdrop</TabsTrigger>
-          <TabsTrigger value="eligible">Eligible</TabsTrigger>
-          <TabsTrigger value="promoters">Promoters</TabsTrigger>
+          <TabsTrigger value="user-management">User Management</TabsTrigger>
         </TabsList>
          <TabsContent value="total-supply" className="mt-6">
             <TotalSupplyManager />
@@ -675,11 +674,19 @@ function AdminDashboard() {
         <TabsContent value="airdrop" className="mt-6">
             <AirdropManager />
         </TabsContent>
-        <TabsContent value="eligible" className="mt-6">
-            <EligibleUsersManager />
-        </TabsContent>
-        <TabsContent value="promoters" className="mt-6">
-            <PromotersManager />
+        <TabsContent value="user-management" className="mt-6">
+            <Tabs defaultValue="eligible" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="eligible">Eligible</TabsTrigger>
+                    <TabsTrigger value="promoters">Promoters</TabsTrigger>
+                </TabsList>
+                <TabsContent value="eligible" className="mt-6">
+                    <EligibleUsersManager />
+                </TabsContent>
+                <TabsContent value="promoters" className="mt-6">
+                    <PromotersManager />
+                </TabsContent>
+            </Tabs>
         </TabsContent>
       </Tabs>
     </div>
@@ -689,5 +696,3 @@ function AdminDashboard() {
 export default function AdminDashboardPage() {
     return <AdminDashboard />;
 }
-
-    
