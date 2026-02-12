@@ -82,13 +82,6 @@ const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers }: { user: Ranked
         return "border-slate-700 bg-slate-800/40";
     }, [rank]);
 
-    const rankIcon = useMemo(() => {
-        if (rank === 1) return <Crown className="h-6 w-6 text-amber-400" />;
-        if (rank === 2) return <Medal className="h-6 w-6 text-slate-300" />;
-        if (rank === 3) return <Medal className="h-6 w-6 text-orange-400" />;
-        return <span className="font-bold text-lg w-8 text-center text-slate-400">#{rank}</span>;
-    }, [rank]);
-
     return (
         <div className={cn(
             "border-2 p-3 rounded-xl transition-all",
@@ -96,14 +89,19 @@ const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers }: { user: Ranked
         )}>
              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <div className="w-8 flex-shrink-0 flex justify-center">{rankIcon}</div>
+                    <div className="flex-shrink-0 w-20 text-center">
+                        {rank === 1 && <Crown className="mx-auto h-6 w-6 text-amber-400 mb-1" />}
+                        {rank === 2 && <Medal className="mx-auto h-6 w-6 text-slate-300 mb-1" />}
+                        {rank === 3 && <Medal className="mx-auto h-6 w-6 text-orange-400 mb-1" />}
+                        <p className="font-bold text-lg">Rank #{rank}</p>
+                    </div>
                     <Avatar className="h-12 w-12">
                         <AvatarImage src={user.profileImageUrl} alt={user.fullName} />
                         <AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="truncate">
                         <p className="font-semibold text-white truncate">{user.fullName}{isCurrentUser && " (You)"}</p>
-                        <p className="text-sm text-slate-400">Referrals: {user.tournamentScore || 0}</p>
+                        <p className="text-sm text-slate-400">Score: {user.tournamentScore || 0}</p>
                     </div>
                 </div>
                 <div className="text-right flex-shrink-0 ml-4">
