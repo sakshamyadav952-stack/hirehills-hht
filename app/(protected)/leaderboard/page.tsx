@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 type RankedUser = UserProfile & { rank: number };
 
@@ -21,6 +22,7 @@ export default function LeaderboardPage() {
     const { userProfile: currentUser, loading: authLoading } = useAuth();
     const firestore = useFirestore();
     const router = useRouter();
+    const { toast } = useToast();
     const [leaderboard, setLeaderboard] = useState<RankedUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [tournamentConfig, setTournamentConfig] = useState<TournamentConfig | null>(null);
@@ -53,6 +55,7 @@ export default function LeaderboardPage() {
             const usersQuery = query(
                 collection(firestore, 'users'),
                 where('tournamentId', '==', activeTournament.id),
+                where('tournamentScore', '>', 0),
                 orderBy('tournamentScore', 'desc'),
                 orderBy('tournamentScoreLastUpdated', 'asc')
             );
@@ -79,7 +82,7 @@ export default function LeaderboardPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [firestore]);
+    }, [firestore, toast]);
 
     useEffect(() => {
         fetchLeaderboard();
