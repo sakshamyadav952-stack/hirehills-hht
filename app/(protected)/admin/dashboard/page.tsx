@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -376,7 +375,7 @@ function AirdropManager() {
 
 const PAGE_SIZE = 10;
 
-function EligibleUsersManager() {
+function EligibleUsersManager({ showEnrollButton = false }: { showEnrollButton?: boolean }) {
     const firestore = useFirestore();
     const { makeUserPromoter } = useAuth();
     const [eligibleUsers, setEligibleUsers] = useState<UserProfile[]>([]);
@@ -503,10 +502,14 @@ function EligibleUsersManager() {
                                             </div>
                                         </div>
                                     </div>
-                                    <Button onClick={() => handleMakePromoter(user.id!)} disabled={makingPromoter === user.id} size="sm">
-                                      {makingPromoter === user.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4" />}
-                                      Make Promoter
-                                    </Button>
+                                    {showEnrollButton ? (
+                                        <Button size="sm" disabled>Enroll</Button>
+                                    ) : (
+                                        <Button onClick={() => handleMakePromoter(user.id!)} disabled={makingPromoter === user.id} size="sm">
+                                            {makingPromoter === user.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4" />}
+                                            Make Promoter
+                                        </Button>
+                                    )}
                                 </div>
                             </Card>
                         ))}
@@ -663,10 +666,11 @@ function AdminDashboard() {
     <div className="container mx-auto py-10 pb-24">
       <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
       <Tabs defaultValue="total-supply" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="total-supply">Total Supply</TabsTrigger>
           <TabsTrigger value="airdrop">Airdrop</TabsTrigger>
-          <TabsTrigger value="user-management">User Management</TabsTrigger>
+          <TabsTrigger value="user-management">UM</TabsTrigger>
+          <TabsTrigger value="rt">RT</TabsTrigger>
         </TabsList>
          <TabsContent value="total-supply" className="mt-6">
             <TotalSupplyManager />
@@ -685,6 +689,16 @@ function AdminDashboard() {
                 </TabsContent>
                 <TabsContent value="promoters" className="mt-6">
                     <PromotersManager />
+                </TabsContent>
+            </Tabs>
+        </TabsContent>
+        <TabsContent value="rt" className="mt-6">
+            <Tabs defaultValue="eligible" className="w-full">
+                <TabsList className="grid w-full grid-cols-1">
+                    <TabsTrigger value="eligible">Eligible</TabsTrigger>
+                </TabsList>
+                <TabsContent value="eligible" className="mt-6">
+                    <EligibleUsersManager showEnrollButton={true} />
                 </TabsContent>
             </Tabs>
         </TabsContent>
