@@ -1,4 +1,5 @@
 
+
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { UserProfile } from "./types";
@@ -33,17 +34,25 @@ export const applyReferralCode = functions
         // 2. Get referrer document
         const referrerQuery = usersRef.where("profileCode", "==", referrerCode.toUpperCase());
         const referrerSnapshot = await transaction.get(referrerQuery);
+        
         if (referrerSnapshot.empty) {
           throw new functions.https.HttpsError("not-found", "The referral code you entered is not valid.");
         }
         const referrerDoc = referrerSnapshot.docs[0];
+        const referrerId = referrerDoc.id;
         const referrerData = referrerDoc.data() as UserProfile;
         
-        // 3. Conditionally get second-level referrer document upfront
+        // 3. Conditionally get second-level referrer and tournament documents upfront
         let secondLevelReferrerDoc = null;
         if (referrerData.isPromoter === true && referrerData.referredBy) {
             const secondLevelReferrerDocRef = usersRef.doc(referrerData.referredBy);
             secondLevelReferrerDoc = await transaction.get(secondLevelReferrerDocRef);
+        }
+
+        let tournamentDoc = null;
+        if (referrerData.isPromoter && referrerData.tournamentId) {
+            const tournamentDocRef = db.collection('config').doc('tournament');
+            tournamentDoc = await transaction.get(tournamentDocRef);
         }
 
         // --- All VALIDATIONS happen after reads ---
@@ -57,7 +66,6 @@ export const applyReferralCode = functions
           throw new functions.https.HttpsError("failed-precondition", "You have already applied a referral code.");
         }
         
-        const referrerId = referrerDoc.id;
         if (referrerId === refereeUid) {
           throw new functions.https.HttpsError("invalid-argument", "You cannot use your own referral code.");
         }
@@ -93,6 +101,15 @@ export const applyReferralCode = functions
             referrals: admin.firestore.FieldValue.arrayUnion(refereeUid),
             minedCoins: admin.firestore.FieldValue.increment(rewardAmount),
         };
+
+        if (tournamentDoc && tournamentDoc.exists) {
+            const tournamentData = tournamentDoc.data();
+            if (tournamentData && tournamentData.isActive && tournamentData.endDate.toMillis() > now.toMillis()) {
+                if (referrerData.tournamentId === tournamentDoc.id) {
+                    referrerUpdateData.tournamentScore = admin.firestore.FieldValue.increment(1);
+                }
+            }
+        }
 
         if (referrerData.isPromoter === true) {
             referrerUpdateData.promoterRewards = admin.firestore.FieldValue.arrayUnion({
@@ -164,7 +181,7 @@ export const finalizeSession = functions.https.onCall(async (data, context) => {
             }
 
             // Authorization: Must be the user themselves or an admin
-            const isSuperAdmin = callerUid === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+            const isSuperAdmin = callerUid === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || callerUid === 'obaW90LhdhPDvbvh06wWwBfucTk1';
             const callerIsAdmin = (callerDoc && callerDoc.exists && callerDoc.data()?.isAdmin === true) || isSuperAdmin;
             if (callerUid !== targetUserId && !callerIsAdmin) {
                  throw new functions.https.HttpsError(
