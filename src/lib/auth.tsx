@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { ReactNode } from 'react';
@@ -123,7 +124,9 @@ interface AuthContextType {
   toast: typeof toastFn;
   updateAirdropConfig: (config: Partial<AirdropConfig>) => Promise<void>;
   updateTournamentConfig: (config: Partial<TournamentConfig>) => Promise<void>;
+  withdrawTournament: () => Promise<void>;
   enrollUserInTournament: (userId: string) => Promise<void>;
+  unenrollUserFromTournament: (userId: string) => Promise<void>;
   referralEarnings: number;
   respondToKuberRequest: (request: KuberRequest) => Promise<void>;
   clearKuberSessionLogs: () => Promise<void>;
@@ -2304,6 +2307,70 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     }
   }, [userProfile, firestore, toast]);
 
+    const withdrawTournament = useCallback(async () => {
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1' || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    if (!isAdmin) {
+      toast({ title: 'Unauthorized', variant: 'destructive' });
+      throw new Error("Not an admin");
+    }
+
+    const configDocRef = doc(firestore, 'config', 'tournament');
+    try {
+      const configDoc = await getDoc(configDocRef);
+      if (!configDoc.exists() || !configDoc.data()?.isActive) {
+        throw new Error("No active tournament to withdraw.");
+      }
+      const tournamentId = configDoc.id;
+
+      toast({ title: 'Processing...', description: 'Resetting tournament scores. This may take a moment.' });
+
+      await updateDoc(configDocRef, { isActive: false });
+      
+      const usersQuery = query(collection(firestore, 'users'), where('tournamentId', '==', tournamentId));
+      const usersSnapshot = await getDocs(usersQuery);
+
+      if (!usersSnapshot.empty) {
+        const batch = writeBatch(firestore);
+        usersSnapshot.forEach(userDoc => {
+          batch.update(userDoc.ref, {
+            tournamentScore: 0,
+            tournamentScoreLastUpdated: null,
+          });
+        });
+        await batch.commit();
+      }
+
+      toast({ title: 'Tournament Withdrawn', description: 'The tournament is no longer active and player scores have been reset.' });
+
+    } catch (error: any) {
+      console.error("Error withdrawing tournament:", error);
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      throw error;
+    }
+  }, [userProfile, firestore, toast]);
+
+  const unenrollUserFromTournament = useCallback(async (userId: string) => {
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1' || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    if (!isAdmin) {
+        toast({ title: 'Unauthorized', variant: 'destructive' });
+        throw new Error("Not an admin");
+    }
+
+    const userDocRef = doc(firestore, 'users', userId);
+    try {
+        await updateDoc(userDocRef, {
+            tournamentId: null,
+            tournamentScore: 0,
+            tournamentScoreLastUpdated: null
+        });
+        toast({ title: 'User Unenrolled', description: 'User has been removed from the tournament.' });
+    } catch (error: any) {
+        console.error("Error unenrolling user:", error);
+        toast({ title: 'Error', description: 'Could not unenroll the user.', variant: 'destructive' });
+        throw error;
+    }
+  }, [userProfile, firestore, toast]);
+
   const enrollUserInTournament = useCallback(async (userId: string) => {
     const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1' || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
     if (!isAdmin) {
@@ -2320,12 +2387,12 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
         throw new Error("There is no active tournament to enroll in.");
       }
       
-      const tournamentData = tournamentDoc.data() as TournamentConfig;
       const tournamentId = tournamentDoc.id;
 
       await updateDoc(userToEnrollRef, {
         tournamentId: tournamentId,
-        tournamentScore: 0
+        tournamentScore: 0,
+        tournamentScoreLastUpdated: serverTimestamp()
       });
       
       toast({ title: 'User Enrolled', description: 'The user has been enrolled in the current tournament.' });
@@ -2807,7 +2874,9 @@ const creditCrushOracleInstall = useCallback(async () => {
     toast,
     updateAirdropConfig,
     updateTournamentConfig,
+    withdrawTournament,
     enrollUserInTournament,
+    unenrollUserFromTournament,
     referralEarnings,
     respondToKuberRequest,
     clearKuberSessionLogs,
@@ -2827,3 +2896,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

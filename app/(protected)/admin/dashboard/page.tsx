@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -652,10 +653,11 @@ function PromotersManager() {
 }
 
 function TournamentManager() {
-    const { updateTournamentConfig } = useAuth();
+    const { updateTournamentConfig, withdrawTournament } = useAuth();
     const firestore = useFirestore();
     const [config, setConfig] = useState<Partial<TournamentConfig>>({});
     const [isLoading, setIsLoading] = useState(true);
+    const [isWithdrawing, setIsWithdrawing] = useState(false);
 
     useEffect(() => {
         const configDocRef = doc(firestore, 'config', 'tournament');
@@ -680,9 +682,19 @@ function TournamentManager() {
     const handleUpdate = async (field: keyof TournamentConfig, value: any) => {
         const newConfig = { ...config, [field]: value };
         setConfig(newConfig);
-        if (field === 'isActive') {
-            await updateTournamentConfig(newConfig);
+        if (field === 'isActive' && value === false) { // Handle deactivation
+             await updateTournamentConfig(newConfig);
         }
+    };
+
+    const handleLaunch = async () => {
+         await updateTournamentConfig({ ...config, isActive: true });
+    };
+
+    const handleWithdraw = async () => {
+        setIsWithdrawing(true);
+        await withdrawTournament();
+        setIsWithdrawing(false);
     };
 
     const addTier = () => {
@@ -746,10 +758,36 @@ function TournamentManager() {
                     ))}
                     <Button variant="outline" onClick={addTier}>Add Prize Tier</Button>
                 </div>
-
-                <div className="flex items-center gap-4">
-                    <Button onClick={() => handleUpdate('isActive', !config.isActive)}>{config.isActive ? 'Deactivate' : 'Launch'}</Button>
-                    <Button onClick={handleSave} className="w-full mt-4"><Save className="mr-2 h-4 w-4" />Save Configuration</Button>
+                
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center gap-4">
+                        <Button onClick={config.isActive ? () => handleUpdate('isActive', false) : handleLaunch}>
+                            {config.isActive ? 'Deactivate' : 'Launch'}
+                        </Button>
+                         {config.isActive && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" disabled={isWithdrawing}>
+                                         {isWithdrawing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Withdraw Tournament
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will withdraw the tournament, set it to inactive, and reset all player scores. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleWithdraw}>Confirm Withdraw</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
+                    </div>
+                    <Button onClick={handleSave} className="w-full"><Save className="mr-2 h-4 w-4" />Save Configuration</Button>
                 </div>
             </CardContent>
         </Card>
@@ -758,13 +796,16 @@ function TournamentManager() {
 
 function EnrolledUsersManager() {
     const firestore = useFirestore();
+    const { unenrollUserFromTournament } = useAuth();
     const [enrolledUsers, setEnrolledUsers] = useState<UserProfile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
     const [isLastPage, setIsLastPage] = useState(false);
     const [tournamentId, setTournamentId] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isUnenrolling, setIsUnenrolling] = useState<string | null>(null);
 
-    const fetchUsers = useCallback(async (startAfterDoc: DocumentSnapshot | null = null) => {
+    const fetchUsers = useCallback(async (startAfterDoc: DocumentSnapshot | null = null, refresh: boolean = false) => {
         if (!firestore || !tournamentId) {
             setIsLoading(false);
             return;
@@ -772,26 +813,33 @@ function EnrolledUsersManager() {
         setIsLoading(true);
 
         try {
-            let q = query(
-                collection(firestore, 'users'),
-                where('tournamentId', '==', tournamentId),
-                orderBy('tournamentScore', 'desc'),
-                limit(PAGE_SIZE)
-            );
-            if (startAfterDoc) {
-                q = query(q, startAfter(startAfterDoc));
+            let q;
+            const baseQuery = collection(firestore, 'users');
+            
+            if (searchTerm) {
+                q = query(baseQuery, where('tournamentId', '==', tournamentId), where('profileCode', '==', searchTerm.toUpperCase()));
+            } else {
+                q = query(
+                    baseQuery,
+                    where('tournamentId', '==', tournamentId),
+                    orderBy('tournamentScore', 'desc'),
+                    limit(PAGE_SIZE)
+                );
+                if (startAfterDoc && !refresh) {
+                    q = query(q, startAfter(startAfterDoc));
+                }
             }
             
             const documentSnapshots = await getDocs(q);
             const users = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
 
             setLastDoc(documentSnapshots.docs[documentSnapshots.docs.length - 1] || null);
-            setIsLastPage(documentSnapshots.docs.length < PAGE_SIZE);
-
-            if (startAfterDoc) {
-                 setEnrolledUsers(prev => [...prev, ...users]);
-            } else {
+            setIsLastPage(searchTerm ? true : documentSnapshots.docs.length < PAGE_SIZE);
+            
+            if (refresh || searchTerm) {
                 setEnrolledUsers(users);
+            } else {
+                 setEnrolledUsers(prev => [...prev, ...users]);
             }
 
         } catch (error) {
@@ -800,14 +848,28 @@ function EnrolledUsersManager() {
         } finally {
             setIsLoading(false);
         }
-    }, [firestore, tournamentId]);
+    }, [firestore, tournamentId, searchTerm]);
 
+    const handleRefresh = useCallback(() => {
+        setEnrolledUsers([]);
+        setLastDoc(null);
+        fetchUsers(null, true);
+    }, [fetchUsers]);
+    
+    useEffect(() => {
+        if (tournamentId) {
+            handleRefresh();
+        } else if (firestore) {
+            setIsLoading(false);
+        }
+    }, [tournamentId, firestore, searchTerm, handleRefresh]);
+    
     useEffect(() => {
         if (!firestore) return;
         setIsLoading(true);
         const configDocRef = doc(firestore, 'config', 'tournament');
         getDoc(configDocRef).then(docSnap => {
-            if (docSnap.exists() && docSnap.data().isActive) {
+            if (docSnap.exists()) {
                 setTournamentId(docSnap.id);
             } else {
                 setTournamentId(null);
@@ -816,13 +878,6 @@ function EnrolledUsersManager() {
         });
     }, [firestore]);
 
-    useEffect(() => {
-        if (tournamentId) {
-            fetchUsers(null);
-        } else if (firestore) {
-            setIsLoading(false);
-        }
-    }, [tournamentId, fetchUsers, firestore]);
 
     const handleNext = () => {
         if (!isLastPage && lastDoc) {
@@ -830,7 +885,17 @@ function EnrolledUsersManager() {
         }
     };
 
-    if (isLoading && enrolledUsers.length === 0) {
+    const handleUnenroll = async (userId: string) => {
+        setIsUnenrolling(userId);
+        try {
+            await unenrollUserFromTournament(userId);
+            setEnrolledUsers(prev => prev.filter(u => u.id !== userId));
+        } finally {
+            setIsUnenrolling(null);
+        }
+    };
+
+    if (isLoading && enrolledUsers.length === 0 && !searchTerm) {
         return <Card><CardContent className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
     }
 
@@ -845,7 +910,7 @@ function EnrolledUsersManager() {
                     <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
                         <Inbox className="h-12 w-12 text-muted-foreground" />
                         <h3 className="font-semibold">No Active Tournament</h3>
-                        <p className="text-sm text-muted-foreground">There is no active tournament to show enrolled users for.</p>
+                        <p className="text-sm text-muted-foreground">There is no tournament to show enrolled users for.</p>
                     </div>
                 </CardContent>
             </Card>
@@ -857,6 +922,14 @@ function EnrolledUsersManager() {
             <CardHeader>
                 <CardTitle>Enrolled Users</CardTitle>
                 <CardDescription>Users enrolled in the current tournament.</CardDescription>
+                 <form onSubmit={(e) => { e.preventDefault(); handleRefresh(); }} className="flex gap-2 pt-4">
+                    <Input 
+                        placeholder="Search by profile code..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <Button type="submit"><Search /></Button>
+                </form>
             </CardHeader>
             <CardContent>
                 {isLoading && enrolledUsers.length === 0 ? (
@@ -864,7 +937,7 @@ function EnrolledUsersManager() {
                 ) : enrolledUsers.length === 0 ? (
                      <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
                         <Inbox className="h-12 w-12 text-muted-foreground" />
-                        <h3 className="font-semibold">No Users Enrolled</h3>
+                        <h3 className="font-semibold">{searchTerm ? "No User Found" : "No Users Enrolled"}</h3>
                     </div>
                 ) : (
                     <div className="space-y-4">
@@ -878,9 +951,30 @@ function EnrolledUsersManager() {
                                             <p className="text-sm text-muted-foreground">{user.profileCode}</p>
                                         </div>
                                     </div>
-                                     <div className="flex items-center gap-2 font-semibold">
-                                        <Trophy className="h-5 w-5 text-amber-400" />
-                                        <span className="text-lg">{user.tournamentScore || 0}</span>
+                                    <div className='flex items-center gap-2'>
+                                        <div className="flex items-center gap-2 font-semibold">
+                                            <Trophy className="h-5 w-5 text-amber-400" />
+                                            <span className="text-lg">{user.tournamentScore || 0}</span>
+                                        </div>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="destructive" size="icon" disabled={isUnenrolling === user.id}>
+                                                     {isUnenrolling === user.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4" />}
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Unenroll {user.fullName}?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This will remove the user from the tournament and reset their score. Are you sure?
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleUnenroll(user.id)}>Confirm</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     </div>
                                 </div>
                             </Card>
@@ -888,7 +982,7 @@ function EnrolledUsersManager() {
                     </div>
                 )}
             </CardContent>
-             {enrolledUsers.length > 0 && !isLastPage && (
+             {enrolledUsers.length > 0 && !isLastPage && !searchTerm && (
                 <CardFooter className="flex justify-end">
                     <Button onClick={handleNext} disabled={isLoading || isLastPage}>
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isLastPage ? 'End of List' : 'Next'}
@@ -981,4 +1075,5 @@ function AdminDashboard() {
 export default function AdminDashboardPage() {
     return <AdminDashboard />;
 }
+
 
