@@ -26,32 +26,21 @@ service cloud.firestore {
       let writeData = request.resource.data;
       let existingData = resource.data;
       
-      // --- Protected fields that users can NEVER change themselves ---
-      if (!isAdmin()) {
-        if (writeData.isAdmin != existingData.isAdmin || 
-            (existingData.referredBy != null && writeData.referredBy != existingData.referredBy)) {
-          return false;
-        }
-      }
-      
-      // --- Scenario 2: Finalizing a session (calculating unclaimedCoins) ---
-      // This MUST remain for the client to trigger session finalization.
-      if (writeData.unclaimedCoins > existingData.unclaimedCoins) {
-        let incrementAmount = writeData.unclaimedCoins - existingData.unclaimedCoins;
-        let isEndingSession = writeData.miningStartTime == null && existingData.miningStartTime != null;
-        let isReasonableIncrement = incrementAmount > 0 && incrementAmount < 1000;
-        
-        return isEndingSession && isReasonableIncrement;
-      }
-      
-      // --- Scenario 3: Regular profile update or other non-financial changes. ---
-      // This allows updates as long as they don't touch the main coin balances in a disallowed way.
-      if (writeData.minedCoins == existingData.minedCoins && writeData.unclaimedCoins == existingData.unclaimedCoins) {
-        return true;
-      }
-      
-      // Deny any other type of update to coin balances by default
-      return false;
+      let protectedFieldsChanged = !isAdmin() && (
+        writeData.isAdmin != existingData.isAdmin ||
+        (existingData.referredBy != null && writeData.referredBy != existingData.referredBy)
+      );
+
+      let isFinalizingSession = writeData.unclaimedCoins > existingData.unclaimedCoins &&
+                                (writeData.unclaimedCoins - existingData.unclaimedCoins) > 0 &&
+                                (writeData.unclaimedCoins - existingData.unclaimedCoins) < 1000 &&
+                                writeData.miningStartTime == null &&
+                                existingData.miningStartTime != null;
+
+      let isRegularUpdate = writeData.minedCoins == existingData.minedCoins &&
+                            writeData.unclaimedCoins == existingData.unclaimedCoins;
+                            
+      return !protectedFieldsChanged && (isFinalizingSession || isRegularUpdate);
     }
 
     // --- Main Rules ---
