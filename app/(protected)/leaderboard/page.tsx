@@ -5,10 +5,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useFirestore } from '@/firebase';
 import { useAuth } from '@/lib/auth';
 import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp } from 'firebase/firestore';
-import type { UserProfile, TournamentConfig } from '@/lib/types';
+import type { UserProfile, TournamentConfig, PrizeTier } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown } from 'lucide-react';
+import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -17,8 +17,63 @@ import { useToast } from '@/hooks/use-toast';
 
 type RankedUser = UserProfile & { rank: number };
 
-const LeaderboardListItem = ({ user, isCurrentUser }: { user: RankedUser, isCurrentUser: boolean }) => {
+const Countdown = ({ expiryDate }: { expiryDate: Date | Timestamp }) => {
+    const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+    const [isExpired, setIsExpired] = useState(false);
+
+    useEffect(() => {
+        const endDate = expiryDate instanceof Timestamp ? expiryDate.toDate() : expiryDate;
+        const interval = setInterval(() => {
+            const now = new Date();
+            const difference = endDate.getTime() - now.getTime();
+
+            if (difference > 0) {
+                const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+                const minutes = Math.floor((difference / 1000 / 60) % 60);
+                const seconds = Math.floor((difference / 1000) % 60);
+                setTimeLeft({ days, hours, minutes, seconds });
+                setIsExpired(false);
+            } else {
+                setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+                setIsExpired(true);
+                clearInterval(interval);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [expiryDate]);
+
+    if (isExpired) {
+        return <div className="text-red-400 font-bold text-sm">Ended</div>;
+    }
+
+    return (
+        <div className="flex justify-center gap-1.5">
+            <TimeUnit value={timeLeft.days} label="Days" />
+            <TimeUnit value={timeLeft.hours} label="Hrs" />
+            <TimeUnit value={timeLeft.minutes} label="Mins" />
+            <TimeUnit value={timeLeft.seconds} label="Secs" />
+        </div>
+    );
+};
+
+const TimeUnit = ({ value, label }: { value: number; label: string; }) => (
+    <div className="p-1 bg-black/20 rounded-md text-center min-w-[32px] border border-slate-700">
+        <div className="font-mono font-bold text-slate-200 text-base">{String(value).padStart(2, '0')}</div>
+        <div className="text-[10px] text-slate-400 uppercase leading-tight">{label}</div>
+    </div>
+);
+
+const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers }: { user: RankedUser, isCurrentUser: boolean, prizeTiers: PrizeTier[] }) => {
     const rank = user.rank;
+
+    const getPrizeForRank = (rank: number, tiers: PrizeTier[]): number => {
+        const tier = tiers.find(t => rank >= t.startRank && rank <= t.endRank);
+        return tier ? tier.prize : 0;
+    };
+
+    const prize = getPrizeForRank(rank, prizeTiers);
 
     return (
         <div className={cn(
@@ -45,10 +100,15 @@ const LeaderboardListItem = ({ user, isCurrentUser }: { user: RankedUser, isCurr
                 </div>
                 <div>
                     <p className="font-semibold text-white">{user.fullName}{isCurrentUser && " (You)"}</p>
+                     <p className="text-sm text-slate-400">Referrals: <span className="font-bold text-white">{user.tournamentScore || 0}</span></p>
                 </div>
             </div>
             <div className="text-right">
-                 <p className="text-sm text-slate-400">Referrals: <span className="font-bold text-lg text-white">{user.tournamentScore || 0}</span></p>
+                <p className="text-lg font-bold text-amber-400 flex items-center">
+                    <DollarSign className="h-4 w-4 mr-0.5" />
+                    {prize.toFixed(2)}
+                </p>
+                 <p className="text-xs text-muted-foreground">Prize</p>
             </div>
         </div>
     )
@@ -170,9 +230,27 @@ export default function LeaderboardPage() {
                 <div className="text-center">
                     <h2 className="text-3xl font-bold text-white">{tournamentConfig.headline}</h2>
                     <p className="text-indigo-200/80 mt-1">{tournamentConfig.tagline}</p>
-                    <div className="mt-2">
+                    {tournamentConfig.endDate && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
+                    <div className="mt-4">
                         {!tournamentConfig.isActive ? <Badge variant="destructive">Withdrawn</Badge> : isTournamentEnded ? <Badge>Ended</Badge> : <Badge variant="secondary">Active</Badge>}
                     </div>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-center text-indigo-200">Prize Tiers (USDC)</p>
+                  <div className="flex justify-center gap-2 flex-wrap">
+                    {tournamentConfig.prizeTiers?.map(tier => (
+                      <div key={tier.id} className="text-center p-1.5 px-2 bg-black/30 rounded-md border border-indigo-400/30">
+                        <p className="text-[10px] font-bold text-indigo-300">
+                          {tier.startRank === tier.endRank ? `Rank ${tier.startRank}` : `Rank ${tier.startRank}-${tier.endRank}`}
+                        </p>
+                        <p className="text-xs font-semibold text-white flex items-center justify-center gap-0.5">
+                          <DollarSign className="h-3 w-3" />
+                          {tier.prize}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 
                 {isLoading && leaderboard.length === 0 ? (
@@ -188,7 +266,7 @@ export default function LeaderboardPage() {
                 ) : (
                     <div className="space-y-2">
                         {leaderboard.map(user => (
-                            <LeaderboardListItem key={user.id} user={user} isCurrentUser={user.id === currentUser?.id} />
+                            <LeaderboardListItem key={user.id} user={user} isCurrentUser={user.id === currentUser?.id} prizeTiers={tournamentConfig.prizeTiers || []}/>
                         ))}
                     </div>
                 )}
@@ -197,7 +275,7 @@ export default function LeaderboardPage() {
             
             {currentUserOnBoard && (
                 <div className="sticky bottom-0 bg-slate-900/50 backdrop-blur-sm p-2 pb-safe md:hidden">
-                    <LeaderboardListItem user={currentUserOnBoard} isCurrentUser={true} />
+                    <LeaderboardListItem user={currentUserOnBoard} isCurrentUser={true} prizeTiers={tournamentConfig.prizeTiers || []}/>
                 </div>
             )}
         </div>
