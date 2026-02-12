@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, onSnapshot, doc, updateDoc, runTransaction, arrayUnion, query, where, getDocs, writeBatch, increment, getDoc, orderBy, Timestamp, documentId, limit, DocumentSnapshot, startAfter } from 'firebase/firestore';
-import { Loader2, User, Shield, Inbox, Check, X, Coins, Award, Settings, MessageSquare, Send, Star, Banknote, Building2, UserCheck, Share2, AtSign, Smartphone, Gift, Save, FilePen, Search, Crown, Trash2, Trophy } from 'lucide-react';
+import { Loader2, User, Shield, Inbox, Check, X, Coins, Award, Settings, MessageSquare, Send, Star, Banknote, Building2, UserCheck, Share2, AtSign, Smartphone, Gift, Save, FilePen, Search, Crown, Trash2, Trophy, Users as UsersIcon } from 'lucide-react';
 import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction, Note, Review, AirdropConfig, TournamentConfig, PrizeTier } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
@@ -379,13 +379,14 @@ const PAGE_SIZE = 10;
 
 function EligibleUsersManager({ showEnrollButton = false, forTournament = false }: { showEnrollButton?: boolean; forTournament?: boolean; }) {
     const firestore = useFirestore();
-    const { makeUserPromoter, enrollUserInTournament } = useAuth();
+    const { makeUserPromoter, enrollUserInTournament, enrollAllEligibleUsers } = useAuth();
     const [eligibleUsers, setEligibleUsers] = useState<UserProfile[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
     const [isLastPage, setIsLastPage] = useState(false);
     const [makingPromoter, setMakingPromoter] = useState<string | null>(null);
     const [enrolling, setEnrolling] = useState<string | null>(null);
+    const [isEnrollingAll, setIsEnrollingAll] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
     const fetchUsers = useCallback(async (startAfterDoc: DocumentSnapshot | null = null, refresh: boolean = false) => {
@@ -486,6 +487,18 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
         }
     };
 
+    const handleEnrollAll = async () => {
+        if (!eligibleUsers.length) return;
+        setIsEnrollingAll(true);
+        const userIds = eligibleUsers.map(u => u.id!);
+        try {
+            await enrollAllEligibleUsers(userIds);
+            handleRefresh(); // Refresh list to show it's empty
+        } finally {
+            setIsEnrollingAll(false);
+        }
+    };
+
     return (
         <Card>
             <CardHeader>
@@ -502,6 +515,12 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
+                     {showEnrollButton && (
+                        <Button onClick={handleEnrollAll} disabled={isEnrollingAll || !eligibleUsers.length}>
+                            {isEnrollingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <UsersIcon className="h-4 w-4" />}
+                            <span className="ml-2 hidden sm:inline">Enroll All</span>
+                        </Button>
+                    )}
                 </div>
             </CardHeader>
             <CardContent>
@@ -844,7 +863,7 @@ function TournamentManager() {
 
 function EnrolledUsersManager() {
     const firestore = useFirestore();
-    const { unenrollUserFromTournament } = useAuth();
+    const { unenrollUserFromTournament, unenrollAllTournamentUsers } = useAuth();
     const [enrolledUsers, setEnrolledUsers] = useState<UserProfile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
@@ -852,6 +871,7 @@ function EnrolledUsersManager() {
     const [tournamentId, setTournamentId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [isUnenrolling, setIsUnenrolling] = useState<string | null>(null);
+    const [isUnenrollingAll, setIsUnenrollingAll] = useState(false);
 
     const fetchUsers = useCallback(async (startAfterDoc: DocumentSnapshot | null = null, refresh: boolean = false) => {
         if (!firestore || !tournamentId) {
@@ -942,6 +962,16 @@ function EnrolledUsersManager() {
             setIsUnenrolling(null);
         }
     };
+    
+    const handleRemoveAll = async () => {
+        setIsUnenrollingAll(true);
+        try {
+            await unenrollAllTournamentUsers();
+            setEnrolledUsers([]);
+        } finally {
+            setIsUnenrollingAll(false);
+        }
+    };
 
     if (isLoading && enrolledUsers.length === 0 && !searchTerm) {
         return <Card><CardContent className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
@@ -970,14 +1000,36 @@ function EnrolledUsersManager() {
             <CardHeader>
                 <CardTitle>Enrolled Users</CardTitle>
                 <CardDescription>Users enrolled in the current tournament.</CardDescription>
-                 <form onSubmit={(e) => { e.preventDefault(); handleRefresh(); }} className="flex gap-2 pt-4">
-                    <Input 
-                        placeholder="Search by profile code..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    <Button type="submit"><Search /></Button>
-                </form>
+                 <div className="flex gap-2 pt-4">
+                    <form onSubmit={(e) => { e.preventDefault(); handleRefresh(); }} className="flex gap-2 flex-1">
+                        <Input 
+                            placeholder="Search by profile code..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        <Button type="submit"><Search /></Button>
+                    </form>
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" disabled={isUnenrollingAll || enrolledUsers.length === 0}>
+                                {isUnenrollingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                <span className="ml-2 hidden sm:inline">Remove All</span>
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action will unenroll ALL users from the tournament and reset their scores. This cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleRemoveAll}>Confirm</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
             </CardHeader>
             <CardContent>
                 {isLoading && enrolledUsers.length === 0 ? (
@@ -1123,7 +1175,6 @@ function AdminDashboard() {
 export default function AdminDashboardPage() {
     return <AdminDashboard />;
 }
-
 
 
 

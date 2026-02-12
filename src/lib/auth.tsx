@@ -26,7 +26,7 @@ import {
 } from 'firebase/auth';
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { doc, serverTimestamp, onSnapshot, updateDoc, runTransaction, arrayUnion, query, collection, where, documentId, getDocs, writeBatch, deleteDoc, setDoc, getDoc, increment, addDoc, orderBy, Timestamp, arrayRemove, Firestore } from 'firebase/firestore';
-import type { UserProfile, Transaction, PendingTransfer, WithdrawalRequest, Note, Comment, ActiveBoost, DailyAdCoin, SessionConfig, AdWatchEvent, AirdropConfig, ChatMessage, KuberBlock, KuberRequest, KuberId, TournamentConfig, PrizeTier } from '@/lib/types';
+import type { UserProfile, Transaction, PendingTransfer, WithdrawalRequest, Note, Comment, ActiveBoost, DailyAdCoin, SessionConfig, AdWatchEvent, AirdropConfig, ChatMessage, KuberBlock, KuberRequest, KuberId, TournamentConfig } from '@/lib/types';
 import { useToast, toast as toastFn } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -127,6 +127,8 @@ interface AuthContextType {
   withdrawTournament: () => Promise<void>;
   enrollUserInTournament: (userId: string) => Promise<void>;
   unenrollUserFromTournament: (userId: string) => Promise<void>;
+  enrollAllEligibleUsers: (userIds: string[]) => Promise<void>;
+  unenrollAllTournamentUsers: () => Promise<void>;
   referralEarnings: number;
   respondToKuberRequest: (request: KuberRequest) => Promise<void>;
   clearKuberSessionLogs: () => Promise<void>;
@@ -2405,6 +2407,47 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     }
   }, [userProfile, firestore, toast]);
 
+  const enrollAllEligibleUsers = useCallback(async (userIds: string[]) => {
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    if (!isAdmin) {
+        toast({ title: 'Unauthorized', variant: 'destructive' });
+        throw new Error("Not an admin");
+    }
+    if (!userIds || userIds.length === 0) {
+        toast({ title: 'No Users', description: 'No users to enroll.', variant: 'destructive' });
+        return;
+    }
+
+    try {
+        const functions = getFunctions();
+        const enrollFunction = httpsCallable(functions, 'enrollUsersInTournament');
+        await enrollFunction({ userIds });
+        toast({ title: 'Success', description: `${userIds.length} users have been enrolled.` });
+    } catch (error: any) {
+        console.error("Error enrolling all users:", error);
+        toast({ title: 'Enrollment Failed', description: error.message, variant: 'destructive' });
+        throw error;
+    }
+  }, [userProfile, toast]);
+
+  const unenrollAllTournamentUsers = useCallback(async () => {
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    if (!isAdmin) {
+        toast({ title: 'Unauthorized', variant: 'destructive' });
+        throw new Error("Not an admin");
+    }
+
+    try {
+        const functions = getFunctions();
+        const unenrollFunction = httpsCallable(functions, 'unenrollAllUsersFromTournament');
+        await unenrollFunction();
+        toast({ title: 'Success', description: 'All users have been unenrolled from the tournament.' });
+    } catch (error: any) {
+        console.error("Error unenrolling all users:", error);
+        toast({ title: 'Unenrollment Failed', description: error.message, variant: 'destructive' });
+        throw error;
+    }
+  }, [userProfile, toast]);
 
   useEffect(() => {
     if (!user || !userProfile) return;
@@ -2879,6 +2922,8 @@ const creditCrushOracleInstall = useCallback(async () => {
     withdrawTournament,
     enrollUserInTournament,
     unenrollUserFromTournament,
+    enrollAllEligibleUsers,
+    unenrollAllTournamentUsers,
     referralEarnings,
     respondToKuberRequest,
     clearKuberSessionLogs,
@@ -2898,4 +2943,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
 

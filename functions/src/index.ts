@@ -432,3 +432,91 @@ export const sendVerificationEmail = functions.https.onCall(async (data, context
         throw new functions.https.HttpsError('internal', 'Unable to generate verification link.');
     }
 });
+
+export const enrollUsersInTournament = functions.runWith({ timeoutSeconds: 60 }).https.onCall(async (data, context) => {
+    if (!context.auth || !context.auth.uid) {
+        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated.");
+    }
+
+    const adminDoc = await db.collection('users').doc(context.auth.uid).get();
+    if (!adminDoc.exists || adminDoc.data()?.isAdmin !== true) {
+         throw new functions.https.HttpsError("permission-denied", "User must be an admin.");
+    }
+
+    const { userIds } = data;
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+        throw new functions.https.HttpsError("invalid-argument", "An array of user IDs must be provided.");
+    }
+    
+    try {
+        const tournamentConfigRef = db.collection('config').doc('tournament');
+        const tournamentDoc = await tournamentConfigRef.get();
+
+        if (!tournamentDoc.exists() || !tournamentDoc.data()?.isActive) {
+            throw new functions.https.HttpsError("failed-precondition", "There is no active tournament.");
+        }
+        const tournamentId = tournamentDoc.id;
+        const now = admin.firestore.Timestamp.now();
+
+        const batch = db.batch();
+        userIds.forEach(userId => {
+            const userRef = db.collection('users').doc(userId);
+            batch.update(userRef, {
+                tournamentId: tournamentId,
+                tournamentScore: 0,
+                tournamentScoreLastUpdated: now,
+            });
+        });
+
+        await batch.commit();
+        return { success: true, message: `Enrolled ${userIds.length} users.` };
+    } catch (error: any) {
+        console.error("Error in enrollUsersInTournament:", error);
+        throw new functions.https.HttpsError("internal", "An error occurred while enrolling users.");
+    }
+});
+
+export const unenrollAllUsersFromTournament = functions.runWith({ timeoutSeconds: 120 }).https.onCall(async (data, context) => {
+    if (!context.auth || !context.auth.uid) {
+        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated.");
+    }
+
+    const adminDoc = await db.collection('users').doc(context.auth.uid).get();
+    if (!adminDoc.exists || adminDoc.data()?.isAdmin !== true) {
+         throw new functions.https.HttpsError("permission-denied", "User must be an admin.");
+    }
+
+    try {
+        const tournamentConfigRef = db.collection('config').doc('tournament');
+        const tournamentDoc = await tournamentConfigRef.get();
+
+        if (!tournamentDoc.exists()) {
+             // No tournament exists, so nothing to do.
+            return { success: true, message: "No active tournament found to unenroll users from." };
+        }
+        const tournamentId = tournamentDoc.id;
+
+        const usersQuery = db.collection('users').where('tournamentId', '==', tournamentId);
+        const usersSnapshot = await usersQuery.get();
+
+        if (usersSnapshot.empty) {
+            return { success: true, message: "No users were enrolled in the tournament." };
+        }
+
+        const batch = db.batch();
+        usersSnapshot.docs.forEach(doc => {
+            batch.update(doc.ref, {
+                tournamentId: null,
+                tournamentScore: 0,
+                tournamentScoreLastUpdated: null,
+            });
+        });
+        await batch.commit();
+
+        return { success: true, message: `Unenrolled ${usersSnapshot.size} users.` };
+
+    } catch (error: any) {
+        console.error("Error in unenrollAllUsersFromTournament:", error);
+        throw new functions.https.HttpsError("internal", "An error occurred while unenrolling users.");
+    }
+});
