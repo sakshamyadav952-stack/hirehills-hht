@@ -8,7 +8,7 @@ import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp } fr
 import type { UserProfile, TournamentConfig, PrizeTier } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign } from 'lucide-react';
+import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign, Medal } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -72,51 +72,49 @@ const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers }: { user: Ranked
         const tier = tiers.find(t => rank >= t.startRank && rank <= t.endRank);
         return tier ? tier.prize : 0;
     };
-
+    
     const prize = getPrizeForRank(rank, prizeTiers);
+
+    const rankColor = useMemo(() => {
+        if (rank === 1) return "border-amber-400 bg-amber-900/30 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.4)]";
+        if (rank === 2) return "border-slate-400 bg-slate-800/50 text-slate-300 shadow-[0_0_15px_rgba(156,163,175,0.4)]";
+        if (rank === 3) return "border-orange-500 bg-orange-900/30 text-orange-300 shadow-[0_0_15px_rgba(249,115,22,0.4)]";
+        return "border-slate-700 bg-slate-800/40";
+    }, [rank]);
+
+    const rankIcon = useMemo(() => {
+        if (rank === 1) return <Crown className="h-6 w-6 text-amber-400" />;
+        if (rank === 2) return <Medal className="h-6 w-6 text-slate-300" />;
+        if (rank === 3) return <Medal className="h-6 w-6 text-orange-400" />;
+        return <span className="font-bold text-lg w-8 text-center text-slate-400">#{rank}</span>;
+    }, [rank]);
 
     return (
         <div className={cn(
-            "flex items-center justify-between p-3 rounded-lg transition-colors",
-            isCurrentUser
-                ? "bg-blue-900/40 border border-blue-500"
-                : "border-b border-slate-800 hover:bg-slate-800/30"
+            "border-2 p-3 rounded-xl transition-all",
+            rankColor,
         )}>
-            <div className="flex items-center gap-3">
-                <span className="font-bold text-lg w-8 text-center text-slate-400">#{rank}</span>
-                 <div className="relative">
-                    <Avatar className="h-10 w-10">
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <div className="w-8 flex-shrink-0 flex justify-center">{rankIcon}</div>
+                    <Avatar className="h-12 w-12">
                         <AvatarImage src={user.profileImageUrl} alt={user.fullName} />
                         <AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    {rank <= 3 && (
-                        <Crown className={cn(
-                            "absolute -top-3 left-1/2 -translate-x-1/2 h-5 w-5",
-                            rank === 1 && "text-amber-400",
-                            rank === 2 && "text-slate-400",
-                            rank === 3 && "text-orange-500"
-                        )} />
-                    )}
+                    <div className="truncate">
+                        <p className="font-semibold text-white truncate">{user.fullName}{isCurrentUser && " (You)"}</p>
+                        <p className="text-sm text-slate-400">Referrals: {user.tournamentScore || 0}</p>
+                    </div>
                 </div>
-                <div>
-                    <p className="font-semibold text-white">{user.fullName}{isCurrentUser && " (You)"}</p>
-                     <p className="text-sm text-slate-400">Referrals: <span className="font-bold text-white">{user.tournamentScore || 0}</span></p>
+                <div className="text-right flex-shrink-0 ml-4">
+                     <p className={cn("text-lg font-bold flex items-center justify-end", prize > 0 ? "text-green-400" : "text-white")}>
+                        <DollarSign className="h-4 w-4 mr-0.5" />
+                        {prize.toFixed(2)}
+                    </p>
+                    <p className={cn("text-xs", prize > 0 ? "text-green-400/80" : "text-muted-foreground")}>
+                        {prize > 0 ? "Currently Winning" : "Prize"}
+                    </p>
                 </div>
-            </div>
-            <div className="text-right">
-                <p className={cn(
-                    "text-lg font-bold flex items-center justify-end",
-                    prize > 0 ? "text-green-400" : "text-amber-400"
-                )}>
-                    <DollarSign className="h-4 w-4 mr-0.5" />
-                    {prize.toFixed(2)}
-                </p>
-                <p className={cn(
-                    "text-xs",
-                    prize > 0 ? "text-green-400/80" : "text-muted-foreground"
-                )}>
-                    {prize > 0 ? "Currently Winning" : "Prize"}
-                </p>
             </div>
         </div>
     )
@@ -190,11 +188,6 @@ export default function LeaderboardPage() {
     useEffect(() => {
         fetchLeaderboard();
     }, [fetchLeaderboard]);
-
-    const currentUserOnBoard = useMemo(() => {
-        if (!currentUser || !leaderboard) return null;
-        return leaderboard.find(u => u.id === currentUser.id);
-    }, [currentUser, leaderboard]);
 
     if (authLoading || (isLoading && leaderboard.length === 0)) {
         return (
@@ -286,12 +279,7 @@ export default function LeaderboardPage() {
                 )}
                  <div className="h-20 md:hidden" />
             </main>
-            
-            {currentUserOnBoard && (
-                <div className="sticky bottom-0 bg-slate-900/50 backdrop-blur-sm p-2 pb-safe md:hidden">
-                    <LeaderboardListItem user={currentUserOnBoard} isCurrentUser={true} prizeTiers={tournamentConfig.prizeTiers || []}/>
-                </div>
-            )}
         </div>
     );
 }
+
