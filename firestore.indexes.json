@@ -1,3 +1,4 @@
+
 {
   "indexes": [
     {
@@ -15,6 +16,20 @@
         {
           "fieldPath": "tournamentScoreLastUpdated",
           "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tournamentId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tournamentScore",
+          "order": "DESCENDING"
         }
       ]
     }
