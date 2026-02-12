@@ -8,12 +8,15 @@ import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp, lim
 import type { UserProfile, TournamentConfig, PrizeTier } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign, Medal, Users } from 'lucide-react';
+import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign, Medal, Users, ShieldAlert } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 type RankedUser = UserProfile & { rank: number };
 const PAGE_SIZE = 10;
@@ -132,6 +135,7 @@ export default function LeaderboardPage() {
     const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
     const [isLastPage, setIsLastPage] = useState(false);
     const [totalPlayers, setTotalPlayers] = useState(0);
+    const [usdcAddress, setUsdcAddress] = useState('');
 
     const fetchLeaderboardData = useCallback(async (startAfterDoc: DocumentSnapshot | null = null) => {
         if (!firestore || !tournamentConfig) return;
@@ -232,16 +236,33 @@ export default function LeaderboardPage() {
             fetchLeaderboardData(lastDoc);
         }
     }
+    
+    const handleWithdraw = () => {
+        if (!usdcAddress.trim()) {
+            toast({
+                title: "Address Required",
+                description: "Please enter your USDC address.",
+                variant: "destructive",
+            });
+            return;
+        }
+        toast({
+            title: "Coming Soon",
+            description: "Withdrawal functionality is under development. Your address is noted."
+        });
+    };
 
-    const { currentUserOnBoard, otherUsers } = useMemo(() => {
+    const { currentUserOnBoard, otherUsers, isCurrentUserWinner, currentUserPrize } = useMemo(() => {
         if (!currentUser || !leaderboard || !tournamentConfig) {
-            return { currentUserOnBoard: null, otherUsers: leaderboard || [] };
+            return { currentUserOnBoard: null, otherUsers: leaderboard || [], isCurrentUserWinner: false, currentUserPrize: 0 };
         }
         
         const isConcluded = !tournamentConfig.isActive;
 
-        // The current user's strip should always be based on the full, unfiltered leaderboard
         const userOnBoard = leaderboard.find(u => u.id === currentUser.id);
+
+        const prize = userOnBoard ? getPrizeForRank(userOnBoard.rank, tournamentConfig.prizeTiers || []) : 0;
+        const winner = prize > 0;
 
         let displayList = leaderboard;
         if (isConcluded) {
@@ -250,10 +271,9 @@ export default function LeaderboardPage() {
             );
         }
         
-        // The list of "other users" excludes the current user from the potentially filtered list
         const others = displayList.filter(u => u.id !== currentUser.id);
 
-        return { currentUserOnBoard: userOnBoard, otherUsers: others };
+        return { currentUserOnBoard: userOnBoard, otherUsers: others, isCurrentUserWinner: winner, currentUserPrize: prize };
     }, [currentUser, leaderboard, tournamentConfig]);
 
     if (authLoading || (isLoading && leaderboard.length === 0)) {
@@ -302,6 +322,35 @@ export default function LeaderboardPage() {
                             <CardTitle className="text-2xl text-green-300">Congratulations to the Winners!</CardTitle>
                             <CardDescription className="text-green-200/80">The tournament has concluded. Prizes will be distributed shortly.</CardDescription>
                         </CardHeader>
+                        {isCurrentUserWinner && (
+                            <CardContent className="pt-4 mt-4 border-t border-green-500/20">
+                                <div className="text-left space-y-4">
+                                    <p className="text-center text-lg font-semibold text-white">
+                                        You've won ${currentUserPrize.toFixed(2)}!
+                                    </p>
+                                    <Alert variant="destructive">
+                                        <ShieldAlert className="h-4 w-4" />
+                                        <AlertTitle>Important Warning</AlertTitle>
+                                        <AlertDescription>
+                                            You must provide a Solana (SOL) blockchain USDC address. Sending to any other blockchain address (e.g., Ethereum, BSC) will result in the permanent loss of your reward. If you are unsure, please contact support.
+                                        </AlertDescription>
+                                    </Alert>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="usdc-address" className="text-white">Your Solana USDC Address</Label>
+                                        <Input 
+                                            id="usdc-address"
+                                            placeholder="Enter your Solana USDC address"
+                                            className="bg-slate-800 border-slate-600 text-white"
+                                            value={usdcAddress}
+                                            onChange={(e) => setUsdcAddress(e.target.value)}
+                                        />
+                                    </div>
+                                    <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold" onClick={handleWithdraw}>
+                                        Request Withdrawal
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        )}
                     </Card>
                 )}
 
@@ -375,3 +424,4 @@ export default function LeaderboardPage() {
         </div>
     );
 }
+
