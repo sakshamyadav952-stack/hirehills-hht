@@ -8,7 +8,7 @@ import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp } fr
 import type { UserProfile, TournamentConfig } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Trophy, ArrowLeft } from 'lucide-react';
+import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -28,17 +28,27 @@ const LeaderboardListItem = ({ user, isCurrentUser }: { user: RankedUser, isCurr
                 : "border-b border-slate-800 hover:bg-slate-800/30"
         )}>
             <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.profileImageUrl} alt={user.fullName} />
-                    <AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback>
-                </Avatar>
+                <span className="font-bold text-lg w-8 text-center text-slate-400">#{rank}</span>
+                 <div className="relative">
+                    <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.profileImageUrl} alt={user.fullName} />
+                        <AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    {rank <= 3 && (
+                        <Crown className={cn(
+                            "absolute -top-2 -right-2 h-5 w-5 transform rotate-12",
+                            rank === 1 && "text-amber-400",
+                            rank === 2 && "text-slate-400",
+                            rank === 3 && "text-orange-500"
+                        )} />
+                    )}
+                </div>
                 <div>
                     <p className="font-semibold text-white">{user.fullName}{isCurrentUser && " (You)"}</p>
-                    <p className="text-xs text-slate-400">Referrals: {user.tournamentScore || 0}</p>
                 </div>
             </div>
-            <div className="text-right font-bold text-lg text-white">
-                Rank #{rank}
+            <div className="text-right">
+                 <p className="text-sm text-slate-400">Referrals: <span className="font-bold text-lg text-white">{user.tournamentScore || 0}</span></p>
             </div>
         </div>
     )
@@ -193,3 +203,4 @@ export default function LeaderboardPage() {
         </div>
     );
 }
+
