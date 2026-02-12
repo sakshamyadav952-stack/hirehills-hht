@@ -130,6 +130,8 @@ interface AuthContextType {
   unenrollUserFromTournament: (userId: string) => Promise<void>;
   enrollAllEligibleUsers: (userIds: string[]) => Promise<void>;
   unenrollAllTournamentUsers: () => Promise<void>;
+  verifyUsdcAddress: (address: string) => Promise<{ isValid: boolean }>;
+  requestUsdcWithdrawal: (address: string) => Promise<void>;
   referralEarnings: number;
   respondToKuberRequest: (request: KuberRequest) => Promise<void>;
   clearKuberSessionLogs: () => Promise<void>;
@@ -2395,7 +2397,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
   }, [userProfile, firestore, toast]);
 
   const enrollAllEligibleUsers = useCallback(async (userIds: string[]) => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1' || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
     if (!isAdmin) {
         toast({ title: 'Unauthorized', variant: 'destructive' });
         throw new Error("Not an admin");
@@ -2418,7 +2420,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
   }, [userProfile, toast]);
 
   const unenrollAllTournamentUsers = useCallback(async () => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1' || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
     if (!isAdmin) {
         toast({ title: 'Unauthorized', variant: 'destructive' });
         throw new Error("Not an admin");
@@ -2435,6 +2437,37 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
         throw error;
     }
   }, [userProfile, toast]);
+
+    const verifyUsdcAddress = useCallback(async (address: string): Promise<{ isValid: boolean }> => {
+        try {
+            const functions = getFunctions();
+            const verifyFunction = httpsCallable(functions, 'verifySolanaAddress');
+            const result = await verifyFunction({ address });
+            return result.data as { isValid: boolean };
+        } catch (error: any) {
+            console.error("Error verifying USDC address:", error);
+            toast({
+                title: 'Verification Failed',
+                description: error.message || 'Could not verify the address.',
+                variant: 'destructive',
+            });
+            return { isValid: false };
+        }
+    }, [toast]);
+    
+    const requestUsdcWithdrawal = useCallback(async (address: string) => {
+        if (!user) {
+            throw new Error("User not authenticated.");
+        }
+        try {
+            const functions = getFunctions();
+            const withdrawFunction = httpsCallable(functions, 'requestUsdcWithdrawal');
+            await withdrawFunction({ usdcAddress: address });
+        } catch (error: any) {
+            console.error("Error requesting USDC withdrawal:", error);
+            throw error;
+        }
+    }, [user]);
 
   useEffect(() => {
     if (!user || !userProfile) return;
@@ -2912,6 +2945,8 @@ const creditCrushOracleInstall = useCallback(async () => {
     unenrollUserFromTournament,
     enrollAllEligibleUsers,
     unenrollAllTournamentUsers,
+    verifyUsdcAddress,
+    requestUsdcWithdrawal,
     referralEarnings,
     respondToKuberRequest,
     clearKuberSessionLogs,
@@ -2933,6 +2968,9 @@ export const useAuth = () => {
 };
 
 
+
+
+    
 
 
     
