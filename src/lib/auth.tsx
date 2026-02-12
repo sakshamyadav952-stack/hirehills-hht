@@ -335,11 +335,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const privateContactDocRef = doc(firestore, `users/${user.uid}/private/contact`);
     
     const docSnap = await getDoc(userDocRef);
-    if (docSnap.exists()) {
+    if (docSnap.exists) {
         console.log("User profile already exists, skipping creation.");
         const existingData = docSnap.data();
         const privateSnap = await getDoc(privateContactDocRef);
-        const privateData = privateSnap.exists() ? privateSnap.data() : {};
+        const privateData = privateSnap.exists ? privateSnap.data() : {};
         return { id: docSnap.id, ...existingData, ...privateData } as UserProfile;
     }
 
@@ -627,7 +627,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (userProfile?.referredBy) {
       const referrerDocRef = doc(firestore, 'users', userProfile.referredBy);
       const unsubscribe = onSnapshot(referrerDocRef, (doc) => {
-        if (doc.exists()) {
+        if (doc.exists) {
           setReferrerProfile(doc.data() as UserProfile);
         } else {
           setReferrerProfile(null);
@@ -869,7 +869,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
         const userCredential = await confirmationResult.confirm(otp);
         const docSnap = await getDoc(doc(firestore, 'users', userCredential.user.uid));
-        if (!docSnap.exists()) {
+        if (!docSnap.exists) {
             const newProfile = await createNewUserProfile(userCredential.user, userCredential.user.phoneNumber || undefined);
             setUserProfile(newProfile);
         }
@@ -891,7 +891,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const result = await signInWithCredential(auth, credential);
             
             const docSnap = await getDoc(doc(firestore, 'users', result.user.uid));
-            if (!docSnap.exists()) {
+            if (!docSnap.exists) {
                 await createNewUserProfile(result.user);
             }
             
@@ -1121,7 +1121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
         const configDocRef = doc(firestore, 'config', 'session');
         const docSnap = await getDoc(configDocRef);
-        if (docSnap.exists()) {
+        if (docSnap.exists) {
             const config = docSnap.data() as SessionConfig;
             return config.durationMinutes || 480; // Default to 480 mins (8 hours)
         }
@@ -1138,7 +1138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await runTransaction(firestore, async (transaction) => {
         const userDoc = await transaction.get(targetUserDocRef);
-        if (!userDoc.exists()) {
+        if (!userDoc.exists) {
           throw new Error("User document does not exist.");
         }
 
@@ -1220,7 +1220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const targetUserDocRef = doc(firestore, 'users', userId);
     try {
       const userDoc = await getDoc(targetUserDocRef);
-      if (!userDoc.exists()) throw new Error("User not found.");
+      if (!userDoc.exists) throw new Error("User not found.");
 
       const profile = userDoc.data() as UserProfile;
       if (profile.sessionEndTime && Date.now() < profile.sessionEndTime) {
@@ -1299,7 +1299,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
         await runTransaction(firestore, async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
-            if (!userDoc.exists()) throw new Error("User not found");
+            if (!userDoc.exists) throw new Error("User not found");
             
             const currentProfile = userDoc.data() as UserProfile;
             const currentSpinCount = currentProfile.spinCount || 0;
@@ -1477,7 +1477,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (refereeData.referredBy) {
                 const oldReferrerDocRef = doc(firestore, 'users', refereeData.referredBy);
                  const oldReferrerDoc = await getDoc(oldReferrerDocRef);
-                if (oldReferrerDoc.exists()) {
+                if (oldReferrerDoc.exists) {
                     batch.update(oldReferrerDocRef, {
                         referrals: arrayRemove(refereeDoc.id)
                     });
@@ -1523,7 +1523,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const recipientDocRef = doc(usersRef, recipientId);
         const recipientDoc = await getDoc(recipientDocRef);
 
-        if (!recipientDoc.exists()) {
+        if (!recipientDoc.exists) {
             throw new Error("Recipient account not found.");
         }
         const recipientProfile = recipientDoc.data() as UserProfile;
@@ -1621,7 +1621,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
         await runTransaction(firestore, async (transaction) => {
             const transferDoc = await transaction.get(transferDocRef);
-            if (!transferDoc.exists()) {
+            if (!transferDoc.exists) {
                 throw new Error("This transfer request no longer exists.");
             }
             
@@ -1630,7 +1630,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const receiverRef = doc(firestore, 'users', user.uid);
 
             const senderDoc = await transaction.get(senderRef);
-            if (!senderDoc.exists()) {
+            if (!senderDoc.exists) {
                 throw new Error("Sender's account not found.");
             }
             
@@ -1870,7 +1870,7 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
     try {
         await runTransaction(firestore, async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
-            if (!userDoc.exists()) throw new Error("User not found.");
+            if (!userDoc.exists) throw new Error("User not found.");
             
             transaction.update(userDocRef, {
                 referrals: arrayRemove(referralId),
@@ -2036,7 +2036,7 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
     try {
       await runTransaction(firestore, async (transaction) => {
         const userDoc = await transaction.get(userDocRef);
-        if (!userDoc.exists()) throw new Error('User not found.');
+        if (!userDoc.exists) throw new Error('User not found.');
         
         const userData = userDoc.data() as UserProfile;
         const updatedRequests = (userData.withdrawalRequests || []).map((req) => {
@@ -2070,7 +2070,7 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
       try {
         await runTransaction(firestore, async (transaction) => {
           const userDoc = await transaction.get(userDocRef);
-          if (!userDoc.exists()) throw new Error('User not found.');
+          if (!userDoc.exists) throw new Error('User not found.');
 
           const userData = userDoc.data() as UserProfile;
           const updatedRequests = (userData.withdrawalRequests || []).map((req) => {
@@ -2144,7 +2144,7 @@ const adminDeleteChatMessage = useCallback(async (userId: string, messageId: str
     const userDocRef = doc(firestore, 'users', userId);
     try {
         const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
+        if (userDoc.exists) {
             const userData = userDoc.data() as UserProfile;
             const updatedChat = (userData.chat || []).filter(msg => msg.id !== messageId);
             await updateDoc(userDocRef, { chat: updatedChat });
@@ -2217,7 +2217,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     try {
         await runTransaction(firestore, async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
-            if (!userDoc.exists()) throw new Error("Current user not found.");
+            if (!userDoc.exists) throw new Error("Current user not found.");
 
             const userData = userDoc.data() as UserProfile;
             const existingBlock = userData.kuberBlocks?.find(b => b.id === request.id);
@@ -2269,7 +2269,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
 
     try {
       const currentConfigDoc = await getDoc(configDocRef);
-      const currentConfig = currentConfigDoc.exists() ? currentConfigDoc.data() as TournamentConfig : { isActive: false };
+      const currentConfig = currentConfigDoc.exists ? currentConfigDoc.data() as TournamentConfig : { isActive: false };
       
       const isLaunchingNewTournament = !currentConfig.isActive && config.isActive === true;
       
@@ -2319,7 +2319,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     const configDocRef = doc(firestore, 'config', 'tournament');
     try {
       const configDoc = await getDoc(configDocRef);
-      if (!configDoc.exists()) {
+      if (!configDoc.exists) {
         throw new Error("No tournament to withdraw.");
       }
       const tournamentId = configDoc.id;
@@ -2387,7 +2387,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
 
     try {
       const tournamentDoc = await getDoc(tournamentConfigRef);
-      if (!tournamentDoc.exists() || !tournamentDoc.data()?.isActive) {
+      if (!tournamentDoc.exists || !tournamentDoc.data()?.isActive) {
         throw new Error("There is no active tournament to enroll in.");
       }
       
@@ -2408,7 +2408,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
   }, [userProfile, firestore, toast]);
 
   const enrollAllEligibleUsers = useCallback(async (userIds: string[]) => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1' || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
     if (!isAdmin) {
         toast({ title: 'Unauthorized', variant: 'destructive' });
         throw new Error("Not an admin");
@@ -2431,7 +2431,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
   }, [userProfile, toast]);
 
   const unenrollAllTournamentUsers = useCallback(async () => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1' || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
     if (!isAdmin) {
         toast({ title: 'Unauthorized', variant: 'destructive' });
         throw new Error("Not an admin");
@@ -2615,7 +2615,7 @@ const requestFollow = useCallback(async (platform: 'facebook' | 'x', profileName
     try {
         await runTransaction(firestore, async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
-            if (!userDoc.exists()) throw new Error("User not found");
+            if (!userDoc.exists) throw new Error("User not found");
             
             const currentStatus = userDoc.data()?.[fieldToUpdate];
             if (currentStatus === 'followed') {
@@ -2647,7 +2647,7 @@ const requestFollow = useCallback(async (platform: 'facebook' | 'x', profileName
     try {
         await runTransaction(firestore, async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
-            if (!userDoc.exists()) throw new Error("User not found");
+            if (!userDoc.exists) throw new Error("User not found");
 
             const currentStatus = userDoc.data()?.[fieldToUpdate];
             if (currentStatus === 'followed') {
@@ -2680,7 +2680,7 @@ const disapproveFollowRequest = useCallback(async (userId: string, platform: 'fa
     try {
         await runTransaction(firestore, async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
-            if (!userDoc.exists()) throw new Error("User not found");
+            if (!userDoc.exists) throw new Error("User not found");
 
             const updatePayload: { [key: string]: any } = { [fieldToUpdate]: null };
 
@@ -2706,7 +2706,7 @@ const adminSetFollowStatus = useCallback(async (userId: string, platform: 'faceb
     try {
         await runTransaction(firestore, async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
-            if (!userDoc.exists()) throw new Error("User not found");
+            if (!userDoc.exists) throw new Error("User not found");
 
             const currentStatus = userDoc.data()?.[fieldToUpdate];
             const updatePayload: { [key: string]: any } = { [fieldToUpdate]: status };
@@ -2747,7 +2747,7 @@ const setUserHasRatedOnPlayStore = useCallback(async () => {
 
     try {
       const currentConfigDoc = await getDoc(configDocRef);
-      const currentConfig = currentConfigDoc.exists() ? currentConfigDoc.data() as AirdropConfig : { isActive: false };
+      const currentConfig = currentConfigDoc.exists ? currentConfigDoc.data() as AirdropConfig : { isActive: false };
       
       const isLaunchingNewAirdrop = !currentConfig.isActive && config.isActive === true;
 
@@ -2945,3 +2945,6 @@ export const useAuth = () => {
 };
 
 
+
+
+    

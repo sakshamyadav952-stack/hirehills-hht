@@ -1,4 +1,5 @@
 
+
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { UserProfile } from "./types";
@@ -457,7 +458,7 @@ export const enrollUsersInTournament = functions.runWith({ timeoutSeconds: 60 })
         const tournamentConfigRef = db.collection('config').doc('tournament');
         const tournamentDoc = await tournamentConfigRef.get();
 
-        if (!tournamentDoc.exists || tournamentDoc.data()?.isActive !== true) {
+        if (!tournamentDoc.exists || !tournamentDoc.data()?.isActive) {
             throw new functions.https.HttpsError("failed-precondition", "There is no active tournament.");
         }
         const tournamentId = tournamentDoc.id;
@@ -530,3 +531,6 @@ export const unenrollAllUsersFromTournament = functions.runWith({ timeoutSeconds
         throw new functions.https.HttpsError("internal", "An error occurred while unenrolling users.");
     }
 });
+
+
+    
