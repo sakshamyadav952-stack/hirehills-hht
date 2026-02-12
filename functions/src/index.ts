@@ -452,7 +452,7 @@ export const enrollUsersInTournament = functions.runWith({ timeoutSeconds: 60 })
         const tournamentConfigRef = db.collection('config').doc('tournament');
         const tournamentDoc = await tournamentConfigRef.get();
 
-        if (!tournamentDoc.exists() || !tournamentDoc.data()?.isActive) {
+        if (!tournamentDoc.exists || tournamentDoc.data()?.isActive !== true) {
             throw new functions.https.HttpsError("failed-precondition", "There is no active tournament.");
         }
         const tournamentId = tournamentDoc.id;
@@ -490,7 +490,7 @@ export const unenrollAllUsersFromTournament = functions.runWith({ timeoutSeconds
         const tournamentConfigRef = db.collection('config').doc('tournament');
         const tournamentDoc = await tournamentConfigRef.get();
 
-        if (!tournamentDoc.exists()) {
+        if (!tournamentDoc.exists) {
              // No tournament exists, so nothing to do.
             return { success: true, message: "No active tournament found to unenroll users from." };
         }
