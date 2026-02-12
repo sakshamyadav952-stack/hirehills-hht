@@ -677,8 +677,12 @@ function TournamentManager() {
         return () => unsubscribe();
     }, [firestore]);
 
-    const handleUpdate = (field: keyof TournamentConfig, value: any) => {
-        setConfig(prev => ({ ...prev, [field]: value }));
+    const handleUpdate = async (field: keyof TournamentConfig, value: any) => {
+        const newConfig = { ...config, [field]: value };
+        setConfig(newConfig);
+        if (field === 'isActive') {
+            await updateTournamentConfig(newConfig);
+        }
     };
 
     const addTier = () => {
@@ -977,3 +981,4 @@ function AdminDashboard() {
 export default function AdminDashboardPage() {
     return <AdminDashboard />;
 }
+
