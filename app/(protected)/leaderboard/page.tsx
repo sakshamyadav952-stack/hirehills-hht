@@ -34,7 +34,7 @@ const LeaderboardListItem = ({ user, isCurrentUser }: { user: RankedUser, isCurr
                 </Avatar>
                 <div>
                     <p className="font-semibold text-white">{user.fullName}{isCurrentUser && " (You)"}</p>
-                    <p className="text-xs text-slate-400">Score: {user.tournamentScore || 0}</p>
+                    <p className="text-xs text-slate-400">Referrals: {user.tournamentScore || 0}</p>
                 </div>
             </div>
             <div className="text-right font-bold text-lg text-white">
