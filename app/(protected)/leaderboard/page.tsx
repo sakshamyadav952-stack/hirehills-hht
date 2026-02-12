@@ -157,7 +157,6 @@ export default function LeaderboardPage() {
             const usersQuery = query(
                 collection(firestore, 'users'),
                 where('tournamentId', '==', activeTournament.id),
-                where('tournamentScore', '>', 0),
                 orderBy('tournamentScore', 'desc'),
                 orderBy('tournamentScoreLastUpdated', 'asc')
             );
@@ -282,4 +281,3 @@ export default function LeaderboardPage() {
         </div>
     );
 }
-
