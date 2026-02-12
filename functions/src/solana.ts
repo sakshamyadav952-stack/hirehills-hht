@@ -1,4 +1,4 @@
-import { Connection, PublicKey, Keypair, SystemProgram, Transaction, clusterApiUrl, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Connection, PublicKey, Keypair, Transaction, clusterApiUrl } from '@solana/web3.js';
 import { getOrCreateAssociatedTokenAccount, createTransferInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
