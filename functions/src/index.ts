@@ -20,74 +20,89 @@ export const updateTournamentConfig = functions.runWith({ timeoutSeconds: 120 })
     }
 
     const configDocRef = db.collection('config').doc('tournament');
-    const config = data as TournamentConfig;
+    const config = data as Partial<TournamentConfig>;
 
     try {
         const currentConfigDoc = await db.doc('config/tournament').get();
-        const currentConfig = currentConfigDoc.exists ? currentConfigDoc.data() as TournamentConfig : { isActive: false, prizeTiers: [] };
         
-        const isStoppingTournament = currentConfig.isActive && config.isActive === false;
-        
-        if (isStoppingTournament) {
-            // Logic to finalize the tournament and save winners
-            const tournamentId = 'tournament';
-
-            const usersQuery = db.collection('users').where('tournamentId', '==', tournamentId);
-            const usersSnapshot = await usersQuery.get();
-            const enrolledUsers = usersSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile));
-
-            enrolledUsers.sort((a, b) => (b.tournamentScore || 0) - (a.tournamentScore || 0));
-
-            const winners: ConcludedTournament['winners'] = [];
-            const payouts: ConcludedTournament['payouts'] = {};
-
-            enrolledUsers.forEach((user, index) => {
-                const rank = index + 1;
-                const prizeTier = currentConfig.prizeTiers?.find(t => rank >= t.startRank && rank <= t.endRank);
-                if (prizeTier && prizeTier.prize > 0) {
-                    winners.push({
-                        userId: user.id,
-                        fullName: user.fullName,
-                        profileCode: user.profileCode,
-                        rank: rank,
-                        score: user.tournamentScore || 0,
-                        prize: prizeTier.prize
-                    });
-                    payouts[user.id] = 'pending';
-                }
-            });
-
-            const concludedTournamentData: Omit<ConcludedTournament, 'id'> = {
-                headline: currentConfig.headline,
-                tagline: currentConfig.tagline,
-                concludedAt: admin.firestore.Timestamp.now(),
-                endDate: currentConfig.endDate,
-                prizeTiers: currentConfig.prizeTiers || [],
-                winners: winners,
-                payouts: payouts,
-                isActive: false,
-            };
-
-            const batch = db.batch();
-            const concludedDocRef = db.collection('concludedTournaments').doc();
-            batch.set(concludedDocRef, concludedTournamentData);
+        if (currentConfigDoc.exists) {
+            const currentConfig = currentConfigDoc.data() as TournamentConfig;
+            const isStoppingTournament = currentConfig.isActive && config.isActive === false;
             
-            // Mark the current tournament as inactive instead of deleting it.
-            batch.update(configDocRef, { isActive: false });
-            
-            // NEW: Update winner documents with their prize
-            winners.forEach(winner => {
-                const userDocRef = db.collection('users').doc(winner.userId);
-                batch.update(userDocRef, {
-                    tournamentWinning: admin.firestore.FieldValue.increment(winner.prize)
+            if (isStoppingTournament) {
+                // Logic to finalize the tournament and save winners
+                const tournamentId = 'tournament';
+
+                const usersQuery = db.collection('users').where('tournamentId', '==', tournamentId);
+                const usersSnapshot = await usersQuery.get();
+                const enrolledUsers = usersSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile));
+
+                enrolledUsers.sort((a, b) => (b.tournamentScore || 0) - (a.tournamentScore || 0));
+
+                const winners: ConcludedTournament['winners'] = [];
+                const payouts: ConcludedTournament['payouts'] = {};
+
+                enrolledUsers.forEach((user, index) => {
+                    const rank = index + 1;
+                    const prizeTier = currentConfig.prizeTiers?.find(t => rank >= t.startRank && rank <= t.endRank);
+                    if (prizeTier && prizeTier.prize > 0) {
+                        winners.push({
+                            userId: user.id,
+                            fullName: user.fullName,
+                            profileCode: user.profileCode,
+                            rank: rank,
+                            score: user.tournamentScore || 0,
+                            prize: prizeTier.prize
+                        });
+                        payouts[user.id] = 'pending';
+                    }
                 });
-            });
 
-            await batch.commit();
-            return { success: true, message: 'Tournament Stopped. Winner data has been saved.' };
+                const concludedTournamentData: Omit<ConcludedTournament, 'id'> = {
+                    headline: currentConfig.headline,
+                    tagline: currentConfig.tagline,
+                    concludedAt: admin.firestore.Timestamp.now(),
+                    endDate: currentConfig.endDate,
+                    prizeTiers: currentConfig.prizeTiers || [],
+                    winners: winners,
+                    payouts: payouts,
+                    isActive: false,
+                };
 
+                const batch = db.batch();
+                const concludedDocRef = db.collection('concludedTournaments').doc();
+                batch.set(concludedDocRef, concludedTournamentData);
+                
+                // Mark the current tournament as inactive instead of deleting it.
+                batch.update(configDocRef, { isActive: false });
+                
+                // NEW: Update winner documents with their prize
+                winners.forEach(winner => {
+                    const userDocRef = db.collection('users').doc(winner.userId);
+                    batch.update(userDocRef, {
+                        tournamentWinning: admin.firestore.FieldValue.increment(winner.prize)
+                    });
+                });
+
+                await batch.commit();
+                return { success: true, message: 'Tournament Stopped. Winner data has been saved.' };
+
+            } else {
+                 // Standard config update logic
+                let endDate: Date | null = null;
+                if (config.endDate) {
+                    endDate = config.endDate instanceof admin.firestore.Timestamp ? config.endDate.toDate() : new Date(config.endDate);
+                    endDate.setHours(23, 59, 59, 999);
+                }
+                 const dataToUpdate = {
+                    ...config,
+                    ...(endDate && { endDate: admin.firestore.Timestamp.fromDate(endDate) })
+                };
+                await configDocRef.set(dataToUpdate, { merge: true });
+                return { success: true, message: 'Tournament configuration has been saved.' };
+            }
         } else {
-             // Standard config update logic
+             // Doc doesn't exist, so we are creating a new one
             let endDate: Date | null = null;
             if (config.endDate) {
                 endDate = config.endDate instanceof admin.firestore.Timestamp ? config.endDate.toDate() : new Date(config.endDate);
