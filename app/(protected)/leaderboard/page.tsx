@@ -4,8 +4,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useFirestore } from '@/firebase';
 import { useAuth } from '@/lib/auth';
-import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp, limit, startAfter, DocumentSnapshot } from 'firebase/firestore';
-import type { UserProfile, TournamentConfig, PrizeTier } from '@/lib/types';
+import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp, limit, startAfter, DocumentSnapshot, documentId } from 'firebase/firestore';
+import type { UserProfile, TournamentConfig, PrizeTier, ConcludedTournament } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign, Medal, Users, ShieldAlert } from 'lucide-react';
@@ -137,8 +137,8 @@ export default function LeaderboardPage() {
     const [totalPlayers, setTotalPlayers] = useState(0);
     const [usdcAddress, setUsdcAddress] = useState('');
 
-    const fetchLeaderboardData = useCallback(async (startAfterDoc: DocumentSnapshot | null = null) => {
-        if (!firestore || !tournamentConfig) return;
+    const fetchActiveLeaderboard = useCallback(async (config: TournamentConfig, startAfterDoc: DocumentSnapshot | null = null) => {
+        if (!firestore) return;
         
         const loader = startAfterDoc ? setIsLoadingMore : setIsLoading;
         loader(true);
@@ -146,7 +146,7 @@ export default function LeaderboardPage() {
         try {
             const baseQuery = query(
                 collection(firestore, 'users'),
-                where('tournamentId', '==', tournamentConfig.id),
+                where('tournamentId', '==', config.id),
                 orderBy('tournamentScore', 'desc'),
                 orderBy('tournamentScoreLastUpdated', 'asc')
             );
@@ -168,10 +168,9 @@ export default function LeaderboardPage() {
             setLeaderboard(prev => {
                 const prevUsers = startAfterDoc ? prev : [];
                 const combinedUsers = [...prevUsers, ...newUsers];
-                // Recalculate ranks for the entire displayed list
                 return combinedUsers.map((user, index) => ({
                     ...user,
-                    rank: index + 1
+                    rank: (startAfterDoc ? prev.length : 0) + index + 1
                 }));
             });
 
@@ -188,52 +187,94 @@ export default function LeaderboardPage() {
         } finally {
             loader(false);
         }
-    }, [firestore, tournamentConfig, toast]);
-
+    }, [firestore, toast]);
+    
     const fetchInitialData = useCallback(async () => {
         if (!firestore) return;
         setIsLoading(true);
+        setLeaderboard([]);
+        setLastDoc(null);
+        setIsLastPage(false);
 
         try {
             const configDocRef = doc(firestore, 'config', 'tournament');
             const configDoc = await getDoc(configDocRef);
 
-            if (!configDoc.exists()) {
-                setTournamentConfig(null);
-                setLeaderboard([]);
-                setTotalPlayers(0);
-            } else {
+            if (configDoc.exists() && configDoc.data()?.isActive) {
                 const activeTournament = { id: configDoc.id, ...configDoc.data() } as TournamentConfig;
                 setTournamentConfig(activeTournament);
 
-                // Fetch total player count
                 const usersQuery = query(collection(firestore, 'users'), where('tournamentId', '==', activeTournament.id));
                 const countSnapshot = await getDocs(usersQuery);
                 setTotalPlayers(countSnapshot.size);
 
-                // Fetch first page of leaderboard
-                setLeaderboard([]); // Clear existing leaderboard before fetching new
-                setLastDoc(null);
-                await fetchLeaderboardData(null);
+                await fetchActiveLeaderboard(activeTournament, null);
+            } else {
+                const concludedQuery = query(collection(firestore, 'concludedTournaments'), orderBy('concludedAt', 'desc'), limit(1));
+                const concludedSnapshot = await getDocs(concludedQuery);
+                
+                if (!concludedSnapshot.empty) {
+                    const concludedDoc = concludedSnapshot.docs[0];
+                    const concludedData = concludedDoc.data() as ConcludedTournament;
+
+                    setTournamentConfig({
+                        id: concludedDoc.id,
+                        headline: concludedData.headline,
+                        tagline: concludedData.tagline,
+                        endDate: concludedData.concludedAt,
+                        prizeTiers: concludedData.prizeTiers,
+                        isActive: false,
+                    });
+
+                    const winnerUserIds = concludedData.winners.map(w => w.userId);
+                    let winnersWithProfiles: RankedUser[] = [];
+
+                    if (winnerUserIds.length > 0) {
+                        const profilesQuery = query(collection(firestore, 'users'), where(documentId(), 'in', winnerUserIds.slice(0, 30)));
+                        const profilesSnapshot = await getDocs(profilesQuery);
+                        const profilesMap = new Map<string, UserProfile>();
+                        profilesSnapshot.forEach(doc => {
+                            profilesMap.set(doc.id, { id: doc.id, ...doc.data() } as UserProfile);
+                        });
+
+                        winnersWithProfiles = concludedData.winners.map(winner => {
+                            const profile = profilesMap.get(winner.userId);
+                            return {
+                                ...(profile as UserProfile),
+                                id: winner.userId,
+                                fullName: winner.fullName,
+                                profileCode: winner.profileCode,
+                                tournamentScore: winner.score,
+                                rank: winner.rank,
+                            } as RankedUser;
+                        });
+                    }
+
+                    setLeaderboard(winnersWithProfiles);
+                    setTotalPlayers(winnersWithProfiles.length);
+                    setIsLastPage(true);
+                } else {
+                    setTournamentConfig(null);
+                    setLeaderboard([]);
+                    setTotalPlayers(0);
+                }
             }
         } catch (error) {
             console.error("Error fetching initial data:", error);
+            toast({ title: "Error", description: "Could not load leaderboard data." });
         } finally {
             setIsLoading(false);
         }
-    }, [firestore, fetchLeaderboardData]);
+    }, [firestore, toast, fetchActiveLeaderboard]);
     
-    // Effect to fetch initial config and count
     useEffect(() => {
-        if (firestore) {
-            fetchInitialData();
-        }
-    }, [firestore]);
+        fetchInitialData();
+    }, [fetchInitialData]);
 
 
     const handleNext = () => {
-        if (!isLastPage && lastDoc) {
-            fetchLeaderboardData(lastDoc);
+        if (!isLastPage && lastDoc && tournamentConfig?.isActive) {
+            fetchActiveLeaderboard(tournamentConfig, lastDoc);
         }
     }
     
@@ -257,21 +298,11 @@ export default function LeaderboardPage() {
             return { currentUserOnBoard: null, otherUsers: leaderboard || [], isCurrentUserWinner: false, currentUserPrize: 0 };
         }
         
-        const isConcluded = !tournamentConfig.isActive;
-
         const userOnBoard = leaderboard.find(u => u.id === currentUser.id);
-
         const prize = userOnBoard ? getPrizeForRank(userOnBoard.rank, tournamentConfig.prizeTiers || []) : 0;
         const winner = prize > 0;
-
-        let displayList = leaderboard;
-        if (isConcluded) {
-            displayList = leaderboard.filter(user => 
-                getPrizeForRank(user.rank, tournamentConfig.prizeTiers || []) > 0
-            );
-        }
         
-        const others = displayList.filter(u => u.id !== currentUser.id);
+        const others = leaderboard.filter(u => u.id !== currentUser.id);
 
         return { currentUserOnBoard: userOnBoard, otherUsers: others, isCurrentUserWinner: winner, currentUserPrize: prize };
     }, [currentUser, leaderboard, tournamentConfig]);
@@ -300,7 +331,6 @@ export default function LeaderboardPage() {
         )
     }
     
-    const isTournamentEnded = (tournamentConfig.endDate as Timestamp).toMillis() < Date.now();
     const isConcluded = !tournamentConfig.isActive;
 
     return (
@@ -375,11 +405,11 @@ export default function LeaderboardPage() {
                     <div className="text-center">
                         <h2 className="text-3xl font-bold text-white">{tournamentConfig.headline}</h2>
                         <p className="text-indigo-200/80 mt-1">{tournamentConfig.tagline}</p>
-                        {tournamentConfig.endDate && tournamentConfig.isActive && !isTournamentEnded && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
+                        {!isConcluded && tournamentConfig.endDate && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
-                       {isConcluded ? <Badge>Concluded</Badge> : isTournamentEnded ? <Badge>Ended</Badge> : <Badge variant="secondary">Active</Badge>}
+                       {isConcluded ? <Badge>Concluded</Badge> : <Badge variant="secondary">Active</Badge>}
                         <div className="flex items-center gap-2 p-2 rounded-md bg-black/30 border border-slate-700">
                             <Users className="h-4 w-4 text-indigo-300" />
                             <span className="text-sm font-semibold">{totalPlayers} Players</span>
@@ -402,7 +432,7 @@ export default function LeaderboardPage() {
                          <div className="text-center p-12 border-2 border-dashed border-slate-700 rounded-xl">
                             <Trophy className="mx-auto h-12 w-12 text-slate-500" />
                             <h3 className="mt-4 text-lg font-semibold">Leaderboard is Empty</h3>
-                            <p className="mt-1 text-sm text-muted-foreground">No users have been enrolled in this tournament yet.</p>
+                            <p className="mt-1 text-sm text-muted-foreground">{isConcluded ? 'There were no winners in this tournament.' : 'No users have been enrolled yet.'}</p>
                         </div>
                     ) : (
                         otherUsers.map(user => (
@@ -411,7 +441,7 @@ export default function LeaderboardPage() {
                     )}
                 </div>
 
-                {!isLastPage && (
+                {!isLastPage && !isConcluded && (
                     <CardFooter className="mt-6 flex justify-center">
                         <Button onClick={handleNext} disabled={isLoadingMore}>
                             {isLoadingMore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Next'}
@@ -425,3 +455,4 @@ export default function LeaderboardPage() {
     );
 }
 
+    
