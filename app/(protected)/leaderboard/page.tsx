@@ -140,6 +140,8 @@ export default function LeaderboardPage() {
     const [isVerified, setIsVerified] = useState(false);
     const [isWithdrawing, setIsWithdrawing] = useState(false);
     const [verificationError, setVerificationError] = useState<string | null>(null);
+    
+    const amountToWithdraw = currentUser?.tournamentWinning || 0;
 
     useEffect(() => {
         if(currentUser?.usdcAddress) {
@@ -431,9 +433,9 @@ export default function LeaderboardPage() {
                                         </div>
                                         {verificationError && <p className="text-sm text-red-400">{verificationError}</p>}
                                     </div>
-                                    <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold" onClick={handleWithdraw} disabled={!isVerified || isWithdrawing}>
+                                    <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold" onClick={handleWithdraw} disabled={!isVerified || isWithdrawing || amountToWithdraw <= 0}>
                                         {isWithdrawing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        Request Withdrawal
+                                        Withdraw {amountToWithdraw.toFixed(2)} USDC
                                     </Button>
                                 </div>
                             </CardContent>
