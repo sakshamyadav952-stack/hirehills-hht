@@ -412,11 +412,22 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
             
             let users = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
 
-            if (searchTerm) {
-                 users = users.filter(user => user.minedCoins > 100 && (forTournament ? true : !user.isPromoter) && user.sessionEndTime && user.sessionEndTime > Date.now());
-            } else {
-                 users = users.filter(user => user.minedCoins > 100 && (forTournament ? true : !user.isPromoter));
-            }
+            users = users.filter(user => {
+                if (user.minedCoins <= 100) return false;
+
+                // For search, we need to manually check if the user is active
+                if (searchTerm && (!user.sessionEndTime || user.sessionEndTime <= Date.now())) {
+                    return false;
+                }
+
+                if (forTournament) {
+                    // For tournament eligibility, user must not already be enrolled.
+                    return !user.tournamentId;
+                } else {
+                    // For promoter eligibility, user must not already be a promoter.
+                    return !user.isPromoter;
+                }
+            });
             
             setLastDoc(documentSnapshots.docs[documentSnapshots.docs.length - 1] || null);
             setIsLastPage(searchTerm ? true : documentSnapshots.docs.length < (PAGE_SIZE * 2));
@@ -480,7 +491,10 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
             <CardHeader>
                 <CardTitle>Eligible Users</CardTitle>
                 <CardDescription>
-                    Showing active users with over 100 BLIT who are not promoters.
+                     {forTournament 
+                        ? "Showing active users with over 100 BLIT who are not enrolled in the tournament."
+                        : "Showing active users with over 100 BLIT who are not promoters."
+                    }
                 </CardDescription>
                 <div className="flex gap-2 pt-4">
                     <Input 
@@ -659,15 +673,18 @@ function TournamentManager() {
     const [config, setConfig] = useState<Partial<TournamentConfig>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [isWithdrawing, setIsWithdrawing] = useState(false);
+    const [configExists, setConfigExists] = useState(false);
 
     useEffect(() => {
         const configDocRef = doc(firestore, 'config', 'tournament');
         const unsubscribe = onSnapshot(configDocRef, (doc) => {
             if (doc.exists()) {
+                setConfigExists(true);
                 const data = doc.data() as TournamentConfig;
                 const endDate = data.endDate ? (data.endDate as Timestamp).toDate() : undefined;
-                setConfig({ id: doc.id, ...data, endDate });
+                setConfig({ ...data, endDate });
             } else {
+                setConfigExists(false);
                 setConfig({
                     headline: "Referral Tournament",
                     tagline: "Refer friends to climb the leaderboard!",
@@ -680,12 +697,12 @@ function TournamentManager() {
         return () => unsubscribe();
     }, [firestore]);
 
-    const handleUpdate = (field: keyof TournamentConfig, value: any) => {
-        setConfig(prev => ({ ...prev, [field]: value }));
-    };
-
-    const handleStop = async () => {
-        await updateTournamentConfig({ ...config, isActive: false });
+    const handleUpdate = async (field: keyof TournamentConfig, value: any) => {
+        const newConfig = { ...config, [field]: value };
+        setConfig(newConfig);
+        if (field === 'isActive' && value === false) { // Handle deactivation
+             await updateTournamentConfig(newConfig);
+        }
     };
 
     const handleLaunch = async () => {
@@ -734,8 +751,6 @@ function TournamentManager() {
         return <Card><CardContent className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
     }
 
-    const documentExists = !!config.id;
-
     return (
         <Card>
             <CardHeader>
@@ -773,6 +788,7 @@ function TournamentManager() {
                  <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-4">
                         {config.isActive ? (
+                            // ACTIVE state -> Show "Stop" button
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="outline">Stop Tournament</Button>
@@ -786,11 +802,12 @@ function TournamentManager() {
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleStop}>Confirm Stop</AlertDialogAction>
+                                        <AlertDialogAction onClick={() => handleUpdate('isActive', false)}>Confirm Stop</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
-                        ) : documentExists ? (
+                        ) : configExists ? (
+                            // INACTIVE, but config exists in DB -> It's been stopped. Show "Withdraw"
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="destructive" disabled={isWithdrawing}>
@@ -812,6 +829,7 @@ function TournamentManager() {
                                 </AlertDialogContent>
                             </AlertDialog>
                         ) : (
+                            // INACTIVE and no config exists -> Ready to launch a new one.
                             <Button onClick={handleLaunch}>
                                 Launch
                             </Button>
@@ -1110,3 +1128,5 @@ export default function AdminDashboardPage() {
 
 
 
+
+    
