@@ -1,94 +1,125 @@
-
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper Functions ---
     function isSignedIn() {
       return request.auth != null;
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isAdmin() {
-      let isSuperAdmin = request.auth.uid == 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || request.auth.uid == 'obaW90LhdhPDvbvh06wWwBfucTk1';
-      // Use exists() to prevent errors on non-existent user docs (e.g., during creation)
-      let hasAdminFlag = exists(/databases/$(database)/documents/users/$(request.auth.uid))
-                         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-      return isSuperAdmin || hasAdminFlag;
-    }
-    
-    // --- User Document Update Logic ---
-    function isAllowedUserUpdate(userId) {
-      let writeData = request.resource.data;
-      let existingData = resource.data;
-      
-      let protectedFieldsChanged = !isAdmin() && (
-        writeData.isAdmin != existingData.isAdmin ||
-        (existingData.referredBy != null && writeData.referredBy != existingData.referredBy)
-      );
+  return isSignedIn() && (
+    request.auth.uid == 'ZzOKXow0RlhaK3snDD0BLcbeBL62' ||
+    request.auth.uid == 'obaW90LhdhPDvbvh06wWwBfucTk1'
+  );
+}
 
-      let isFinalizingSession = writeData.unclaimedCoins > existingData.unclaimedCoins &&
-                                (writeData.unclaimedCoins - existingData.unclaimedCoins) > 0 &&
-                                (writeData.unclaimedCoins - existingData.unclaimedCoins) < 1000 &&
-                                writeData.miningStartTime == null &&
-                                existingData.miningStartTime != null;
-
-      let isRegularUpdate = writeData.minedCoins == existingData.minedCoins &&
-                            writeData.unclaimedCoins == existingData.unclaimedCoins;
-                            
-      return !protectedFieldsChanged && (isFinalizingSession || isRegularUpdate);
+    /* =====================================================
+       CATCH-ALL: Public reads, admin full access
+       ===================================================== */
+    match /{document=**} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
     }
 
-    // --- Main Rules ---
+    /* =====================================================
+       USERS (PUBLIC PROFILE DATA ONLY)
+       ===================================================== */
     match /users/{userId} {
-      allow read, list, delete: if isSignedIn() && (isOwner(userId) || isAdmin());
-      allow create: if isSignedIn() && isOwner(userId);
-      // Replace broad update rule with granular logic
-      allow update: if (isSignedIn() && isOwner(userId) && isAllowedUserUpdate(userId)) || (isSignedIn() && isAdmin());
-      
-      // Private subcollection rule
-      match /private/{docId} {
-        allow read, write: if isSignedIn() && (isOwner(userId) || isAdmin());
-      }
-    }
-    
-    // Other collections...
-    match /referralRequests/{requestId} {
-      allow read: if isSignedIn() && (isOwner(request.resource.data.targetUserId) || isAdmin());
-      allow create: if isSignedIn() && isOwner(request.resource.data.requesterId);
-      allow delete: if isSignedIn() && (isOwner(request.resource.data.targetUserId) || isAdmin());
+      allow get, list: if true;
+      allow create, update, delete: if isOwner(userId) || isAdmin();
     }
 
-    match /transactions/{transactionId} {
-      allow read, list: if isSignedIn() && (isOwner(resource.data.senderId) || isOwner(resource.data.receiverId) || isAdmin());
-      allow create: if isSignedIn() && isOwner(request.resource.data.senderId);
-      allow update: if isSignedIn() && isAdmin();
+    /* =====================================================
+       🔐 PRIVATE USER DATA (EMAIL / MOBILE)
+       ONLY USER + ADMIN
+       ===================================================== */
+    match /users/{userId}/private/{docId} {
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create, update, delete: if isOwner(userId) || isAdmin();
     }
-    
+
+    /* =====================================================
+       MINING SESSIONS
+       ===================================================== */
+    match /users/{userId}/miningSessions/{miningSessionId} {
+      allow get, list: if true;
+      allow create, update, delete:
+        if (isOwner(userId) && request.resource.data.userId == userId)
+        || isAdmin();
+    }
+
+    /* =====================================================
+       USER PROFILE SUBCOLLECTION
+       ===================================================== */
+    match /users/{userId}/userProfile/{profileId} {
+      allow get, list: if true;
+      allow create, update, delete:
+        if (isOwner(userId) && request.resource.data.userId == userId)
+        || isAdmin();
+    }
+
+    /* =====================================================
+       USER NOTES
+       ===================================================== */
+    match /users/{userId}/notes/{noteId} {
+      allow get, list: if true;
+      allow create, update, delete:
+        if isOwner(userId) || isAdmin();
+    }
+
+    /* =====================================================
+       PENDING TRANSFERS
+       ===================================================== */
     match /pendingTransfers/{transferId} {
-      allow read, list: if isSignedIn() && isAdmin();
-      allow create: if isSignedIn() && isOwner(request.resource.data.senderId);
-      allow delete: if isSignedIn() && isAdmin();
+      allow get, list: if true;
+      allow create: if isSignedIn() || isAdmin();
+      allow update: if isAdmin();
+      allow delete:
+        if (isSignedIn() && request.auth.uid == resource.data.receiverId)
+        || isAdmin();
     }
 
-    match /reviews/{reviewId} {
-      allow read, list: if isSignedIn() && isAdmin();
-      allow create: if isSignedIn() && isOwner(request.resource.data.userId);
-      allow update, delete: if isSignedIn() && isAdmin();
+    /* =====================================================
+       REFERRAL REQUESTS
+       ===================================================== */
+    match /referralRequests/{requestId} {
+      allow get, list: if true;
+      allow create:
+        if isSignedIn()
+        && request.resource.data.requesterId == request.auth.uid
+        && request.resource.data.targetUserId != request.auth.uid
+        && request.resource.data.status == 'pending'
+        || isAdmin();
+
+      allow update:
+        if (isSignedIn()
+        && request.auth.uid == resource.data.targetUserId)
+        || isAdmin();
+
+      allow delete:
+        if isSignedIn()
+        && (request.auth.uid == resource.data.requesterId
+        || request.auth.uid == resource.data.targetUserId)
+        || isAdmin();
     }
 
-    match /config/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && isAdmin();
+    /* =====================================================
+       TRANSACTIONS (DEV MODE)
+       ===================================================== */
+    match /transactions/{transactionId} {
+      allow get, list, create, update, delete: if true;
     }
-    
-    match /universal_messages/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && isAdmin();
+
+    /* =====================================================
+       WITHDRAWAL REQUESTS
+       ===================================================== */
+    match /withdrawalRequests/{withdrawalId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
     }
   }
 }
