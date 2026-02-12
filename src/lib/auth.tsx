@@ -25,7 +25,7 @@ import {
 } from 'firebase/auth';
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { doc, serverTimestamp, onSnapshot, updateDoc, runTransaction, arrayUnion, query, collection, where, documentId, getDocs, writeBatch, deleteDoc, setDoc, getDoc, increment, addDoc, orderBy, Timestamp, arrayRemove, Firestore } from 'firebase/firestore';
-import type { UserProfile, Transaction, PendingTransfer, WithdrawalRequest, Note, Comment, ActiveBoost, DailyAdCoin, SessionConfig, AdWatchEvent, AirdropConfig, ChatMessage, KuberBlock, KuberRequest, KuberId } from '@/lib/types';
+import type { UserProfile, Transaction, PendingTransfer, WithdrawalRequest, Note, Comment, ActiveBoost, DailyAdCoin, SessionConfig, AdWatchEvent, AirdropConfig, ChatMessage, KuberBlock, KuberRequest, KuberId, TournamentConfig } from '@/lib/types';
 import { useToast, toast as toastFn } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -122,6 +122,8 @@ interface AuthContextType {
   canWatchAd: boolean;
   toast: typeof toastFn;
   updateAirdropConfig: (config: Partial<AirdropConfig>) => Promise<void>;
+  updateTournamentConfig: (config: Partial<TournamentConfig>) => Promise<void>;
+  enrollUserInTournament: (userId: string) => Promise<void>;
   referralEarnings: number;
   respondToKuberRequest: (request: KuberRequest) => Promise<void>;
   clearKuberSessionLogs: () => Promise<void>;
@@ -405,6 +407,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         kuberApprovalRequests: [],
         kuberIds: [],
         dailyClaimedCoins: [],
+        tournamentId: null,
+        tournamentScore: 0,
     };
     
     batch.set(userDocRef, { ...newUserProfileData, createdAt: serverTimestamp() });
@@ -2249,6 +2253,88 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     }
 }, [user, userProfile, firestore, toast]);
 
+const updateTournamentConfig = useCallback(async (config: Partial<TournamentConfig>) => {
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+    if (!isAdmin) {
+      toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
+      throw new Error("User is not an admin.");
+    }
+    const configDocRef = doc(firestore, 'config', 'tournament');
+
+    try {
+      const currentConfigDoc = await getDoc(configDocRef);
+      const currentConfig = currentConfigDoc.exists() ? currentConfigDoc.data() as TournamentConfig : { isActive: false };
+      
+      const isLaunchingNewTournament = !currentConfig.isActive && config.isActive === true;
+      
+      let endDate: Date | null = null;
+      if (config.endDate) {
+        endDate = config.endDate instanceof Timestamp ? config.endDate.toDate() : new Date(config.endDate);
+        endDate.setHours(23, 59, 59, 999);
+      }
+
+      const dataToUpdate = {
+        ...config,
+        ...(endDate && { endDate: Timestamp.fromDate(endDate) })
+      };
+
+      await setDoc(configDocRef, dataToUpdate, { merge: true });
+      
+      if (isLaunchingNewTournament) {
+        const usersRef = collection(firestore, 'users');
+        const usersSnapshot = await getDocs(usersRef);
+        const batch = writeBatch(firestore);
+        usersSnapshot.forEach(userDoc => {
+          const userRef = doc(firestore, 'users', userDoc.id);
+          batch.update(userRef, {
+            tournamentId: null,
+            tournamentScore: 0
+          });
+        });
+        await batch.commit();
+        toast({ title: 'Tournament Launched', description: 'A new tournament has been started and all user progress has been reset.' });
+      } else {
+        toast({ title: 'Tournament Config Updated', description: 'The tournament configuration has been saved.' });
+      }
+
+    } catch (error) {
+      console.error("Error updating tournament config:", error);
+      toast({ title: 'Error', description: 'Could not save tournament configuration.', variant: 'destructive' });
+    }
+  }, [userProfile, firestore, toast]);
+
+  const enrollUserInTournament = useCallback(async (userId: string) => {
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+    if (!isAdmin) {
+      toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
+      throw new Error("User is not an admin.");
+    }
+    
+    const tournamentConfigRef = doc(firestore, 'config', 'tournament');
+    const userToEnrollRef = doc(firestore, 'users', userId);
+
+    try {
+      const tournamentDoc = await getDoc(tournamentConfigRef);
+      if (!tournamentDoc.exists() || !tournamentDoc.data()?.isActive) {
+        throw new Error("There is no active tournament to enroll in.");
+      }
+      
+      const tournamentId = tournamentDoc.id;
+
+      await updateDoc(userToEnrollRef, {
+        tournamentId: tournamentId,
+        tournamentScore: 0
+      });
+      
+      toast({ title: 'User Enrolled', description: 'The user has been enrolled in the current tournament.' });
+
+    } catch (error: any) {
+      console.error("Error enrolling user:", error);
+      toast({ title: 'Enrollment Failed', description: error.message, variant: 'destructive' });
+    }
+  }, [userProfile, firestore, toast]);
+
+
   useEffect(() => {
     if (!user || !userProfile) return;
   
@@ -2718,6 +2804,8 @@ const creditCrushOracleInstall = useCallback(async () => {
     canWatchAd,
     toast,
     updateAirdropConfig,
+    updateTournamentConfig,
+    enrollUserInTournament,
     referralEarnings,
     respondToKuberRequest,
     clearKuberSessionLogs,

@@ -29,6 +29,22 @@ export type DailyAdCoin = {
   collectedFromStatus?: 'available' | 'missed';
 };
 
+export type PrizeTier = {
+  id: string;
+  startRank: number;
+  endRank: number;
+  prize: number; // in USDC
+};
+
+export type TournamentConfig = {
+  id: string;
+  headline: string;
+  tagline: string;
+  endDate: Timestamp | Date;
+  prizeTiers: PrizeTier[];
+  isActive: boolean;
+};
+
 export type WithdrawalRequest = {
   requestId: string;
   withdrawalMethod: 'upi' | 'bank';
@@ -178,6 +194,8 @@ export type UserProfile = {
   aiMessageCount?: number;
   lastAiMessageReset?: Timestamp;
   crushOracleInstalled?: boolean;
+  tournamentId?: string | null;
+  tournamentScore?: number;
 };
 
 export type PendingTransfer = {
