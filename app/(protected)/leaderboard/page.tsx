@@ -65,14 +65,13 @@ const TimeUnit = ({ value, label }: { value: number; label: string; }) => (
     </div>
 );
 
+const getPrizeForRank = (rank: number, tiers: PrizeTier[]): number => {
+    const tier = tiers.find(t => rank >= t.startRank && rank <= t.endRank);
+    return tier ? tier.prize : 0;
+};
+
 const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers }: { user: RankedUser, isCurrentUser: boolean, prizeTiers: PrizeTier[] }) => {
     const rank = user.rank;
-
-    const getPrizeForRank = (rank: number, tiers: PrizeTier[]): number => {
-        const tier = tiers.find(t => rank >= t.startRank && rank <= t.endRank);
-        return tier ? tier.prize : 0;
-    };
-    
     const prize = getPrizeForRank(rank, prizeTiers);
 
     const rankColor = useMemo(() => {
@@ -147,12 +146,6 @@ export default function LeaderboardPage() {
             const activeTournament = { id: configDoc.id, ...configDoc.data() } as TournamentConfig;
             setTournamentConfig(activeTournament);
 
-            if (!activeTournament.isActive && (activeTournament.endDate as Timestamp).toMillis() > Date.now()) {
-                 setLeaderboard([]);
-                 setIsLoading(false);
-                 return;
-            }
-
             const usersQuery = query(
                 collection(firestore, 'users'),
                 where('tournamentId', '==', activeTournament.id),
@@ -188,11 +181,28 @@ export default function LeaderboardPage() {
     }, [fetchLeaderboard]);
     
     const { currentUserOnBoard, otherUsers } = useMemo(() => {
-        if (!currentUser || !leaderboard) return { currentUserOnBoard: null, otherUsers: leaderboard || [] };
+        if (!currentUser || !leaderboard || !tournamentConfig) {
+            return { currentUserOnBoard: null, otherUsers: leaderboard || [] };
+        }
+        
+        const isTournamentEnded = (tournamentConfig.endDate as Timestamp).toMillis() < Date.now();
+        const isDeactivatedAndEnded = !tournamentConfig.isActive && isTournamentEnded;
+
+        // The current user's strip should always be based on the full, unfiltered leaderboard
         const userOnBoard = leaderboard.find(u => u.id === currentUser.id);
-        const others = leaderboard.filter(u => u.id !== currentUser.id);
+
+        let displayList = leaderboard;
+        if (isDeactivatedAndEnded) {
+            displayList = leaderboard.filter(user => 
+                getPrizeForRank(user.rank, tournamentConfig.prizeTiers || []) > 0
+            );
+        }
+        
+        // The list of "other users" excludes the current user from the potentially filtered list
+        const others = displayList.filter(u => u.id !== currentUser.id);
+
         return { currentUserOnBoard: userOnBoard, otherUsers: others };
-    }, [currentUser, leaderboard]);
+    }, [currentUser, leaderboard, tournamentConfig]);
 
     if (authLoading || (isLoading && leaderboard.length === 0)) {
         return (
@@ -202,13 +212,13 @@ export default function LeaderboardPage() {
         );
     }
     
-    if (!tournamentConfig || (!tournamentConfig.isActive && (tournamentConfig.endDate as Timestamp).toMillis() > Date.now())) {
+    if (!tournamentConfig) {
         return (
              <div className="flex h-screen items-center justify-center app-background text-center p-4">
                 <Card className="futuristic-card-bg-secondary text-white border-purple-400/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
                     <CardHeader>
-                        <CardTitle className="text-purple-300">No Active Tournament</CardTitle>
-                        <CardDescription className="text-purple-200/70">There is no tournament running at the moment. Check back later!</CardDescription>
+                        <CardTitle className="text-purple-300">No Tournament Found</CardTitle>
+                        <CardDescription className="text-purple-200/70">There is no tournament data available. Check back later!</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Button onClick={() => router.push('/')} className="bg-purple-600 hover:bg-purple-700">Go to Dashboard</Button>
@@ -219,6 +229,7 @@ export default function LeaderboardPage() {
     }
     
     const isTournamentEnded = (tournamentConfig.endDate as Timestamp).toMillis() < Date.now();
+    const isDeactivatedAndEnded = !tournamentConfig.isActive && isTournamentEnded;
 
     return (
         <div className="flex flex-col h-screen app-background">
@@ -233,8 +244,16 @@ export default function LeaderboardPage() {
             </header>
 
             <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                {isDeactivatedAndEnded && (
+                    <Card className="text-center bg-green-900/50 border-green-500 shadow-[0_0_20px_rgba(74,222,128,0.4)]">
+                        <CardHeader>
+                            <CardTitle className="text-2xl text-green-300">Congratulations to the Winners!</CardTitle>
+                            <CardDescription className="text-green-200/80">The tournament has concluded. Prizes will be distributed shortly.</CardDescription>
+                        </CardHeader>
+                    </Card>
+                )}
+
                 <div className="flex justify-between items-start mb-6">
-                    {/* Left: Tiers */}
                     <div className="space-y-2">
                         <p className="text-xs font-semibold text-indigo-200">Prize Tiers (USDC)</p>
                         <div className="flex flex-col gap-1 items-start">
@@ -252,21 +271,19 @@ export default function LeaderboardPage() {
                         </div>
                     </div>
                     
-                    {/* Center: Headline & Countdown */}
                     <div className="text-center">
                         <h2 className="text-3xl font-bold text-white">{tournamentConfig.headline}</h2>
                         <p className="text-indigo-200/80 mt-1">{tournamentConfig.tagline}</p>
-                        {tournamentConfig.endDate && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
+                        {tournamentConfig.endDate && !isTournamentEnded && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
                     </div>
 
-                    {/* Right: Status */}
                     <div className="flex justify-end">
-                        {!tournamentConfig.isActive ? <Badge variant="destructive">Withdrawn</Badge> : isTournamentEnded ? <Badge>Ended</Badge> : <Badge variant="secondary">Active</Badge>}
+                       {isDeactivatedAndEnded ? <Badge>Concluded</Badge> : isTournamentEnded ? <Badge>Ended</Badge> : tournamentConfig.isActive ? <Badge variant="secondary">Active</Badge> : <Badge variant="outline">Upcoming</Badge>}
                     </div>
                 </div>
 
                  {currentUserOnBoard && (
-                    <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-md border-b border-indigo-400/20 py-2">
+                     <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-md border-b border-indigo-400/20 py-2">
                         <LeaderboardListItem user={currentUserOnBoard} isCurrentUser={true} prizeTiers={tournamentConfig.prizeTiers || []}/>
                     </div>
                 )}
@@ -293,3 +310,4 @@ export default function LeaderboardPage() {
         </div>
     );
 }
+
