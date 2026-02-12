@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -191,11 +192,11 @@ export default function LeaderboardPage() {
             setIsLastPage(querySnapshot.docs.length < PAGE_SIZE);
             
             setLeaderboard(prev => {
-                const prevUsers = startAfterDoc ? prev : [];
-                const combinedUsers = [...prevUsers, ...newUsers];
-                return combinedUsers.map((user, index) => ({
+                const existingUsers = startAfterDoc ? prev : [];
+                const combined = [...existingUsers, ...newUsers];
+                return combined.map((user, index) => ({
                     ...user,
-                    rank: (startAfterDoc ? prev.length : 0) + index + 1
+                    rank: index + 1
                 }));
             });
 
@@ -358,18 +359,16 @@ export default function LeaderboardPage() {
         }
     };
 
-    const { currentUserOnBoard, otherUsers, isCurrentUserWinner, currentUserPrize } = useMemo(() => {
+    const { currentUserOnBoard, isCurrentUserWinner, currentUserPrize } = useMemo(() => {
         if (!currentUser || !leaderboard || !tournamentConfig) {
-            return { currentUserOnBoard: null, otherUsers: leaderboard || [], isCurrentUserWinner: false, currentUserPrize: 0 };
+            return { currentUserOnBoard: null, isCurrentUserWinner: false, currentUserPrize: 0 };
         }
         
         const userOnBoard = leaderboard.find(u => u.id === currentUser.id);
         const prize = userOnBoard ? getPrizeForRank(userOnBoard.rank, tournamentConfig.prizeTiers || []) : 0;
         const winner = prize > 0;
-        
-        const others = leaderboard.filter(u => u.id !== currentUser.id);
 
-        return { currentUserOnBoard: userOnBoard, otherUsers: others, isCurrentUserWinner: winner, currentUserPrize: prize };
+        return { currentUserOnBoard: userOnBoard, isCurrentUserWinner: winner, currentUserPrize: prize };
     }, [currentUser, leaderboard, tournamentConfig]);
 
     if (authLoading || (isLoading && leaderboard.length === 0)) {
@@ -503,7 +502,7 @@ export default function LeaderboardPage() {
                     </div>
                 </div>
 
-                {currentUserOnBoard && (
+                {currentUserOnBoard && tournamentConfig?.isActive && (
                     <div className="sticky top-16 z-20 bg-slate-900/95 backdrop-blur-md border-b border-indigo-400/20 py-2 px-4 sm:px-6">
                         <LeaderboardListItem user={currentUserOnBoard} isCurrentUser={true} prizeTiers={tournamentConfig.prizeTiers || []}/>
                     </div>
@@ -511,19 +510,19 @@ export default function LeaderboardPage() {
                 
                 <div className="p-4 sm:p-6">
                     <div className="space-y-2">
-                        {isLoading && otherUsers.length === 0 && !currentUserOnBoard ? (
+                        {isLoading && leaderboard.length === 0 ? (
                             <div className="flex justify-center items-center h-64">
                                 <Loader2 className="h-10 w-10 animate-spin" />
                             </div>
-                        ) : otherUsers.length === 0 && !currentUserOnBoard ? (
+                        ) : leaderboard.length === 0 ? (
                             <div className="text-center p-12 border-2 border-dashed border-slate-700 rounded-xl">
                                 <Trophy className="mx-auto h-12 w-12 text-slate-500" />
                                 <h3 className="mt-4 text-lg font-semibold">Leaderboard is Empty</h3>
                                 <p className="mt-1 text-sm text-muted-foreground">{isConcluded ? 'There were no winners in this tournament.' : 'No users have been enrolled yet.'}</p>
                             </div>
                         ) : (
-                            otherUsers.map(user => (
-                                <LeaderboardListItem key={user.id} user={user} isCurrentUser={false} prizeTiers={tournamentConfig.prizeTiers || []}/>
+                            leaderboard.map(user => (
+                                <LeaderboardListItem key={user.id} user={user} isCurrentUser={user.id === currentUser?.id} prizeTiers={tournamentConfig.prizeTiers || []}/>
                             ))
                         )}
                     </div>
@@ -563,3 +562,4 @@ export default function LeaderboardPage() {
         </div>
     );
 }
+
