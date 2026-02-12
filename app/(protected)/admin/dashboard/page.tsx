@@ -5,17 +5,17 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useFirestore, useMemoFirebase } from '@/firebase';
+import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, onSnapshot, doc, updateDoc, runTransaction, arrayUnion, query, where, getDocs, writeBatch, increment, getDoc, orderBy, Timestamp, documentId, limit, DocumentSnapshot, startAfter } from 'firebase/firestore';
 import { Loader2, User, Shield, Inbox, Check, X, Coins, Award, Settings, MessageSquare, Send, Star, Banknote, Building2, UserCheck, Share2, AtSign, Smartphone, Gift, Save, FilePen, Search, Crown, Trash2, Trophy, Users as UsersIcon } from 'lucide-react';
-import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction, Note, Review, AirdropConfig, TournamentConfig, PrizeTier } from '@/lib/types';
+import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction, Note, Review, AirdropConfig, TournamentConfig, PrizeTier, ConcludedTournament } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -32,6 +32,7 @@ import { FacebookIcon, XIcon } from '@/components/icons/social-icons';
 import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 
 const miningRateSchema = z.object({
@@ -719,8 +720,8 @@ function TournamentManager() {
     const handleUpdate = async (field: keyof TournamentConfig, value: any) => {
         const newConfig = { ...config, [field]: value };
         setConfig(newConfig);
-        if (field === 'isActive' && value === false) { // Handle deactivation
-             await updateTournamentConfig(newConfig);
+        if (field === 'isActive') {
+            await updateTournamentConfig({ ...config, isActive: value });
         }
     };
 
@@ -807,7 +808,6 @@ function TournamentManager() {
                  <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-4">
                         {config.isActive ? (
-                            // ACTIVE state -> Show "Stop" button
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="outline">Stop Tournament</Button>
@@ -816,7 +816,7 @@ function TournamentManager() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            This will stop the tournament, finalize rankings, and prevent new scores. This cannot be undone.
+                                            This will stop the tournament, finalize rankings, and save winner data. This action cannot be undone.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
@@ -826,7 +826,6 @@ function TournamentManager() {
                                 </AlertDialogContent>
                             </AlertDialog>
                         ) : configExists ? (
-                            // INACTIVE, but config exists in DB -> It's been stopped. Show "Withdraw"
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="destructive" disabled={isWithdrawing}>
@@ -848,7 +847,6 @@ function TournamentManager() {
                                 </AlertDialogContent>
                             </AlertDialog>
                         ) : (
-                            // INACTIVE and no config exists -> Ready to launch a new one.
                             <Button onClick={handleLaunch}>
                                 Launch
                             </Button>
@@ -1093,6 +1091,115 @@ function EnrolledUsersManager() {
     );
 }
 
+function WinnersManager() {
+    const { adminUpdatePayoutStatus } = useAuth();
+    const firestore = useFirestore();
+    const { data: concludedTournaments, isLoading: isLoadingTournaments } = useCollection<ConcludedTournament>(
+        useMemoFirebase(() => query(collection(firestore, 'concludedTournaments'), orderBy('concludedAt', 'desc')), [firestore])
+    );
+    const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+
+    const allWinnerIds = useMemo(() => {
+        if (!concludedTournaments) return [];
+        const ids = new Set<string>();
+        concludedTournaments.forEach(t => t.winners.forEach(w => ids.add(w.userId)));
+        return Array.from(ids);
+    }, [concludedTournaments]);
+
+    const { data: winnerProfilesData, isLoading: isLoadingProfiles } = useCollection<UserProfile>(
+        useMemoFirebase(() => {
+            if (!firestore || allWinnerIds.length === 0) return null;
+            // You might need to chunk this if allWinnerIds can exceed 30
+            return query(collection(firestore, 'users'), where(documentId(), 'in', allWinnerIds));
+        }, [firestore, allWinnerIds])
+    );
+
+    const winnerProfilesMap = useMemo(() => {
+        const map = new Map<string, UserProfile>();
+        winnerProfilesData?.forEach(p => map.set(p.id, p));
+        return map;
+    }, [winnerProfilesData]);
+
+    const handleStatusChange = async (tournamentId: string, userId: string, status: 'pending' | 'paid' | 'failed') => {
+        setUpdatingStatus(`${tournamentId}-${userId}`);
+        await adminUpdatePayoutStatus(tournamentId, userId, status);
+        setUpdatingStatus(null);
+    }
+
+    if (isLoadingTournaments) {
+        return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    }
+
+    if (!concludedTournaments || concludedTournaments.length === 0) {
+        return <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
+            <Inbox className="h-12 w-12 text-muted-foreground" />
+            <h3 className="font-semibold">No Concluded Tournaments</h3>
+            <p className="text-sm text-muted-foreground">There are no past tournament results to display.</p>
+        </div>;
+    }
+
+    return (
+        <Accordion type="single" collapsible className="w-full space-y-4">
+            {concludedTournaments.map(tourney => (
+                <AccordionItem value={tourney.id} key={tourney.id}>
+                     <AccordionTrigger className="p-4 bg-muted/30 rounded-t-lg">
+                        <div>
+                            <p className="font-bold">{tourney.headline}</p>
+                            <p className="text-sm text-muted-foreground">Concluded: {format(tourney.concludedAt.toDate(), 'PPP')}</p>
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-2 border border-t-0 rounded-b-lg">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Rank</TableHead>
+                                    <TableHead>Winner</TableHead>
+                                    <TableHead>Score</TableHead>
+                                    <TableHead>Prize (USDC)</TableHead>
+                                    <TableHead>USDC Address</TableHead>
+                                    <TableHead>Status</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {tourney.winners.map(winner => {
+                                    const profile = winnerProfilesMap.get(winner.userId);
+                                    const status = tourney.payouts[winner.userId] || 'pending';
+                                    return (
+                                        <TableRow key={winner.userId}>
+                                            <TableCell>{winner.rank}</TableCell>
+                                            <TableCell><Link href={`/admin/find-user?profileCode=${winner.profileCode}`} className="hover:underline">{winner.fullName}</Link></TableCell>
+                                            <TableCell>{winner.score}</TableCell>
+                                            <TableCell>${winner.prize.toFixed(2)}</TableCell>
+                                            <TableCell>{profile?.usdcAddress || 'Not provided'}</TableCell>
+                                            <TableCell>
+                                                 <Select
+                                                    value={status}
+                                                    onValueChange={(value) => handleStatusChange(tourney.id, winner.userId, value as any)}
+                                                    disabled={updatingStatus === `${tourney.id}-${winner.userId}`}
+                                                >
+                                                    <SelectTrigger className="w-[120px]">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="pending">Pending</SelectItem>
+                                                        <SelectItem value="paid">Paid</SelectItem>
+                                                        <SelectItem value="failed">Failed</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </AccordionContent>
+                </AccordionItem>
+            ))}
+        </Accordion>
+    );
+}
+
+
 function AdminDashboard() {
   const { userProfile, loading } = useAuth();
   
@@ -1151,10 +1258,11 @@ function AdminDashboard() {
         </TabsContent>
         <TabsContent value="rt" className="mt-6">
             <Tabs defaultValue="tournament" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="tournament">Set Tournament</TabsTrigger>
                     <TabsTrigger value="eligible-rt">RT Eligible</TabsTrigger>
                     <TabsTrigger value="enrolled">Enrolled</TabsTrigger>
+                    <TabsTrigger value="winners">Winners</TabsTrigger>
                 </TabsList>
                 <TabsContent value="tournament" className="mt-6">
                     <TournamentManager />
@@ -1164,6 +1272,9 @@ function AdminDashboard() {
                 </TabsContent>
                 <TabsContent value="enrolled" className="mt-6">
                     <EnrolledUsersManager />
+                </TabsContent>
+                 <TabsContent value="winners" className="mt-6">
+                    <WinnersManager />
                 </TabsContent>
             </Tabs>
         </TabsContent>
@@ -1181,4 +1292,5 @@ export default function AdminDashboardPage() {
 
 
     
+
 

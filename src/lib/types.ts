@@ -43,6 +43,25 @@ export type TournamentConfig = {
   isActive: boolean;
 };
 
+export type ConcludedTournament = {
+  id: string; // original config doc id
+  headline: string;
+  tagline: string;
+  concludedAt: Timestamp;
+  prizeTiers: PrizeTier[];
+  winners: {
+    userId: string;
+    fullName: string;
+    profileCode: string;
+    rank: number;
+    score: number;
+    prize: number;
+  }[];
+  payouts: {
+    [userId: string]: 'pending' | 'paid' | 'failed';
+  };
+};
+
 export type WithdrawalRequest = {
   requestId: string;
   withdrawalMethod: 'upi' | 'bank';
@@ -195,6 +214,7 @@ export type UserProfile = {
   tournamentId?: string | null;
   tournamentScore?: number;
   tournamentScoreLastUpdated?: Timestamp;
+  usdcAddress?: string;
 };
 
 export type PendingTransfer = {
