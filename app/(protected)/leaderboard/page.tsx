@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -102,7 +101,7 @@ const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers }: { user: Ranked
                     </Avatar>
                     <div className="truncate">
                         <p className="font-semibold text-white truncate">{user.fullName}{isCurrentUser && " (You)"}</p>
-                        <p className="text-sm text-slate-400">Score: {user.tournamentScore || 0}</p>
+                        <p className="text-sm text-slate-400">Referrals: {user.tournamentScore || 0}</p>
                     </div>
                 </div>
                 <div className="text-right flex-shrink-0 ml-4">
@@ -283,7 +282,7 @@ export default function LeaderboardPage() {
                 </div>
 
                  {currentUserOnBoard && (
-                     <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-md border-b border-indigo-400/20 py-2">
+                     <div className="sticky top-16 z-20 bg-slate-900/95 backdrop-blur-md border-b border-indigo-400/20 py-2">
                         <LeaderboardListItem user={currentUserOnBoard} isCurrentUser={true} prizeTiers={tournamentConfig.prizeTiers || []}/>
                     </div>
                 )}
@@ -310,6 +309,3 @@ export default function LeaderboardPage() {
         </div>
     );
 }
-
-
-
