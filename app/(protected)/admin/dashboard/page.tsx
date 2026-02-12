@@ -376,7 +376,7 @@ function AirdropManager() {
 
 const PAGE_SIZE = 10;
 
-function EligibleUsersManager({ showEnrollButton = false }: { showEnrollButton?: boolean }) {
+function EligibleUsersManager({ showEnrollButton = false, forTournament = false }: { showEnrollButton?: boolean; forTournament?: boolean; }) {
     const firestore = useFirestore();
     const { makeUserPromoter, enrollUserInTournament } = useAuth();
     const [eligibleUsers, setEligibleUsers] = useState<UserProfile[]>([]);
@@ -412,9 +412,9 @@ function EligibleUsersManager({ showEnrollButton = false }: { showEnrollButton?:
             let users = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
 
             if (searchTerm) {
-                 users = users.filter(user => user.minedCoins > 100 && !user.isPromoter && user.sessionEndTime && user.sessionEndTime > Date.now());
+                 users = users.filter(user => user.minedCoins > 100 && (forTournament ? true : !user.isPromoter) && user.sessionEndTime && user.sessionEndTime > Date.now());
             } else {
-                 users = users.filter(user => user.minedCoins > 100 && !user.isPromoter);
+                 users = users.filter(user => user.minedCoins > 100 && (forTournament ? true : !user.isPromoter));
             }
             
             setLastDoc(documentSnapshots.docs[documentSnapshots.docs.length - 1] || null);
@@ -435,7 +435,7 @@ function EligibleUsersManager({ showEnrollButton = false }: { showEnrollButton?:
         } finally {
             setIsLoading(false);
         }
-    }, [firestore, searchTerm]);
+    }, [firestore, searchTerm, forTournament]);
 
     const handleRefresh = useCallback(() => {
         setEligibleUsers([]);
@@ -962,7 +962,7 @@ function AdminDashboard() {
                     <TournamentManager />
                 </TabsContent>
                 <TabsContent value="eligible-rt" className="mt-6">
-                    <EligibleUsersManager showEnrollButton={true} />
+                    <EligibleUsersManager showEnrollButton={true} forTournament={true} />
                 </TabsContent>
                 <TabsContent value="enrolled" className="mt-6">
                     <EnrolledUsersManager />
