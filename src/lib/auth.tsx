@@ -2307,7 +2307,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     }
   }, [userProfile, firestore, toast]);
 
-    const withdrawTournament = useCallback(async () => {
+  const withdrawTournament = useCallback(async () => {
     const isAdmin = userProfile?.isAdmin || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1' || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
     if (!isAdmin) {
       toast({ title: 'Unauthorized', variant: 'destructive' });
@@ -2317,30 +2317,32 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     const configDocRef = doc(firestore, 'config', 'tournament');
     try {
       const configDoc = await getDoc(configDocRef);
-      if (!configDoc.exists() || !configDoc.data()?.isActive) {
-        throw new Error("No active tournament to withdraw.");
+      if (!configDoc.exists()) {
+        throw new Error("No tournament to withdraw.");
       }
       const tournamentId = configDoc.id;
 
-      toast({ title: 'Processing...', description: 'Resetting tournament scores. This may take a moment.' });
-
-      await updateDoc(configDocRef, { isActive: false });
-      
+      // Reset scores and unenroll all users from this tournament
       const usersQuery = query(collection(firestore, 'users'), where('tournamentId', '==', tournamentId));
       const usersSnapshot = await getDocs(usersQuery);
 
       if (!usersSnapshot.empty) {
+        toast({ title: 'Processing...', description: 'Resetting tournament data for all users. This may take a moment.' });
         const batch = writeBatch(firestore);
         usersSnapshot.forEach(userDoc => {
           batch.update(userDoc.ref, {
+            tournamentId: null,
             tournamentScore: 0,
             tournamentScoreLastUpdated: null,
           });
         });
         await batch.commit();
       }
+      
+      // Delete the tournament configuration document to reset for a new tournament
+      await deleteDoc(configDocRef);
 
-      toast({ title: 'Tournament Withdrawn', description: 'The tournament is no longer active and player scores have been reset.' });
+      toast({ title: 'Tournament Withdrawn', description: 'The tournament has been completely removed and all data reset.' });
 
     } catch (error: any) {
       console.error("Error withdrawing tournament:", error);
