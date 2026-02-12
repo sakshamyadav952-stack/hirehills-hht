@@ -49,7 +49,8 @@ export const applyReferralCode = functions
         }
 
         let tournamentDoc = null;
-        if (referrerData.isPromoter && referrerData.tournamentId) {
+        // FIX: The referrer just needs to be enrolled in a tournament, not necessarily be a promoter.
+        if (referrerData.tournamentId) {
             const tournamentDocRef = db.collection('config').doc('tournament');
             tournamentDoc = await transaction.get(tournamentDocRef);
         }
@@ -103,7 +104,8 @@ export const applyReferralCode = functions
 
         if (tournamentDoc && tournamentDoc.exists) {
             const tournamentData = tournamentDoc.data();
-            if (referrerData.isPromoter === true && tournamentData && tournamentData.isActive && tournamentData.endDate.toMillis() > now.toMillis()) {
+            // FIX: Check if tournament is active and referrer is enrolled, without checking for promoter status.
+            if (tournamentData && tournamentData.isActive && tournamentData.endDate.toMillis() > now.toMillis()) {
                 if (referrerData.tournamentId === tournamentDoc.id) {
                     referrerUpdateData.tournamentScore = admin.firestore.FieldValue.increment(1);
                     referrerUpdateData.tournamentScoreLastUpdated = now;
