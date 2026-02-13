@@ -411,33 +411,7 @@ export default function LeaderboardPage() {
             </header>
 
             <main className="flex-1 overflow-y-auto">
-                 <div className="text-center pt-4">
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <Button variant="link" className="text-xs text-muted-foreground hover:text-white">Terms &amp; Conditions</Button>
-                        </DialogTrigger>
-                        <DialogContent className="text-white border-cyan-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
-                            <DialogHeader>
-                                <DialogTitle className="text-cyan-300 flex items-center gap-2"><ShieldAlert />Referral League: Terms &amp; Conditions</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4 text-cyan-200/80">
-                                <ul className="list-disc space-y-3 pl-5">
-                                    <li>Winner(s) will have to disclose their referrals made during the Referral League.</li>
-                                    <li>The winner's Solana transaction address will be made public to verify payment.</li>
-                                    <li>If any spam-related activity or fake referrals are found, the user's account will be made disabled.</li>
-                                    <li>Blistree reserves the right to change the rules or cancel the league at any time without prior notice.</li>
-                                    <li>All decisions made by the Blistree team are final.</li>
-                                </ul>
-                            </div>
-                            <DialogFooter>
-                                <DialogClose asChild>
-                                    <Button className="w-full bg-cyan-500 text-black hover:bg-cyan-400">Understood</Button>
-                                </DialogClose>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                </div>
-                <div className="p-4 sm:p-6 space-y-6">
+                 <div className="p-4 sm:p-6 space-y-6">
                     {isConcluded && (
                         <Card className="text-center bg-green-900/50 border-green-500 shadow-[0_0_20px_rgba(74,222,128,0.4)]">
                             <CardHeader>
@@ -480,7 +454,7 @@ export default function LeaderboardPage() {
                                         </div>
                                         <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold" onClick={handleWithdraw} disabled={!isVerified || isWithdrawing || amountToWithdraw <= 0}>
                                             {isWithdrawing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                            Withdraw {amountToWithdraw.toFixed(2)} USDC
+                                            Withdraw {withdrawnAmount.toFixed(2)} USDC
                                         </Button>
                                         {transactionId && (
                                             <Button asChild variant="link" className="w-full mt-2 text-cyan-300 hover:text-white">
@@ -517,6 +491,30 @@ export default function LeaderboardPage() {
                             <h2 className="text-3xl font-bold text-white">{tournamentConfig.headline}</h2>
                             <p className="text-indigo-200/80 mt-1">{tournamentConfig.tagline}</p>
                             {!isConcluded && tournamentConfig.endDate && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
+                             <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="link" className="text-xs text-muted-foreground hover:text-white mt-2">Terms &amp; Conditions</Button>
+                                </DialogTrigger>
+                                <DialogContent className="text-white border-cyan-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
+                                    <DialogHeader>
+                                        <DialogTitle className="text-cyan-300 flex items-center gap-2"><ShieldAlert />Referral League: Terms &amp; Conditions</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4 py-4 text-cyan-200/80">
+                                        <ul className="list-disc space-y-3 pl-5">
+                                            <li>Winner(s) will have to disclose their referrals made during the Referral League.</li>
+                                            <li>The winner's Solana transaction address will be made public to verify payment.</li>
+                                            <li>If any spam-related activity or fake referrals are found, the user's account will be made disabled.</li>
+                                            <li>Blistree reserves the right to change the rules or cancel the league at any time without prior notice.</li>
+                                            <li>All decisions made by the Blistree team are final.</li>
+                                        </ul>
+                                    </div>
+                                    <DialogFooter>
+                                        <DialogClose asChild>
+                                            <Button className="w-full bg-cyan-500 text-black hover:bg-cyan-400">Understood</Button>
+                                        </DialogClose>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </div>
 
                         <div className="flex flex-col items-end gap-2">
@@ -589,3 +587,4 @@ export default function LeaderboardPage() {
         </div>
     );
 }
+
