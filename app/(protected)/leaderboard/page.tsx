@@ -39,16 +39,26 @@ function UserReferralsDialog({ user, open, onOpenChange, tournamentConfig }: { u
         const fetchReferrals = async () => {
             setIsLoading(true);
             try {
-                // Firestore 'in' query has a limit of 30
-                const referralIds = user.referrals.slice(0, 30);
-                if (referralIds.length === 0) {
-                    setReferrals([]);
-                    setIsLoading(false);
-                    return;
+                const referralIds = user.referrals;
+
+                const allReferralsData: UserProfile[] = [];
+                const chunks: string[][] = [];
+                // Firestore 'in' query supports up to 30 elements.
+                for (let i = 0; i < referralIds.length; i += 30) {
+                    chunks.push(referralIds.slice(i, i + 30));
                 }
-                const referralsQuery = query(collection(firestore, 'users'), where(documentId(), 'in', referralIds));
-                const snapshot = await getDocs(referralsQuery);
-                let referralsData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as UserProfile);
+        
+                for (const chunk of chunks) {
+                    if (chunk.length > 0) {
+                        const referralsQuery = query(collection(firestore, 'users'), where(documentId(), 'in', chunk));
+                        const snapshot = await getDocs(referralsQuery);
+                        snapshot.forEach(doc => {
+                            allReferralsData.push({id: doc.id, ...doc.data()} as UserProfile);
+                        });
+                    }
+                }
+                
+                let referralsData = allReferralsData;
                 
                 // NEW: Filter by tournament dates
                 if (tournamentConfig.startDate && tournamentConfig.endDate) {
@@ -743,5 +753,7 @@ export default function LeaderboardPage() {
     );
 }
 
+
+    
 
     
