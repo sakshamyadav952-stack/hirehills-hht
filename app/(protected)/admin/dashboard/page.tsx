@@ -1217,6 +1217,26 @@ function WinnersManager() {
     );
 }
 
+function LeftManager() {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Left League</CardTitle>
+                <CardDescription>
+                    Users who have voluntarily left the current referral league.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
+                    <Inbox className="h-12 w-12 text-muted-foreground" />
+                    <h3 className="font-semibold">No Users Have Left</h3>
+                    <p className="text-sm text-muted-foreground">This section will show users who have chosen to leave the league.</p>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 function AdminDashboard() {
   const { userProfile, loading } = useAuth();
@@ -1276,11 +1296,12 @@ function AdminDashboard() {
         </TabsContent>
         <TabsContent value="rt" className="mt-6">
             <Tabs defaultValue="tournament" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="tournament">SL</TabsTrigger>
                     <TabsTrigger value="eligible-rt">RL Eligible</TabsTrigger>
                     <TabsTrigger value="enrolled">Enrolled</TabsTrigger>
                     <TabsTrigger value="winners">Winners</TabsTrigger>
+                    <TabsTrigger value="left">Left</TabsTrigger>
                 </TabsList>
                 <TabsContent value="tournament" className="mt-6">
                     <LeagueManager />
@@ -1294,6 +1315,9 @@ function AdminDashboard() {
                  <TabsContent value="winners" className="mt-6">
                     <WinnersManager />
                 </TabsContent>
+                <TabsContent value="left" className="mt-6">
+                    <LeftManager />
+                </TabsContent>
             </Tabs>
         </TabsContent>
       </Tabs>
@@ -1304,3 +1328,5 @@ function AdminDashboard() {
 export default function AdminDashboardPage() {
     return <AdminDashboard />;
 }
+
+    
