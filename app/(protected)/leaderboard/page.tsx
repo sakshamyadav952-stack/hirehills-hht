@@ -198,29 +198,29 @@ const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers, onReferralsClick
 
     return (
         <div className={cn(
-            "border-2 p-3 rounded-xl transition-all",
+            "border-2 p-2 sm:p-3 rounded-xl transition-all",
             rankColor,
         )}>
-             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="flex-shrink-0 w-20 text-center">
-                        {rank === 1 && <Crown className="mx-auto h-6 w-6 text-amber-400 mb-1" />}
-                        {rank === 2 && <Medal className="mx-auto h-6 w-6 text-slate-300 mb-1" />}
-                        {rank === 3 && <Medal className="mx-auto h-6 w-6 text-orange-400 mb-1" />}
-                        <p className="font-bold text-lg">Rank #{rank}</p>
+             <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="flex-shrink-0 w-16 text-center">
+                        {rank === 1 && <Crown className="mx-auto h-5 w-5 sm:h-6 sm:w-6 text-amber-400 mb-1" />}
+                        {rank === 2 && <Medal className="mx-auto h-5 w-5 sm:h-6 sm:w-6 text-slate-300 mb-1" />}
+                        {rank === 3 && <Medal className="mx-auto h-5 w-5 sm:h-6 sm:w-6 text-orange-400 mb-1" />}
+                        <p className="font-bold text-base sm:text-lg">Rank #{rank}</p>
                     </div>
-                    <Avatar className="h-12 w-12">
+                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
                         <AvatarImage src={user.profileImageUrl} alt={user.fullName} />
                         <AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="truncate">
-                        <p className="font-semibold text-white truncate">{user.fullName}{isCurrentUser && " (You)"}</p>
-                        <p className="text-sm text-slate-400">Referrals: {user.tournamentScore || 0}</p>
+                        <p className="font-semibold text-white truncate text-sm sm:text-base">{user.fullName}{isCurrentUser && " (You)"}</p>
+                        <p className="text-xs sm:text-sm text-slate-400">Referrals: {user.tournamentScore || 0}</p>
                     </div>
                 </div>
-                <div className="text-right flex-shrink-0 ml-4 flex flex-col items-end gap-2">
-                     <p className={cn("text-lg font-bold flex items-center justify-end", prize > 0 ? "text-green-400" : "text-white")}>
-                        <DollarSign className="h-4 w-4 mr-0.5" />
+                <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                     <p className={cn("text-base sm:text-lg font-bold flex items-center justify-end", prize > 0 ? "text-green-400" : "text-white")}>
+                        <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 mr-0.5" />
                         {prize.toFixed(2)}
                     </p>
                     {(user.tournamentScore || 0) > 0 && (
@@ -573,7 +573,7 @@ export default function LeaderboardPage() {
                                         </Alert>
                                         <div className="space-y-2">
                                             <Label htmlFor="usdc-address" className="text-white">Your Solana Wallet Address</Label>
-                                            <div className="flex gap-2 items-center">
+                                            <div className="flex flex-col sm:flex-row gap-2 items-stretch">
                                                 <Input 
                                                     id="usdc-address"
                                                     placeholder="Enter your Solana address"
@@ -586,7 +586,7 @@ export default function LeaderboardPage() {
                                                     }}
                                                     disabled={isVerifying || isWithdrawing}
                                                 />
-                                                <Button onClick={handleVerify} disabled={isVerifying || isVerified}>
+                                                <Button onClick={handleVerify} disabled={isVerifying || isVerified} className="w-full sm:w-auto">
                                                     {isVerifying ? <Loader2 className="h-4 w-4 animate-spin"/> : isVerified ? <Check className="h-4 w-4 text-green-400" /> : 'Verify'}
                                                 </Button>
                                             </div>
@@ -609,10 +609,10 @@ export default function LeaderboardPage() {
                         </Card>
                     )}
 
-                    <div className="flex justify-between items-start">
-                        <div className="space-y-2">
+                    <div className="flex flex-col sm:flex-row items-center sm:text-left text-center sm:justify-between sm:items-start gap-4">
+                        <div className="space-y-2 order-2 sm:order-1">
                             <p className="text-xs font-semibold text-indigo-200">Prize Tiers (USDC)</p>
-                            <div className="flex flex-col gap-1 items-start">
+                            <div className="flex flex-wrap justify-center sm:justify-start gap-1">
                                 {tournamentConfig.prizeTiers?.map(tier => (
                                     <div key={tier.id} className="text-left p-1 px-2 bg-black/30 rounded-md border border-indigo-400/30">
                                         <p className="text-[10px] font-bold text-indigo-300">
@@ -627,9 +627,9 @@ export default function LeaderboardPage() {
                             </div>
                         </div>
                         
-                        <div className="text-center">
-                            <h2 className="text-3xl font-bold text-white">{tournamentConfig.headline}</h2>
-                            <p className="text-indigo-200/80 mt-1">{tournamentConfig.tagline}</p>
+                        <div className="text-center order-1 sm:order-2">
+                            <h2 className="text-2xl sm:text-3xl font-bold text-white">{tournamentConfig.headline}</h2>
+                            <p className="text-indigo-200/80 mt-1 text-sm sm:text-base">{tournamentConfig.tagline}</p>
                             {!isConcluded && tournamentConfig.endDate && <div className="mt-4"><Countdown expiryDate={tournamentConfig.endDate} /></div>}
                              <Dialog>
                                 <DialogTrigger asChild>
@@ -657,7 +657,7 @@ export default function LeaderboardPage() {
                             </Dialog>
                         </div>
 
-                        <div className="flex flex-col items-end gap-2">
+                        <div className="flex flex-row sm:flex-col items-center justify-between w-full sm:w-auto sm:items-end gap-2 order-3">
                         {isConcluded ? <Badge>Concluded</Badge> : <Badge variant="secondary">Active</Badge>}
                             <div className="flex items-center gap-2 p-2 rounded-md bg-black/30 border border-slate-700">
                                 <Users className="h-4 w-4 text-indigo-300" />
@@ -753,7 +753,3 @@ export default function LeaderboardPage() {
     );
 }
 
-
-    
-
-    
