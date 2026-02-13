@@ -24,6 +24,92 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 type RankedUser = UserProfile & { rank: number };
 const PAGE_SIZE = 10;
 
+function UserReferralsDialog({ user, open, onOpenChange }: { user: RankedUser | null, open: boolean, onOpenChange: (open: boolean) => void }) {
+    const firestore = useFirestore();
+    const [referrals, setReferrals] = useState<UserProfile[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (!open || !firestore || !user?.referrals || user.referrals.length === 0) {
+            setReferrals([]);
+            return;
+        }
+
+        const fetchReferrals = async () => {
+            setIsLoading(true);
+            try {
+                // Firestore 'in' query has a limit of 30
+                const referralIds = user.referrals.slice(0, 30);
+                if (referralIds.length === 0) {
+                    setReferrals([]);
+                    setIsLoading(false);
+                    return;
+                }
+                const referralsQuery = query(collection(firestore, 'users'), where(documentId(), 'in', referralIds));
+                const snapshot = await getDocs(referralsQuery);
+                const referralsData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as UserProfile);
+                
+                // We cannot filter by tournament date reliably, so just show recent referrals.
+                referralsData.sort((a, b) => {
+                    const timeA = (a.createdAt as Timestamp)?.toMillis() || 0;
+                    const timeB = (b.createdAt as Timestamp)?.toMillis() || 0;
+                    return timeB - timeA;
+                });
+                
+                setReferrals(referralsData);
+
+            } catch (error) {
+                console.error("Error fetching referrals:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchReferrals();
+
+    }, [open, firestore, user]);
+
+    if (!user) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="text-white border-cyan-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
+                <DialogHeader>
+                    <DialogTitle className="text-cyan-300">Referrals by {user.fullName}</DialogTitle>
+                    <DialogDescription className="text-cyan-200/80">
+                        This user has {user.tournamentScore || 0} referrals that contributed to their score. Showing the most recent ones.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto space-y-4 py-4 pr-2">
+                    {isLoading ? (
+                        <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                    ) : referrals.length > 0 ? (
+                        referrals.map(ref => (
+                            <div key={ref.id} className="flex items-center gap-4 p-3 bg-slate-800/50 rounded-lg">
+                                <Avatar className="h-10 w-10">
+                                    <AvatarImage src={ref.profileImageUrl} alt={ref.fullName} />
+                                    <AvatarFallback>{ref.fullName.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-semibold text-white">{ref.fullName}</p>
+                                    <p className="text-xs text-muted-foreground">{ref.profileCode}</p>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-center text-muted-foreground">No referrals found.</p>
+                    )}
+                </div>
+                 <DialogFooter>
+                    <DialogClose asChild>
+                        <Button className="w-full bg-cyan-500 text-black hover:bg-cyan-400">Close</Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 const Countdown = ({ expiryDate }: { expiryDate: Date | Timestamp }) => {
     const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
     const [isExpired, setIsExpired] = useState(false);
@@ -77,7 +163,7 @@ const getPrizeForRank = (rank: number, tiers: PrizeTier[]): number => {
     return tier ? tier.prize : 0;
 };
 
-const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers }: { user: RankedUser, isCurrentUser: boolean, prizeTiers: PrizeTier[] }) => {
+const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers, onReferralsClick }: { user: RankedUser, isCurrentUser: boolean, prizeTiers: PrizeTier[], onReferralsClick: (user: RankedUser) => void }) => {
     const rank = user.rank;
     const prize = getPrizeForRank(rank, prizeTiers);
 
@@ -111,14 +197,24 @@ const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers }: { user: Ranked
                         <p className="text-sm text-slate-400">Referrals: {user.tournamentScore || 0}</p>
                     </div>
                 </div>
-                <div className="text-right flex-shrink-0 ml-4">
+                <div className="text-right flex-shrink-0 ml-4 flex flex-col items-end gap-2">
                      <p className={cn("text-lg font-bold flex items-center justify-end", prize > 0 ? "text-green-400" : "text-white")}>
                         <DollarSign className="h-4 w-4 mr-0.5" />
                         {prize.toFixed(2)}
                     </p>
-                    <p className={cn("text-xs", prize > 0 ? "text-green-400/80" : "text-muted-foreground")}>
-                        {prize > 0 ? "Currently Winning" : "Prize"}
-                    </p>
+                    {(user.tournamentScore || 0) > 0 && (
+                         <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs h-auto py-1 px-2 text-indigo-300 hover:bg-indigo-500/20 hover:text-white"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onReferralsClick(user);
+                            }}
+                        >
+                            View Referrals
+                        </Button>
+                    )}
                 </div>
             </div>
         </div>
@@ -146,6 +242,8 @@ export default function LeaderboardPage() {
     const [showSuccessDialog, setShowSuccessDialog] = useState(false);
     const [transactionId, setTransactionId] = useState<string | null>(null);
     const [withdrawnAmount, setWithdrawnAmount] = useState(0);
+    const [showReferralsDialog, setShowReferralsDialog] = useState(false);
+    const [selectedUserForReferrals, setSelectedUserForReferrals] = useState<RankedUser | null>(null);
 
     const amountToWithdraw = currentUser?.tournamentWinning || 0;
 
@@ -360,6 +458,11 @@ export default function LeaderboardPage() {
         }
     };
 
+    const handleReferralsClick = (user: RankedUser) => {
+        setSelectedUserForReferrals(user);
+        setShowReferralsDialog(true);
+    };
+
     const { currentUserOnBoard, isCurrentUserWinner, currentUserPrize } = useMemo(() => {
         if (!currentUser || !leaderboard || !tournamentConfig) {
             return { currentUserOnBoard: null, isCurrentUserWinner: false, currentUserPrize: 0 };
@@ -529,7 +632,7 @@ export default function LeaderboardPage() {
 
                 {currentUserOnBoard && tournamentConfig?.isActive && (
                     <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-md border-b border-indigo-400/20 py-2 px-4 sm:px-6">
-                        <LeaderboardListItem user={currentUserOnBoard} isCurrentUser={true} prizeTiers={tournamentConfig.prizeTiers || []}/>
+                        <LeaderboardListItem user={currentUserOnBoard} isCurrentUser={true} prizeTiers={tournamentConfig.prizeTiers || []} onReferralsClick={handleReferralsClick}/>
                     </div>
                 )}
                 
@@ -547,7 +650,7 @@ export default function LeaderboardPage() {
                             </div>
                         ) : (
                             leaderboard.map(user => (
-                                <LeaderboardListItem key={user.id} user={user} isCurrentUser={user.id === currentUser?.id} prizeTiers={tournamentConfig.prizeTiers || []}/>
+                                <LeaderboardListItem key={user.id} user={user} isCurrentUser={user.id === currentUser?.id} prizeTiers={tournamentConfig.prizeTiers || []} onReferralsClick={handleReferralsClick}/>
                             ))
                         )}
                     </div>
@@ -584,6 +687,7 @@ export default function LeaderboardPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            <UserReferralsDialog user={selectedUserForReferrals} open={showReferralsDialog} onOpenChange={setShowReferralsDialog} />
         </div>
     );
 }
