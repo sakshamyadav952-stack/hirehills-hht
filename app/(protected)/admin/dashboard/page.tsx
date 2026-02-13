@@ -1278,7 +1278,7 @@ function AdminDashboard() {
         <TabsContent value="rt" className="mt-6">
             <Tabs defaultValue="tournament" className="w-full">
                 <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="tournament">Set Tournament</TabsTrigger>
+                    <TabsTrigger value="tournament">ST</TabsTrigger>
                     <TabsTrigger value="eligible-rt">RT Eligible</TabsTrigger>
                     <TabsTrigger value="enrolled">Enrolled</TabsTrigger>
                     <TabsTrigger value="winners">Winners</TabsTrigger>
@@ -1311,6 +1311,7 @@ export default function AdminDashboardPage() {
 
 
     
+
 
 
 
