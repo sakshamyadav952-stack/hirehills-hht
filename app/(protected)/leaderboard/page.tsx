@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -24,13 +25,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 type RankedUser = UserProfile & { rank: number };
 const PAGE_SIZE = 10;
 
-function UserReferralsDialog({ user, open, onOpenChange }: { user: RankedUser | null, open: boolean, onOpenChange: (open: boolean) => void }) {
+function UserReferralsDialog({ user, open, onOpenChange, tournamentConfig }: { user: RankedUser | null, open: boolean, onOpenChange: (open: boolean) => void, tournamentConfig: TournamentConfig | null }) {
     const firestore = useFirestore();
     const [referrals, setReferrals] = useState<UserProfile[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        if (!open || !firestore || !user?.referrals || user.referrals.length === 0) {
+        if (!open || !firestore || !user?.referrals || user.referrals.length === 0 || !tournamentConfig) {
             setReferrals([]);
             return;
         }
@@ -47,9 +48,19 @@ function UserReferralsDialog({ user, open, onOpenChange }: { user: RankedUser | 
                 }
                 const referralsQuery = query(collection(firestore, 'users'), where(documentId(), 'in', referralIds));
                 const snapshot = await getDocs(referralsQuery);
-                const referralsData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as UserProfile);
+                let referralsData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as UserProfile);
                 
-                // We cannot filter by tournament date reliably, so just show recent referrals.
+                // NEW: Filter by tournament dates
+                if (tournamentConfig.startDate && tournamentConfig.endDate) {
+                    const leagueStart = tournamentConfig.startDate instanceof Timestamp ? tournamentConfig.startDate.toMillis() : new Date(tournamentConfig.startDate).getTime();
+                    const leagueEnd = tournamentConfig.endDate instanceof Timestamp ? tournamentConfig.endDate.toMillis() : new Date(tournamentConfig.endDate).getTime();
+
+                    referralsData = referralsData.filter(ref => {
+                        const appliedAt = (ref.referralAppliedAt as Timestamp)?.toMillis();
+                        return appliedAt && appliedAt >= leagueStart && appliedAt <= leagueEnd;
+                    });
+                }
+                
                 referralsData.sort((a, b) => {
                     const timeA = (a.createdAt as Timestamp)?.toMillis() || 0;
                     const timeB = (b.createdAt as Timestamp)?.toMillis() || 0;
@@ -67,7 +78,7 @@ function UserReferralsDialog({ user, open, onOpenChange }: { user: RankedUser | 
 
         fetchReferrals();
 
-    }, [open, firestore, user]);
+    }, [open, firestore, user, tournamentConfig]);
 
     if (!user) return null;
 
@@ -77,7 +88,7 @@ function UserReferralsDialog({ user, open, onOpenChange }: { user: RankedUser | 
                 <DialogHeader>
                     <DialogTitle className="text-cyan-300">Referrals by {user.fullName}</DialogTitle>
                     <DialogDescription className="text-cyan-200/80">
-                        This user has {user.tournamentScore || 0} referrals that contributed to their score. Showing the most recent ones.
+                        Showing referrals made during the current league session.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="max-h-[60vh] overflow-y-auto space-y-4 py-4 pr-2">
@@ -97,7 +108,7 @@ function UserReferralsDialog({ user, open, onOpenChange }: { user: RankedUser | 
                             </div>
                         ))
                     ) : (
-                        <p className="text-center text-muted-foreground">No referrals found.</p>
+                        <p className="text-center text-muted-foreground">No referrals found for this league session.</p>
                     )}
                 </div>
                  <DialogFooter>
@@ -346,6 +357,7 @@ export default function LeaderboardPage() {
                         id: concludedDoc.id,
                         headline: concludedData.headline,
                         tagline: concludedData.tagline,
+                        startDate: concludedData.startDate,
                         endDate: concludedData.concludedAt,
                         prizeTiers: concludedData.prizeTiers,
                         isActive: false,
@@ -687,7 +699,7 @@ export default function LeaderboardPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-            <UserReferralsDialog user={selectedUserForReferrals} open={showReferralsDialog} onOpenChange={setShowReferralsDialog} />
+            <UserReferralsDialog user={selectedUserForReferrals} open={showReferralsDialog} onOpenChange={setShowReferralsDialog} tournamentConfig={tournamentConfig} />
         </div>
     );
 }

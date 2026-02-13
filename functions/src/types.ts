@@ -41,7 +41,8 @@ export type TournamentConfig = {
   id: string;
   headline: string;
   tagline: string;
-  endDate: Timestamp | Date;
+  startDate?: Timestamp;
+  endDate: Timestamp;
   prizeTiers: PrizeTier[];
   isActive: boolean;
 };
@@ -50,8 +51,9 @@ export type ConcludedTournament = {
   id: string; // original config doc id
   headline: string;
   tagline: string;
+  startDate?: Timestamp;
   concludedAt: Timestamp;
-  endDate: Timestamp | Date;
+  endDate: Timestamp;
   prizeTiers: PrizeTier[];
   winners: {
     userId: string;

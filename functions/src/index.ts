@@ -62,6 +62,7 @@ export const updateTournamentConfig = functions.runWith({ timeoutSeconds: 120 })
                 const concludedTournamentData: Omit<ConcludedTournament, 'id'> = {
                     headline: currentConfig.headline,
                     tagline: currentConfig.tagline,
+                    startDate: currentConfig.startDate,
                     concludedAt: admin.firestore.Timestamp.now(),
                     endDate: currentConfig.endDate,
                     prizeTiers: currentConfig.prizeTiers || [],
@@ -95,10 +96,16 @@ export const updateTournamentConfig = functions.runWith({ timeoutSeconds: 120 })
                     endDate = config.endDate instanceof admin.firestore.Timestamp ? config.endDate.toDate() : new Date(config.endDate);
                     endDate.setHours(23, 59, 59, 999);
                 }
-                 const dataToUpdate = {
+                 const dataToUpdate:Partial<TournamentConfig> = {
                     ...config,
                     ...(endDate && { endDate: admin.firestore.Timestamp.fromDate(endDate) })
                 };
+
+                const isLaunching = !currentConfig.isActive && config.isActive === true;
+                if (isLaunching) {
+                    dataToUpdate.startDate = admin.firestore.Timestamp.now();
+                }
+
                 await configDocRef.set(dataToUpdate, { merge: true });
                 return { success: true, message: 'Tournament configuration has been saved.' };
             }
@@ -109,10 +116,13 @@ export const updateTournamentConfig = functions.runWith({ timeoutSeconds: 120 })
                 endDate = config.endDate instanceof admin.firestore.Timestamp ? config.endDate.toDate() : new Date(config.endDate);
                 endDate.setHours(23, 59, 59, 999);
             }
-             const dataToUpdate = {
+             const dataToUpdate:Partial<TournamentConfig> = {
                 ...config,
                 ...(endDate && { endDate: admin.firestore.Timestamp.fromDate(endDate) })
             };
+            if (config.isActive) {
+                dataToUpdate.startDate = admin.firestore.Timestamp.now();
+            }
             await configDocRef.set(dataToUpdate, { merge: true });
             return { success: true, message: 'Tournament configuration has been saved.' };
         }

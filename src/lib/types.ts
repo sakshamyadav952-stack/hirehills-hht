@@ -38,6 +38,7 @@ export type TournamentConfig = {
   id: string;
   headline: string;
   tagline: string;
+  startDate?: Timestamp | Date;
   endDate: Timestamp | Date;
   prizeTiers: PrizeTier[];
   isActive: boolean;
@@ -47,6 +48,7 @@ export type ConcludedTournament = {
   id: string; // original config doc id
   headline: string;
   tagline: string;
+  startDate?: Timestamp | Date;
   concludedAt: Timestamp;
   endDate: Timestamp | Date;
   prizeTiers: PrizeTier[];
@@ -212,6 +214,7 @@ export type UserProfile = {
   kuberIds?: KuberId[];
   aiMessageCount?: number;
   lastAiMessageReset?: Timestamp;
+  crushOracleInstalled?: boolean;
   tournamentId?: string | null;
   tournamentScore?: number;
   tournamentScoreLastUpdated?: Timestamp;
