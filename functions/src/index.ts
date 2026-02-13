@@ -659,6 +659,56 @@ export const unenrollAllUsersFromTournament = functions.runWith({ timeoutSeconds
     }
 });
 
+export const leaveTournament = functions.runWith({ timeoutSeconds: 30 }).https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "You must be logged in.");
+    }
+    const uid = context.auth.uid;
+    const userDocRef = db.collection('users').doc(uid);
+
+    try {
+        await userDocRef.update({
+            tournamentId: 'left',
+            tournamentScore: -1 // Use a negative score to filter them out easily
+        });
+        return { success: true, message: "You have left the league." };
+    } catch (error) {
+        console.error("Error leaving tournament:", error);
+        throw new functions.https.HttpsError("internal", "Could not leave the league.");
+    }
+});
+
+export const adminRejoinTournament = functions.runWith({ timeoutSeconds: 30 }).https.onCall(async (data, context) => {
+    const adminUid = context.auth?.uid;
+    if (!adminUid) {
+        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated.");
+    }
+    const adminDoc = await db.collection('users').doc(adminUid).get();
+    const isSuperAdmin = adminUid === 'obaW90LhdhPDvbvh06wWwBfucTk1' || adminUid === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
+    const isAdminByField = adminDoc.exists && adminDoc.data()?.isAdmin === true;
+    if (!isSuperAdmin && !isAdminByField) {
+        throw new functions.https.HttpsError("permission-denied", "User must be an admin.");
+    }
+
+    const { userId } = data;
+    if (!userId || typeof userId !== 'string') {
+        throw new functions.https.HttpsError("invalid-argument", "A valid user ID must be provided.");
+    }
+
+    const userDocRef = db.collection('users').doc(userId);
+    try {
+        await userDocRef.update({
+            tournamentId: null,
+            tournamentScore: 0,
+            tournamentScoreLastUpdated: null
+        });
+        return { success: true, message: "User is now eligible to rejoin the league." };
+    } catch (error) {
+        console.error("Error rejoining user:", error);
+        throw new functions.https.HttpsError("internal", "Could not process the rejoin request.");
+    }
+});
+
 export const verifySolanaAddress = functions.https.onCall(async (data) => {
     const { address } = data;
     if (!address || typeof address !== 'string') {
@@ -728,3 +778,5 @@ export const requestUsdcWithdrawal = functions.runWith({secrets: ["SOLANA_FEE_WA
 });
     
 
+
+    

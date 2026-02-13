@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -983,7 +984,7 @@ export function MiningDashboard() {
               </svg>
               <Coins className="w-8 h-8 text-amber-400" />
             </div>
-            <Link href="/referrals" className="flex flex-col items-end cursor-pointer">
+            <Link href="/kuber" className="flex flex-col items-end cursor-pointer">
                 <div className="flex items-center gap-2">
                     <Pyramid className="h-4 w-4 text-indigo-300" />
                     <span className="font-mono text-lg font-bold text-indigo-300">{cumulativeFBloc.toFixed(4)}</span>
@@ -1026,7 +1027,7 @@ export function MiningDashboard() {
         
         {isSessionActive && userProfile.adsUnlocked && <DailyCoins isSessionActive={isSessionActive} />}
         
-        {userProfile.tournamentId && <TournamentCard />}
+        {userProfile.tournamentId && userProfile.tournamentId !== 'left' && <TournamentCard />}
 
         <Card className="text-white border-amber-400/50 bg-slate-900/50">
             <CardHeader>
@@ -1129,3 +1130,5 @@ export function MiningDashboard() {
     </div>
   );
 }
+
+    

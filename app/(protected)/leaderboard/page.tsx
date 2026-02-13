@@ -9,7 +9,7 @@ import { collection, query, where, getDocs, orderBy, doc, getDoc, Timestamp, lim
 import type { UserProfile, TournamentConfig, PrizeTier, ConcludedTournament } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign, Medal, Users, ShieldAlert, Check, ExternalLink } from 'lucide-react';
+import { Loader2, RefreshCw, Trophy, ArrowLeft, Crown, DollarSign, Medal, Users, ShieldAlert, Check, ExternalLink, ArrowRight } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -234,7 +234,7 @@ const LeaderboardListItem = ({ user, isCurrentUser, prizeTiers, onReferralsClick
 
 
 export default function LeaderboardPage() {
-    const { userProfile: currentUser, loading: authLoading, verifyUsdcAddress, requestUsdcWithdrawal } = useAuth();
+    const { userProfile: currentUser, loading: authLoading, verifyUsdcAddress, requestUsdcWithdrawal, leaveTournament } = useAuth();
     const firestore = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
@@ -255,6 +255,8 @@ export default function LeaderboardPage() {
     const [withdrawnAmount, setWithdrawnAmount] = useState(0);
     const [showReferralsDialog, setShowReferralsDialog] = useState(false);
     const [selectedUserForReferrals, setSelectedUserForReferrals] = useState<RankedUser | null>(null);
+    const [isLeaving, setIsLeaving] = useState(false);
+
 
     const amountToWithdraw = currentUser?.tournamentWinning || 0;
 
@@ -475,6 +477,19 @@ export default function LeaderboardPage() {
         setShowReferralsDialog(true);
     };
 
+    const handleLeaveLeague = async () => {
+        setIsLeaving(true);
+        try {
+            await leaveTournament();
+            router.push('/'); // Redirect home
+        } catch (error) {
+            // error is handled in auth hook
+        } finally {
+            setIsLeaving(false);
+        }
+    };
+
+
     const { currentUserOnBoard, isCurrentUserWinner, currentUserPrize } = useMemo(() => {
         if (!currentUser || !leaderboard || !tournamentConfig) {
             return { currentUserOnBoard: null, isCurrentUserWinner: false, currentUserPrize: 0 };
@@ -495,13 +510,13 @@ export default function LeaderboardPage() {
         );
     }
     
-    if (!tournamentConfig) {
+    if (!tournamentConfig || (currentUser?.tournamentId === 'left')) {
         return (
              <div className="flex h-screen items-center justify-center app-background text-center p-4">
                 <Card className="futuristic-card-bg-secondary text-white border-purple-400/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
                     <CardHeader>
-                        <CardTitle className="text-purple-300">No League Found</CardTitle>
-                        <CardDescription className="text-purple-200/70">There is no league data available. Check back later!</CardDescription>
+                        <CardTitle className="text-purple-300">{currentUser?.tournamentId === 'left' ? 'You Have Left the League' : 'No League Found'}</CardTitle>
+                        <CardDescription className="text-purple-200/70">{currentUser?.tournamentId === 'left' ? 'You can rejoin in a future league.' : 'There is no league data available. Check back later!'}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Button onClick={() => router.push('/')} className="bg-purple-600 hover:bg-purple-700">Go to Dashboard</Button>
@@ -638,6 +653,30 @@ export default function LeaderboardPage() {
                                 <Users className="h-4 w-4 text-indigo-300" />
                                 <span className="text-sm font-semibold">{totalPlayers} Players</span>
                             </div>
+                             {!isConcluded && tournamentConfig.isActive && currentUser?.tournamentId === tournamentConfig.id && (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="destructive" size="sm">
+                                            Leave League
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                If you leave the league, you will forfeit your current rank and any potential prizes. You will not be able to rejoin this league session.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleLeaveLeague} disabled={isLeaving}>
+                                                {isLeaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                Confirm & Leave
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -704,3 +743,5 @@ export default function LeaderboardPage() {
     );
 }
 
+
+    

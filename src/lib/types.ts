@@ -215,7 +215,7 @@ export type UserProfile = {
   aiMessageCount?: number;
   lastAiMessageReset?: Timestamp;
   crushOracleInstalled?: boolean;
-  tournamentId?: string | null;
+  tournamentId?: string | null | 'left';
   tournamentScore?: number;
   tournamentScoreLastUpdated?: Timestamp;
   usdcAddress?: string;
@@ -309,3 +309,5 @@ export type Review = {
     wasPlayStorePrompted?: boolean;
     updatedAt?: Timestamp;
 };
+
+    

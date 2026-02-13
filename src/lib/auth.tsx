@@ -130,6 +130,8 @@ interface AuthContextType {
   unenrollUserFromTournament: (userId: string) => Promise<void>;
   enrollAllEligibleUsers: (userIds: string[]) => Promise<void>;
   unenrollAllTournamentUsers: () => Promise<void>;
+  leaveTournament: () => Promise<void>;
+  adminRejoinTournament: (userId: string) => Promise<void>;
   verifyUsdcAddress: (address: string) => Promise<{ isValid: boolean }>;
   requestUsdcWithdrawal: (address: string) => Promise<{ transactionId: string } | undefined>;
   referralEarnings: number;
@@ -2437,6 +2439,38 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     }
   }, [userProfile, toast]);
 
+  const leaveTournament = useCallback(async () => {
+    try {
+        const functions = getFunctions();
+        const leaveFunction = httpsCallable(functions, 'leaveTournament');
+        await leaveFunction();
+        toast({ title: 'You have left the league.', description: 'Your rank and score have been removed.' });
+    } catch (error: any) {
+        console.error("Error leaving tournament:", error);
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        throw error;
+    }
+  }, [toast]);
+
+  const adminRejoinTournament = useCallback(async (userId: string) => {
+    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62' || userProfile?.id === 'obaW90LhdhPDvbvh06wWwBfucTk1';
+    if (!isAdmin) {
+      toast({ title: 'Unauthorized', variant: 'destructive' });
+      throw new Error('Not an admin');
+    }
+    try {
+        const functions = getFunctions();
+        const rejoinFunction = httpsCallable(functions, 'adminRejoinTournament');
+        await rejoinFunction({ userId });
+        toast({ title: 'User Rejoined', description: 'The user is now eligible for the league again.' });
+    } catch (error: any) {
+        console.error("Error rejoining user:", error);
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        throw error;
+    }
+  }, [userProfile, toast]);
+
+
     const verifyUsdcAddress = useCallback(async (address: string): Promise<{ isValid: boolean }> => {
         try {
             const functions = getFunctions();
@@ -2915,6 +2949,8 @@ const setUserHasRatedOnPlayStore = useCallback(async () => {
     unenrollUserFromTournament,
     enrollAllEligibleUsers,
     unenrollAllTournamentUsers,
+    leaveTournament,
+    adminRejoinTournament,
     verifyUsdcAddress,
     requestUsdcWithdrawal,
     referralEarnings,
@@ -2935,3 +2971,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+    

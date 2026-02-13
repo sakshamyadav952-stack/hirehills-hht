@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, onSnapshot, doc, updateDoc, runTransaction, arrayUnion, query, where, getDocs, writeBatch, increment, getDoc, orderBy, Timestamp, documentId, limit, DocumentSnapshot, startAfter } from 'firebase/firestore';
-import { Loader2, User, Shield, Inbox, Check, X, Coins, Award, Settings, MessageSquare, Send, Star, Banknote, Building2, UserCheck, Share2, AtSign, Smartphone, Gift, Save, FilePen, Search, Crown, Trash2, Trophy, Users as UsersIcon } from 'lucide-react';
+import { Loader2, User, Shield, Inbox, Check, X, Coins, Award, Settings, MessageSquare, Send, Star, Banknote, Building2, UserCheck, Share2, AtSign, Smartphone, Gift, Save, FilePen, Search, Crown, Trash2, Trophy, Users as UsersIcon, ArrowRight } from 'lucide-react';
 import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction, Note, Review, AirdropConfig, TournamentConfig, PrizeTier, ConcludedTournament } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
@@ -1218,6 +1218,46 @@ function WinnersManager() {
 }
 
 function LeftManager() {
+    const firestore = useFirestore();
+    const { adminRejoinTournament } = useAuth();
+    const [leftUsers, setLeftUsers] = useState<UserProfile[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [processingId, setProcessingId] = useState<string | null>(null);
+
+    const fetchLeftUsers = useCallback(async () => {
+        if (!firestore) return;
+        setIsLoading(true);
+        try {
+            const q = query(collection(firestore, 'users'), where('tournamentId', '==', 'left'));
+            const snapshot = await getDocs(q);
+            const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
+            setLeftUsers(users);
+        } catch (error) {
+            console.error("Error fetching left users:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [firestore]);
+
+    useEffect(() => {
+        fetchLeftUsers();
+    }, [fetchLeftUsers]);
+    
+    const handleRejoin = async (userId: string) => {
+        setProcessingId(userId);
+        try {
+            await adminRejoinTournament(userId);
+            // Optimistically remove from list
+            setLeftUsers(prev => prev.filter(u => u.id !== userId));
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    if (isLoading) {
+        return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    }
+    
     return (
         <Card>
             <CardHeader>
@@ -1227,11 +1267,33 @@ function LeftManager() {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
-                    <Inbox className="h-12 w-12 text-muted-foreground" />
-                    <h3 className="font-semibold">No Users Have Left</h3>
-                    <p className="text-sm text-muted-foreground">This section will show users who have chosen to leave the league.</p>
-                </div>
+                {leftUsers.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
+                        <Inbox className="h-12 w-12 text-muted-foreground" />
+                        <h3 className="font-semibold">No Users Have Left</h3>
+                        <p className="text-sm text-muted-foreground">This section is empty.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {leftUsers.map(user => (
+                            <Card key={user.id} className="p-4 hover:bg-muted/50 transition-colors">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <Avatar className="h-12 w-12"><AvatarImage src={user.profileImageUrl} alt={user.fullName} /><AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback></Avatar>
+                                        <div>
+                                            <Link href={`/admin/find-user?profileCode=${user.profileCode}`} className="font-semibold hover:underline">{user.fullName}</Link>
+                                            <p className="text-sm text-muted-foreground">{user.profileCode}</p>
+                                        </div>
+                                    </div>
+                                    <Button onClick={() => handleRejoin(user.id!)} disabled={processingId === user.id} size="sm">
+                                        {processingId === user.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserCheck className="mr-2 h-4 w-4" />}
+                                        Rejoin
+                                    </Button>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
