@@ -594,7 +594,7 @@ export default function LeaderboardPage() {
                                         </div>
                                         <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold" onClick={handleWithdraw} disabled={!isVerified || isWithdrawing || amountToWithdraw <= 0}>
                                             {isWithdrawing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                            Withdraw {withdrawnAmount.toFixed(2)} USDC
+                                            Withdraw {amountToWithdraw.toFixed(2)} USDC
                                         </Button>
                                         {transactionId && (
                                             <Button asChild variant="link" className="w-full mt-2 text-cyan-300 hover:text-white">
