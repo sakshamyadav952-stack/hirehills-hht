@@ -135,7 +135,6 @@ interface AuthContextType {
   referralEarnings: number;
   respondToKuberRequest: (request: KuberRequest) => Promise<void>;
   clearKuberSessionLogs: () => Promise<void>;
-  creditCrushOracleInstall: () => Promise<void>;
   dailyAdCoins: DailyAdCoin[];
   t: (key: string) => string;
   setLanguage: (lang: string) => void;
@@ -2816,36 +2815,6 @@ const setUserHasRatedOnPlayStore = useCallback(async () => {
     }
 }, [userProfile, firestore, toast]);
 
-const creditCrushOracleInstall = useCallback(async () => {
-    if (!user || !userProfile) {
-      toast({ title: 'Error', description: 'You must be logged in.', variant: 'destructive' });
-      throw new Error("Not logged in");
-    }
-    if (userProfile.crushOracleInstalled) {
-      return;
-    }
-
-    const userDocRef = doc(firestore, 'users', user.uid);
-    try {
-      await updateDoc(userDocRef, {
-        crushOracleInstalled: true,
-        minedCoins: increment(10)
-      });
-      toast({
-        title: 'Reward Credited!',
-        description: '10 BLIT have been added to your wallet.'
-      });
-    } catch (error) {
-      console.error("Error crediting Crush Oracle install:", error);
-      toast({
-        title: 'Error',
-        description: 'Could not credit your reward. Please try again.',
-        variant: 'destructive'
-      });
-      throw error;
-    }
-  }, [user, userProfile, firestore, toast]);
-
   useEffect(() => {
     if (loading || isSigningIn) return;
 
@@ -2951,7 +2920,6 @@ const creditCrushOracleInstall = useCallback(async () => {
     referralEarnings,
     respondToKuberRequest,
     clearKuberSessionLogs,
-    creditCrushOracleInstall,
     dailyAdCoins,
     t,
     setLanguage
@@ -2967,11 +2935,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-
-
-
-    
-
-
-    

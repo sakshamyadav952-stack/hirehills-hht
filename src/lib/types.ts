@@ -212,7 +212,6 @@ export type UserProfile = {
   kuberIds?: KuberId[];
   aiMessageCount?: number;
   lastAiMessageReset?: Timestamp;
-  crushOracleInstalled?: boolean;
   tournamentId?: string | null;
   tournamentScore?: number;
   tournamentScoreLastUpdated?: Timestamp;
