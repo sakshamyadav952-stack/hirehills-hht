@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import Link from 'next/link';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 
 type RankedUser = UserProfile & { rank: number };
 const PAGE_SIZE = 10;
@@ -227,14 +228,14 @@ export default function LeaderboardPage() {
             const configDoc = await getDoc(configDocRef);
 
             if (configDoc.exists() && configDoc.data()?.isActive) {
-                const activeTournament = { id: configDoc.id, ...configDoc.data() } as TournamentConfig;
-                setTournamentConfig(activeTournament);
+                const activeLeague = { id: configDoc.id, ...configDoc.data() } as TournamentConfig;
+                setTournamentConfig(activeLeague);
 
-                const usersQuery = query(collection(firestore, 'users'), where('tournamentId', '==', activeTournament.id));
+                const usersQuery = query(collection(firestore, 'users'), where('tournamentId', '==', activeLeague.id));
                 const countSnapshot = await getDocs(usersQuery);
                 setTotalPlayers(countSnapshot.size);
 
-                await fetchActiveLeaderboard(activeTournament, null);
+                await fetchActiveLeaderboard(activeLeague, null);
             } else {
                 const concludedQuery = query(collection(firestore, 'concludedTournaments'), orderBy('concludedAt', 'desc'), limit(1));
                 const concludedSnapshot = await getDocs(concludedQuery);
@@ -384,8 +385,8 @@ export default function LeaderboardPage() {
              <div className="flex h-screen items-center justify-center app-background text-center p-4">
                 <Card className="futuristic-card-bg-secondary text-white border-purple-400/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
                     <CardHeader>
-                        <CardTitle className="text-purple-300">No Tournament Found</CardTitle>
-                        <CardDescription className="text-purple-200/70">There is no tournament data available. Check back later!</CardDescription>
+                        <CardTitle className="text-purple-300">No League Found</CardTitle>
+                        <CardDescription className="text-purple-200/70">There is no league data available. Check back later!</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Button onClick={() => router.push('/')} className="bg-purple-600 hover:bg-purple-700">Go to Dashboard</Button>
@@ -410,12 +411,38 @@ export default function LeaderboardPage() {
             </header>
 
             <main className="flex-1 overflow-y-auto">
+                 <div className="text-center pt-4">
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="link" className="text-xs text-muted-foreground hover:text-white">Terms &amp; Conditions</Button>
+                        </DialogTrigger>
+                        <DialogContent className="text-white border-cyan-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
+                            <DialogHeader>
+                                <DialogTitle className="text-cyan-300 flex items-center gap-2"><ShieldAlert />Referral League: Terms &amp; Conditions</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4 text-cyan-200/80">
+                                <ul className="list-disc space-y-3 pl-5">
+                                    <li>Winner(s) will have to disclose their referrals made during the Referral League.</li>
+                                    <li>The winner's Solana transaction address will be made public to verify payment.</li>
+                                    <li>If any spam-related activity or fake referrals are found, the user's account will be made disabled.</li>
+                                    <li>Blistree reserves the right to change the rules or cancel the league at any time without prior notice.</li>
+                                    <li>All decisions made by the Blistree team are final.</li>
+                                </ul>
+                            </div>
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                    <Button className="w-full bg-cyan-500 text-black hover:bg-cyan-400">Understood</Button>
+                                </DialogClose>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
                 <div className="p-4 sm:p-6 space-y-6">
                     {isConcluded && (
                         <Card className="text-center bg-green-900/50 border-green-500 shadow-[0_0_20px_rgba(74,222,128,0.4)]">
                             <CardHeader>
                                 <CardTitle className="text-2xl text-green-300">Congratulations to the Winners!</CardTitle>
-                                <CardDescription className="text-green-200/80">The tournament has concluded. Prizes will be distributed shortly.</CardDescription>
+                                <CardDescription className="text-green-200/80">The league has concluded. Prizes will be distributed shortly.</CardDescription>
                             </CardHeader>
                             {isCurrentUserWinner && (
                                 <CardContent className="pt-4 mt-4 border-t border-green-500/20">
@@ -503,7 +530,7 @@ export default function LeaderboardPage() {
                 </div>
 
                 {currentUserOnBoard && tournamentConfig?.isActive && (
-                    <div className="sticky top-16 z-20 bg-slate-900/95 backdrop-blur-md border-b border-indigo-400/20 py-2 px-4 sm:px-6">
+                    <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-md border-b border-indigo-400/20 py-2 px-4 sm:px-6">
                         <LeaderboardListItem user={currentUserOnBoard} isCurrentUser={true} prizeTiers={tournamentConfig.prizeTiers || []}/>
                     </div>
                 )}
@@ -518,7 +545,7 @@ export default function LeaderboardPage() {
                             <div className="text-center p-12 border-2 border-dashed border-slate-700 rounded-xl">
                                 <Trophy className="mx-auto h-12 w-12 text-slate-500" />
                                 <h3 className="mt-4 text-lg font-semibold">Leaderboard is Empty</h3>
-                                <p className="mt-1 text-sm text-muted-foreground">{isConcluded ? 'There were no winners in this tournament.' : 'No users have been enrolled yet.'}</p>
+                                <p className="mt-1 text-sm text-muted-foreground">{isConcluded ? 'There were no winners in this league.' : 'No users have been enrolled yet.'}</p>
                             </div>
                         ) : (
                             leaderboard.map(user => (
@@ -562,4 +589,3 @@ export default function LeaderboardPage() {
         </div>
     );
 }
-

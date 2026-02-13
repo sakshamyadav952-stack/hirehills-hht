@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -423,7 +422,7 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
                 }
 
                 if (forTournament) {
-                    // For tournament eligibility, user must not already be enrolled.
+                    // For league eligibility, user must not already be enrolled.
                     return !user.tournamentId;
                 } else {
                     // For promoter eligibility, user must not already be a promoter.
@@ -508,7 +507,7 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
                         <CardTitle>Eligible Users</CardTitle>
                         <CardDescription>
                             {forTournament 
-                                ? "Showing active users with over 100 BLIT who are not enrolled in the tournament."
+                                ? "Showing active users with over 100 BLIT who are not enrolled in the league."
                                 : "Showing active users with over 100 BLIT who are not promoters."
                             }
                         </CardDescription>
@@ -691,7 +690,7 @@ function PromotersManager() {
     );
 }
 
-function TournamentManager() {
+function LeagueManager() {
     const { updateTournamentConfig, withdrawTournament } = useAuth();
     const { toast } = useToast();
     const firestore = useFirestore();
@@ -711,7 +710,7 @@ function TournamentManager() {
             } else {
                 setConfigExists(false);
                 setConfig({
-                    headline: "Referral Tournament",
+                    headline: "Referral League",
                     tagline: "Refer friends to climb the leaderboard!",
                     prizeTiers: [{ id: '1', startRank: 1, endRank: 1, prize: 100 }],
                     isActive: false,
@@ -734,7 +733,7 @@ function TournamentManager() {
          if (!config.endDate) {
             toast({
                 title: 'End Date Required',
-                description: 'Please set an end date before launching the tournament.',
+                description: 'Please set an end date before launching the league.',
                 variant: 'destructive',
             });
             return;
@@ -779,8 +778,8 @@ function TournamentManager() {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Set Tournament</CardTitle>
-                <CardDescription>Configure and launch the referral tournament.</CardDescription>
+                <CardTitle>Set League</CardTitle>
+                <CardDescription>Configure and launch the referral league.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="space-y-2">
@@ -815,13 +814,13 @@ function TournamentManager() {
                         {config.isActive ? (
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="outline">Stop Tournament</Button>
+                                    <Button variant="outline">Stop League</Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            This will stop the tournament, finalize rankings, and save winner data. This action cannot be undone.
+                                            This will stop the league, finalize rankings, and save winner data. This action cannot be undone.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
@@ -835,14 +834,14 @@ function TournamentManager() {
                                 <AlertDialogTrigger asChild>
                                     <Button variant="destructive" disabled={isWithdrawing}>
                                         {isWithdrawing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        Withdraw Tournament
+                                        Withdraw League
                                     </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            This will withdraw the tournament and reset all player scores, preparing for a new launch. This action cannot be undone.
+                                            This will withdraw the league and reset all player scores, preparing for a new launch. This action cannot be undone.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
@@ -994,13 +993,13 @@ function EnrolledUsersManager() {
             <Card>
                 <CardHeader>
                     <CardTitle>Enrolled Users</CardTitle>
-                    <CardDescription>Users enrolled in the current tournament.</CardDescription>
+                    <CardDescription>Users enrolled in the current league.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
                         <Inbox className="h-12 w-12 text-muted-foreground" />
-                        <h3 className="font-semibold">No Active Tournament</h3>
-                        <p className="text-sm text-muted-foreground">There is no tournament to show enrolled users for.</p>
+                        <h3 className="font-semibold">No Active League</h3>
+                        <p className="text-sm text-muted-foreground">There is no league to show enrolled users for.</p>
                     </div>
                 </CardContent>
             </Card>
@@ -1013,7 +1012,7 @@ function EnrolledUsersManager() {
                  <div className="flex justify-between items-start">
                     <div>
                         <CardTitle>Enrolled Users</CardTitle>
-                        <CardDescription>Users enrolled in the current tournament.</CardDescription>
+                        <CardDescription>Users enrolled in the current league.</CardDescription>
                     </div>
                      <Badge variant="secondary" className="text-lg">Total: {totalEnrolled}</Badge>
                 </div>
@@ -1037,7 +1036,7 @@ function EnrolledUsersManager() {
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    This action will unenroll ALL users from the tournament and reset their scores. This cannot be undone.
+                                    This action will unenroll ALL users from the league and reset their scores. This cannot be undone.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -1083,7 +1082,7 @@ function EnrolledUsersManager() {
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Unenroll {user.fullName}?</AlertDialogTitle>
                                                     <AlertDialogDescription>
-                                                        This will remove the user from the tournament and reset their score. Are you sure?
+                                                        This will remove the user from the league and reset their score. Are you sure?
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
@@ -1152,8 +1151,8 @@ function WinnersManager() {
     if (!concludedTournaments || concludedTournaments.length === 0) {
         return <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
             <Inbox className="h-12 w-12 text-muted-foreground" />
-            <h3 className="font-semibold">No Concluded Tournaments</h3>
-            <p className="text-sm text-muted-foreground">There are no past tournament results to display.</p>
+            <h3 className="font-semibold">No Concluded Leagues</h3>
+            <p className="text-sm text-muted-foreground">There are no past league results to display.</p>
         </div>;
     }
 
@@ -1253,7 +1252,7 @@ function AdminDashboard() {
           <TabsTrigger value="total-supply">Total Supply</TabsTrigger>
           <TabsTrigger value="airdrop">Airdrop</TabsTrigger>
           <TabsTrigger value="user-management">UM</TabsTrigger>
-          <TabsTrigger value="rt">RT</TabsTrigger>
+          <TabsTrigger value="rt">Referral League</TabsTrigger>
         </TabsList>
          <TabsContent value="total-supply" className="mt-6">
             <TotalSupplyManager />
@@ -1278,13 +1277,13 @@ function AdminDashboard() {
         <TabsContent value="rt" className="mt-6">
             <Tabs defaultValue="tournament" className="w-full">
                 <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="tournament">ST</TabsTrigger>
-                    <TabsTrigger value="eligible-rt">RT Eligible</TabsTrigger>
+                    <TabsTrigger value="tournament">SL</TabsTrigger>
+                    <TabsTrigger value="eligible-rt">RL Eligible</TabsTrigger>
                     <TabsTrigger value="enrolled">Enrolled</TabsTrigger>
                     <TabsTrigger value="winners">Winners</TabsTrigger>
                 </TabsList>
                 <TabsContent value="tournament" className="mt-6">
-                    <TournamentManager />
+                    <LeagueManager />
                 </TabsContent>
                 <TabsContent value="eligible-rt" className="mt-6">
                     <EligibleUsersManager showEnrollButton={true} forTournament={true} />
@@ -1305,14 +1304,3 @@ function AdminDashboard() {
 export default function AdminDashboardPage() {
     return <AdminDashboard />;
 }
-
-
-
-
-
-    
-
-
-
-
-
