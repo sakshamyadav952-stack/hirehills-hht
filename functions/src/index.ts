@@ -1,5 +1,4 @@
 
-
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { UserProfile, TournamentConfig, ConcludedTournament } from "./types";
@@ -177,7 +176,6 @@ export const applyReferralCode = functions
         }
 
         let tournamentDoc = null;
-        // FIX: The referrer just needs to be enrolled in a tournament, not necessarily be a promoter.
         if (referrerData.tournamentId) {
             const tournamentDocRef = db.collection('config').doc('tournament');
             tournamentDoc = await transaction.get(tournamentDocRef);
@@ -198,19 +196,6 @@ export const applyReferralCode = functions
           throw new functions.https.HttpsError("invalid-argument", "You cannot use your own referral code.");
         }
 
-        // 3. Security Check: Redo conflict check on the server
-        const refereeDevices = refereeData.deviceNames || [];
-        const referrerDevices = referrerData.deviceNames || [];
-        const hasCommonDevice = refereeDevices.some(device => referrerDevices.includes(device));
-        
-        const refereeIps = refereeData.ipAddresses || [];
-        const referrerIps = referrerData.ipAddresses || [];
-        const hasCommonIp = refereeIps.some(ip => referrerIps.includes(ip));
-
-        if (hasCommonDevice && hasCommonIp) {
-            throw new functions.https.HttpsError("permission-denied", "Same user detected. Cannot apply referral.");
-        }
-        
         const rewardAmount = 10;
         
         // --- All WRITES happen last ---
@@ -232,7 +217,6 @@ export const applyReferralCode = functions
 
         if (tournamentDoc && tournamentDoc.exists) {
             const tournamentData = tournamentDoc.data();
-            // FIX: Check if tournament is active and referrer is enrolled, without checking for promoter status.
             if (tournamentData && tournamentData.isActive && tournamentData.endDate.toMillis() > now.toMillis()) {
                 if (referrerData.tournamentId === tournamentDoc.id) {
                     referrerUpdateData.tournamentScore = admin.firestore.FieldValue.increment(1);
@@ -776,7 +760,5 @@ export const requestUsdcWithdrawal = functions.runWith({secrets: ["SOLANA_FEE_WA
         return { success: true, transactionId: transactionSignature };
     });
 });
-    
-
 
     

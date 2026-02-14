@@ -1411,7 +1411,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Code Already Applied");
     }
 
-    // Quick frontend check to prevent unnecessary backend calls
     const usersRef = collection(firestore, 'users');
     const q = query(usersRef, where('profileCode', '==', profileCode.toUpperCase()));
     const querySnapshot = await getDocs(q);
@@ -1420,14 +1419,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast({ title: 'Error', description: "The profile code you entered is not valid.", variant: 'destructive' });
         throw new Error("The profile code you entered is not valid.");
     }
-    const referrerData = querySnapshot.docs[0].data() as UserProfile;
-    
-    const refereeDevices = userProfile.deviceNames || [];
-    const referrerDevices = referrerData.deviceNames || [];
-    if (refereeDevices.some(device => referrerDevices.includes(device))) {
-        toast({ title: 'Error', description: "Cannot apply referral to an account using the same device.", variant: 'destructive' });
-        throw new Error("Same device conflict.");
+    const referrerDoc = querySnapshot.docs[0];
+    const referrerId = referrerDoc.id;
+
+    if (referrerId === userProfile.id) {
+        toast({ title: 'Error', description: 'You cannot use your own referral code.', variant: 'destructive' });
+        throw new Error("Cannot refer self.");
     }
+
+    // New frontend-only check for conflicting accounts
+    const refereeDevices = userProfile.deviceNames || [];
+    const refereeIps = userProfile.ipAddresses || [];
+
+    if (refereeDevices.length > 0 && refereeIps.length > 0) {
+        const deviceQueryChunk = refereeDevices.slice(-30);
+        const deviceConflictQuery = query(usersRef, where('deviceNames', 'array-contains-any', deviceQueryChunk));
+        
+        const deviceConflictSnapshot = await getDocs(deviceConflictQuery);
+        
+        for (const conflictDoc of deviceConflictSnapshot.docs) {
+            if (conflictDoc.id === userProfile.id) continue;
+
+            const potentialConflictUser = conflictDoc.data() as UserProfile;
+            const potentialConflictIps = potentialConflictUser.ipAddresses || [];
+            
+            const hasCommonIp = refereeIps.some(ip => potentialConflictIps.includes(ip));
+
+            if (hasCommonIp) {
+                if (potentialConflictUser.referredBy === referrerId) {
+                     toast({
+                        title: 'Referral Not Allowed',
+                        description: "Another account on this device has already used this referral code. Please contact support if you believe this is an error.",
+                        variant: 'destructive',
+                        duration: 7000,
+                    });
+                    throw new Error("Conflicting account already used this referral.");
+                }
+            }
+        }
+    }
+
 
     try {
         const functions = getFunctions();
@@ -1438,7 +1469,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.success) {
             toast({ title: 'Referral Success!', description: data.message });
         } else {
-            // This case might not be reached if the cloud function throws HttpsError
             throw new Error(data.message || 'An unknown error occurred.');
         }
 
@@ -2976,3 +3006,4 @@ export const useAuth = () => {
   return context;
 };
 
+    
