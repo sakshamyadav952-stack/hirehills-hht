@@ -670,15 +670,13 @@ export function MiningDashboard() {
     if (!userProfile || !userProfile.unclaimedCoins || userProfile.unclaimedCoins <= 0 || isClaiming) return;
     
     setIsClaiming(true);
-    setTimeout(async () => {
-        const claimedAmount = await claimMinedCoins();
-        if (claimedAmount !== undefined) {
-            setClaimedAmountForFeedback(claimedAmount);
-            setShowFeedbackDialog(true);
-        }
+    const claimedAmount = await claimMinedCoins();
+    if (claimedAmount !== undefined) {
+        setClaimedAmountForFeedback(claimedAmount);
+        setShowFeedbackDialog(true);
+    } else {
         setIsClaiming(false);
-    }, 1000);
-
+    }
   }, [userProfile, isClaiming, claimMinedCoins]);
   
   const handleTerminateSession = async () => {
@@ -852,17 +850,28 @@ export function MiningDashboard() {
   
   const renderActionButton = () => {
     if (isStartingMining) {
+      return (
+        <div className="flex flex-col items-center">
+          <button
+            disabled
+            className="w-24 h-24 rounded-full border-4 border-primary/50 flex items-center justify-center relative shadow-[0_0_20px] shadow-primary/50"
+          >
+            <div className="w-20 h-20 rounded-full border-2 border-primary/80 flex flex-col items-center justify-center">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              <span className="text-xs font-semibold text-primary mt-1">Starting...</span>
+            </div>
+          </button>
+        </div>
+      );
+    }
+  
+    if (isClaiming) {
         return (
             <div className="flex flex-col items-center">
-                <button
-                    disabled
-                    className="w-24 h-24 rounded-full border-4 border-primary/50 flex items-center justify-center relative shadow-[0_0_20px] shadow-primary/50"
-                >
-                    <div className="w-20 h-20 rounded-full border-2 border-primary/80 flex flex-col items-center justify-center">
-                        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                        <span className="text-xs font-semibold text-primary mt-1">Starting...</span>
-                    </div>
-                </button>
+                <Button size="lg" disabled className="bg-amber-500 hover:bg-amber-600 text-white shadow-[0_0_20px] shadow-amber-500/80">
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin"/>
+                    Claiming...
+                </Button>
             </div>
         );
     }
@@ -886,20 +895,20 @@ export function MiningDashboard() {
       );
     }
   
-    if (isFinalizing || (userProfile.unclaimedCoins && userProfile.unclaimedCoins > 0 && isClaiming)) {
-        return (
-            <div className="flex flex-col items-center justify-center h-24 w-24">
-                <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
-                <span className="text-xs text-amber-300 mt-2">{isClaiming ? 'Claiming...' : 'Finalizing...'}</span>
-            </div>
-        );
+    if (isFinalizing) {
+      return (
+        <div className="flex flex-col items-center justify-center h-24 w-24">
+          <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
+          <span className="text-xs text-amber-300 mt-2">Finalizing...</span>
+        </div>
+      );
     }
 
     if (userProfile.unclaimedCoins && userProfile.unclaimedCoins > 0) {
       return (
         <div className="flex flex-col items-center">
-            <Button size="lg" onClick={handleClaimCoins} disabled={isClaiming} className="bg-amber-500 hover:bg-amber-600 text-white shadow-[0_0_20px] shadow-amber-500/80">
-              {isClaiming ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Coins className="mr-2 h-5 w-5" />}
+            <Button size="lg" onClick={handleClaimCoins} className="bg-amber-500 hover:bg-amber-600 text-white shadow-[0_0_20px] shadow-amber-500/80">
+              <Coins className="mr-2 h-5 w-5" />
               {t('Claim Coins')}
             </Button>
         </div>
@@ -924,7 +933,12 @@ export function MiningDashboard() {
   return (
     <div className={cn("grid", "mining-background")}>
       <PotentialEarningsDialog open={showPotentialEarnings} onOpenChange={setShowPotentialEarnings} userProfile={userProfile} />
-      <FeedbackDialog open={showFeedbackDialog} onOpenChange={setShowFeedbackDialog} claimedAmount={claimedAmountForFeedback} />
+      <FeedbackDialog open={showFeedbackDialog} onOpenChange={(open) => {
+            setShowFeedbackDialog(open);
+            if (!open) {
+                setIsClaiming(false); // Reset state when dialog closes
+            }
+        }} claimedAmount={claimedAmountForFeedback} />
        <AlertDialog open={showDeviceConflictDialog} onOpenChange={setShowDeviceConflictDialog}>
         <AlertDialogContent className="text-white border-amber-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
             <AlertDialogHeader>
@@ -1131,4 +1145,3 @@ export function MiningDashboard() {
   );
 }
 
-    

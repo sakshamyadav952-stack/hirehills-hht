@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import type { ReactNode } from 'react';
@@ -1099,16 +1098,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
         const functions = getFunctions();
         const claimFunction = httpsCallable(functions, 'claimMinedCoins');
-        const result = await claimFunction();
-        const data = result.data as { success: boolean; claimedAmount: number };
         
-        if (!data.success) {
+        const claimPromise = claimFunction();
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Claim request timed out. Please check your internet connection and try again.")), 30000);
+        });
+
+        const result = await Promise.race([claimPromise, timeoutPromise]) as { data: { success: boolean; claimedAmount: number } };
+        
+        if (!result.data.success) {
             throw new Error("Cloud function reported failure.");
         }
         
-        return data.claimedAmount;
+        return result.data.claimedAmount;
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to claim coins via cloud function:", error);
         setUserProfile(prev => prev ? { 
             ...prev, 
@@ -1116,7 +1120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             unclaimedCoins: claimedAmount,
             kuberBlocks: userProfile.kuberBlocks
         } : null);
-        toast({ title: 'Claim Failed', description: 'Could not claim your coins. Please try again.', variant: 'destructive' });
+        toast({ title: 'Claim Failed', description: error.message || 'Could not claim your coins. Please try again.', variant: 'destructive' });
         return undefined;
     }
   }, [user, userProfile, toast]);
@@ -2972,4 +2976,3 @@ export const useAuth = () => {
   return context;
 };
 
-    
