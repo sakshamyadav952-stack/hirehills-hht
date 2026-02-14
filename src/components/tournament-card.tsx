@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -51,9 +52,9 @@ const Countdown = ({ expiryDate }: { expiryDate: Date | Timestamp }) => {
 };
 
 const TimeUnit = ({ value, label }: { value: number; label: string; }) => (
-    <div className="p-1 bg-black/20 rounded-md text-center min-w-[32px] border border-slate-700">
-        <div className="font-mono font-bold text-slate-200 text-base">{String(value).padStart(2, '0')}</div>
-        <div className="text-[10px] text-slate-400 uppercase leading-tight">{label}</div>
+    <div className="p-1 sm:p-1.5 bg-black/20 rounded-md text-center min-w-[32px] sm:min-w-[40px] border border-slate-700">
+        <div className="font-mono font-bold text-slate-200 text-base sm:text-lg">{String(value).padStart(2, '0')}</div>
+        <div className="text-[9px] sm:text-[10px] text-slate-400 uppercase leading-tight">{label}</div>
     </div>
 );
 
@@ -84,14 +85,14 @@ export function TournamentCard() {
   return (
     <Card className="relative overflow-hidden border-2 border-indigo-500 bg-gradient-to-br from-indigo-900/50 via-slate-900 to-indigo-900/30 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]">
       <CardHeader className="p-3 sm:p-4">
-        <div className="flex justify-between items-start gap-2">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
             <div className="flex-1">
                 <CardTitle className="text-base sm:text-lg font-bold text-indigo-300 tracking-wider flex items-center gap-2">
                     <Trophy className="h-4 w-4 sm:h-5 sm:w-5" />
                     {config.headline}
                 </CardTitle>
                 <CardDescription className="text-indigo-200/90 text-xs">
-                    {isEnded ? "The tournament has ended. Check the results!" : config.tagline}
+                    {isEnded ? "The league has ended. Check the results!" : config.tagline}
                 </CardDescription>
             </div>
             {!isEnded && config.isActive && config.endDate && <Countdown expiryDate={config.endDate} />}
