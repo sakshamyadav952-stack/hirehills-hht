@@ -1,4 +1,3 @@
-
 'use client';
     
 import {
@@ -9,7 +8,6 @@ import {
   CollectionReference,
   DocumentReference,
   SetOptions,
-  serverTimestamp,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import {FirestorePermissionError} from '@/firebase/errors';
@@ -18,9 +16,8 @@ import {FirestorePermissionError} from '@/firebase/errors';
  * Initiates a setDoc operation for a document reference.
  * Does NOT await the write operation internally.
  */
-export function setDocumentNonBlocking(docRef: DocumentReference, data: any) {
-  const dataWithTimestamp = { ...data, createdAt: serverTimestamp() };
-  setDoc(docRef, dataWithTimestamp).catch(error => {
+export function setDocumentNonBlocking(docRef: DocumentReference, data: any, options: SetOptions) {
+  setDoc(docRef, data, options).catch(error => {
     errorEmitter.emit(
       'permission-error',
       new FirestorePermissionError({
@@ -40,15 +37,14 @@ export function setDocumentNonBlocking(docRef: DocumentReference, data: any) {
  * Returns the Promise for the new doc ref, but typically not awaited by caller.
  */
 export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
-  const dataWithTimestamp = { ...data, createdAt: serverTimestamp() };
-  const promise = addDoc(colRef, dataWithTimestamp)
+  const promise = addDoc(colRef, data)
     .catch(error => {
       errorEmitter.emit(
         'permission-error',
         new FirestorePermissionError({
           path: colRef.path,
           operation: 'create',
-          requestResourceData: data, // Pass original data without timestamp for clarity
+          requestResourceData: data,
         })
       )
     });

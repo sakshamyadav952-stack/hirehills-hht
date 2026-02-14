@@ -1,125 +1,153 @@
+/**
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. All data is private, and a user
+ * can only access documents that correspond to their own unique user ID (UID). This provides
+ * a high level of security and data privacy by default.
+ *
+ * Data Structure:
+ * The data structure is flat, with two primary top-level collections: `/user_profiles` and
+ * `/user_wallets`. The document ID for any document within these collections is always the
+ * user's Firebase Authentication UID. There are no subcollections.
+ *
+ * Key Security Decisions:
+ * - Strict Ownership: All operations (read, write, delete) are restricted to the document
+ *   owner, identified by matching their auth UID with the document ID.
+ * - No User Listing: Listing the documents in the top-level collections (`/user_profiles`
+ *   or `/user_wallets`) is explicitly disallowed. This prevents any user from enumerating
+ *   the entire user base of the application. Clients must know the specific path to a
+ *   document (e.g., `/user_profiles/their-own-uid`) to perform a `get` request.
+ * - Default Deny: Any access not explicitly granted by a rule is denied.
+ *
+ * Denormalization for Authorization:
+ * To ensure rules are fast, secure, and simple, this ruleset relies on denormalized data.
+ * The `UserProfile` document must contain an `id` field that matches the document's {userId}.
+ * Similarly, the `UserWallet` document must contain `id` and `userId` fields that match.
+ * These fields are validated on creation and enforced as immutable on update. This "Authorization
+ * Independence" strategy eliminates the need for slow and costly `get()` calls in rules,
+ * making each authorization decision self-contained and performant.
+ *
+ * Structural Segregation:
+ * User profiles and wallets are stored in separate collections. This ensures that all
+ * documents within a given collection share the same security context (private owner-only),
+ * which simplifies rule logic and reinforces the security model.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ----------------------------------------------------------------------
+    // Helper Functions
+    // ----------------------------------------------------------------------
+
+    /**
+     * Checks if a user is authenticated.
+     */
     function isSignedIn() {
       return request.auth != null;
     }
 
+    /**
+     * Checks if the currently authenticated user's UID matches the provided userId.
+     * This is the primary function for verifying document ownership.
+     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isAdmin() {
-  return isSignedIn() && (
-    request.auth.uid == 'ZzOKXow0RlhaK3snDD0BLcbeBL62' ||
-    request.auth.uid == 'obaW90LhdhPDvbvh06wWwBfucTk1'
-  );
-}
-
-    /* =====================================================
-       CATCH-ALL: Public reads, admin full access
-       ===================================================== */
-    match /{document=**} {
-      allow get, list: if true;
-      allow create, update, delete: if isAdmin();
+    /**
+     * Verifies that a document already exists. Used for update and delete operations
+     * to prevent acting on non-existent data.
+     */
+    function isExistingDocument() {
+      return resource != null;
     }
 
-    /* =====================================================
-       USERS (PUBLIC PROFILE DATA ONLY)
-       ===================================================== */
-    match /users/{userId} {
-      allow get, list: if true;
-      allow create, update, delete: if isOwner(userId) || isAdmin();
+    /**
+     * Combines ownership and existence checks for secure update and delete operations.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && isExistingDocument();
     }
 
-    /* =====================================================
-       🔐 PRIVATE USER DATA (EMAIL / MOBILE)
-       ONLY USER + ADMIN
-       ===================================================== */
-    match /users/{userId}/private/{docId} {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create, update, delete: if isOwner(userId) || isAdmin();
+    /**
+     * Validates required denormalized fields for a new UserProfile.
+     * Ensures the internal 'id' field matches the document's path ID ({userId}).
+     */
+    function hasValidUserProfileCreateData(userId) {
+      let data = request.resource.data;
+      return data.id == userId;
     }
 
-    /* =====================================================
-       MINING SESSIONS
-       ===================================================== */
-    match /users/{userId}/miningSessions/{miningSessionId} {
-      allow get, list: if true;
-      allow create, update, delete:
-        if (isOwner(userId) && request.resource.data.userId == userId)
-        || isAdmin();
+    /**
+     * Ensures critical relational fields in a UserProfile are not changed after creation.
+     */
+    function isUserProfileDataImmutable() {
+      let incomingData = request.resource.data;
+      let existingData = resource.data;
+      return incomingData.id == existingData.id;
     }
 
-    /* =====================================================
-       USER PROFILE SUBCOLLECTION
-       ===================================================== */
-    match /users/{userId}/userProfile/{profileId} {
-      allow get, list: if true;
-      allow create, update, delete:
-        if (isOwner(userId) && request.resource.data.userId == userId)
-        || isAdmin();
+    /**
+     * Validates required denormalized fields for a new UserWallet.
+     * Ensures internal 'id' and 'userId' fields match the document's path ID ({userId}).
+     */
+    function hasValidUserWalletCreateData(userId) {
+      let data = request.resource.data;
+      return data.id == userId && data.userId == userId;
     }
 
-    /* =====================================================
-       USER NOTES
-       ===================================================== */
-    match /users/{userId}/notes/{noteId} {
-      allow get, list: if true;
-      allow create, update, delete:
-        if isOwner(userId) || isAdmin();
+    /**
+     * Ensures critical relational fields in a UserWallet are not changed after creation.
+     */
+    function isUserWalletDataImmutable() {
+      let incomingData = request.resource.data;
+      let existingData = resource.data;
+      return incomingData.id == existingData.id &&
+             incomingData.userId == existingData.userId;
     }
 
-    /* =====================================================
-       PENDING TRANSFERS
-       ===================================================== */
-    match /pendingTransfers/{transferId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() || isAdmin();
-      allow update: if isAdmin();
-      allow delete:
-        if (isSignedIn() && request.auth.uid == resource.data.receiverId)
-        || isAdmin();
+    // ----------------------------------------------------------------------
+    // Collection Rules
+    // ----------------------------------------------------------------------
+
+    /**
+     * @description
+     *   Manages user profile documents. Only the owner of a profile can create,
+     *   read, update, or delete their own profile data.
+     * @path `/user_profiles/{userId}`
+     * @allow (get) An authenticated user with UID 'user123' reading their own profile at `/user_profiles/user123`.
+     * @deny (list) Any user, authenticated or not, attempting to list all documents in the `/user_profiles` collection.
+     * @deny (get) User 'user123' trying to read another user's profile at `/user_profiles/user456`.
+     * @principle
+     *   Restricts access to a user's own data tree and enforces relational integrity by
+     *   validating the denormalized `id` field within the document.
+     */
+    match /user_profiles/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && hasValidUserProfileCreateData(userId);
+      allow update: if isExistingOwner(userId) && isUserProfileDataImmutable();
+      allow delete: if isExistingOwner(userId);
     }
 
-    /* =====================================================
-       REFERRAL REQUESTS
-       ===================================================== */
-    match /referralRequests/{requestId} {
-      allow get, list: if true;
-      allow create:
-        if isSignedIn()
-        && request.resource.data.requesterId == request.auth.uid
-        && request.resource.data.targetUserId != request.auth.uid
-        && request.resource.data.status == 'pending'
-        || isAdmin();
-
-      allow update:
-        if (isSignedIn()
-        && request.auth.uid == resource.data.targetUserId)
-        || isAdmin();
-
-      allow delete:
-        if isSignedIn()
-        && (request.auth.uid == resource.data.requesterId
-        || request.auth.uid == resource.data.targetUserId)
-        || isAdmin();
-    }
-
-    /* =====================================================
-       TRANSACTIONS (DEV MODE)
-       ===================================================== */
-    match /transactions/{transactionId} {
-      allow get, list, create, update, delete: if true;
-    }
-
-    /* =====================================================
-       WITHDRAWAL REQUESTS
-       ===================================================== */
-    match /withdrawalRequests/{withdrawalId} {
-      allow get, list: if true;
-      allow create, update, delete: if isAdmin();
+    /**
+     * @description
+     *   Manages user wallet documents. Only the owner of a wallet can create,
+     *   read, update, or delete their own wallet data.
+     * @path `/user_wallets/{userId}`
+     * @allow (create) An authenticated user with UID 'user123' creating their wallet at `/user_wallets/user123`.
+     * @deny (list) Any user, authenticated or not, attempting to list all documents in the `/user_wallets` collection.
+     * @deny (update) User 'user123' trying to modify another user's wallet at `/user_wallets/user456`.
+     * @principle
+     *   Restricts access to a user's own data tree and enforces relational integrity by
+     *   validating the denormalized `id` and `userId` fields within the document.
+     */
+    match /user_wallets/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && hasValidUserWalletCreateData(userId);
+      allow update: if isExistingOwner(userId) && isUserWalletDataImmutable();
+      allow delete: if isExistingOwner(userId);
     }
   }
 }

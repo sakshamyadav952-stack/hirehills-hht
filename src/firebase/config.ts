@@ -1,8 +1,8 @@
 export const firebaseConfig = {
-  "projectId": "studio-7279145746-e15dc",
-  "appId": "1:835022962291:web:f5128a13b11ba1a85ff406",
-  "apiKey": "AIzaSyDY1uiOrQ5R4fjlGRK03PtXTHnWCDXIkVI",
-  "authDomain": "studio-7279145746-e15dc.firebaseapp.com",
+  "projectId": "kuber-coin-98071081-8d8b0",
+  "appId": "1:138380943147:web:6e206b7f414d6fcae42f6e",
+  "apiKey": "AIzaSyBQG3Ip7sAxSsGWTMnf42jVsq7iQiogWiE",
+  "authDomain": "kuber-coin-98071081-8d8b0.firebaseapp.com",
   "measurementId": "",
-  "messagingSenderId": "835022962291"
+  "messagingSenderId": "138380943147"
 };
