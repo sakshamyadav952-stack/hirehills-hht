@@ -30,6 +30,20 @@ function UserReferralsDialog({ user, open, onOpenChange, tournamentConfig }: { u
     const [referrals, setReferrals] = useState<UserProfile[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
+    const getMillisFromTimestamp = (ts: Timestamp | { seconds: number; nanoseconds: number } | Date | undefined | null): number | null => {
+        if (!ts) return null;
+        if (ts instanceof Timestamp) {
+            return ts.toMillis();
+        }
+        if (ts instanceof Date) {
+            return ts.getTime();
+        }
+        if (typeof ts === 'object' && 'seconds' in ts && typeof ts.seconds === 'number') {
+            return ts.seconds * 1000 + (ts.nanoseconds || 0) / 1000000;
+        }
+        return null;
+    };
+
     useEffect(() => {
         if (!open || !firestore || !user?.referrals || user.referrals.length === 0 || !tournamentConfig) {
             setReferrals([]);
@@ -43,7 +57,6 @@ function UserReferralsDialog({ user, open, onOpenChange, tournamentConfig }: { u
 
                 const allReferralsData: UserProfile[] = [];
                 const chunks: string[][] = [];
-                // Firestore 'in' query supports up to 30 elements.
                 for (let i = 0; i < referralIds.length; i += 30) {
                     chunks.push(referralIds.slice(i, i + 30));
                 }
@@ -60,20 +73,21 @@ function UserReferralsDialog({ user, open, onOpenChange, tournamentConfig }: { u
                 
                 let referralsData = allReferralsData;
                 
-                // NEW: Filter by tournament dates
                 if (tournamentConfig.startDate && tournamentConfig.endDate) {
-                    const leagueStart = tournamentConfig.startDate instanceof Timestamp ? tournamentConfig.startDate.toMillis() : new Date(tournamentConfig.startDate).getTime();
-                    const leagueEnd = tournamentConfig.endDate instanceof Timestamp ? tournamentConfig.endDate.toMillis() : new Date(tournamentConfig.endDate).getTime();
+                    const leagueStart = getMillisFromTimestamp(tournamentConfig.startDate);
+                    const leagueEnd = getMillisFromTimestamp(tournamentConfig.endDate);
 
-                    referralsData = referralsData.filter(ref => {
-                        const appliedAt = (ref.referralAppliedAt as Timestamp)?.toMillis();
-                        return appliedAt && appliedAt >= leagueStart && appliedAt <= leagueEnd;
-                    });
+                    if (leagueStart && leagueEnd) {
+                        referralsData = referralsData.filter(ref => {
+                            const appliedAt = getMillisFromTimestamp(ref.referralAppliedAt);
+                            return appliedAt && appliedAt >= leagueStart && appliedAt <= leagueEnd;
+                        });
+                    }
                 }
                 
                 referralsData.sort((a, b) => {
-                    const timeA = (a.createdAt as Timestamp)?.toMillis() || 0;
-                    const timeB = (b.createdAt as Timestamp)?.toMillis() || 0;
+                    const timeA = getMillisFromTimestamp(a.referralAppliedAt) || 0;
+                    const timeB = getMillisFromTimestamp(b.referralAppliedAt) || 0;
                     return timeB - timeA;
                 });
                 
@@ -295,6 +309,7 @@ export default function LeaderboardPage() {
             const baseQuery = query(
                 collection(firestore, 'users'),
                 where('tournamentId', '==', config.id),
+                where('tournamentScore', '>', 0),
                 orderBy('tournamentScore', 'desc'),
                 orderBy('tournamentScoreLastUpdated', 'asc')
             );
@@ -562,7 +577,7 @@ export default function LeaderboardPage() {
                                 <CardContent className="pt-4 mt-4 border-t border-green-500/20">
                                     <div className="text-left space-y-4">
                                         <p className="text-center text-lg font-semibold text-white">
-                                            You've won ${currentUserPrize.toFixed(2)}!
+                                            You've won ${amountToWithdraw.toFixed(2)}!
                                         </p>
                                         <Alert variant="destructive">
                                             <ShieldAlert className="h-4 w-4" />
@@ -707,7 +722,7 @@ export default function LeaderboardPage() {
                             <div className="text-center p-12 border-2 border-dashed border-slate-700 rounded-xl">
                                 <Trophy className="mx-auto h-12 w-12 text-slate-500" />
                                 <h3 className="mt-4 text-lg font-semibold">Leaderboard is Empty</h3>
-                                <p className="mt-1 text-sm text-muted-foreground">{isConcluded ? 'There were no winners in this league.' : 'No users have been enrolled yet.'}</p>
+                                <p className="mt-1 text-sm text-muted-foreground">{isConcluded ? 'There were no winners in this league.' : 'No users have scored points yet.'}</p>
                             </div>
                         ) : (
                             leaderboard.map(user => (
@@ -752,4 +767,3 @@ export default function LeaderboardPage() {
         </div>
     );
 }
-
