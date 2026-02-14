@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { ReactNode } from 'react';
@@ -490,12 +491,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (ipResponse.ok) {
                 const ipAddress = await ipResponse.text();
                 if (!profile.ipAddresses?.includes(ipAddress)) {
-                    const currentIps = profile.ipAddresses || [];
-                    if (currentIps.length >= 20) {
-                        const oldestIp = currentIps[0];
-                        await updateDoc(userDocRef, { ipAddresses: arrayRemove(oldestIp) });
-                    }
-                    updates.ipAddresses = arrayUnion(ipAddress);
+                    const newIps = [...(profile.ipAddresses || []), ipAddress].slice(-20);
+                    updates.ipAddresses = newIps;
                 }
             }
         } catch (error) {
