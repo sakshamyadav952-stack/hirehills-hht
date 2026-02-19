@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { Button } from "@/components/ui/button";
 import { Pickaxe, Play, Loader2, LogIn, Check, X, Info, Coins, Clapperboard, Gift, Clock, Zap, MessageSquare, User, AtSign, Trash2, Pyramid, Download, Trophy, ArrowRight } from "lucide-react";
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogCancel, AlertDialogAction, AlertDialogDescription } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose, DialogFooter } from './ui/dialog';
 import { SpinWheel } from "@/components/spin-wheel";
 import { MysteryBox } from "@/components/mystery-box";
 import { useRouter } from "next/navigation";
@@ -253,8 +253,6 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
   const [claimAttemptCooldown, setClaimAttemptCooldown] = useState(false);
   const [availableCoins, setAvailableCoins] = useState<DailyAdCoin[]>([]);
   const [missedCoins, setMissedCoins] = useState<DailyAdCoin[]>([]);
-  const [nextPendingCoin, setNextPendingCoin] = useState<DailyAdCoin | null>(null);
-  const [nextCoinTime, setNextCoinTime] = useState('');
   const [currentTime, setCurrentTime] = useState(Date.now());
 
 
@@ -282,7 +280,6 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
 
     const available: DailyAdCoin[] = [];
     const missed: DailyAdCoin[] = [];
-    const pending: DailyAdCoin[] = [];
 
     allCoins.forEach(coin => {
       if (coin.status === 'collected') return;
@@ -295,55 +292,12 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
         available.push(coin);
       } else if (now >= coin.expiresAt) {
         missed.push(coin);
-      } else {
-        pending.push(coin);
       }
     });
 
     setAvailableCoins(available);
     setMissedCoins(missed);
-    
-    pending.sort((a,b) => a.availableAt - b.availableAt);
-    let nextCoin = pending[0] || null;
-
-    if (available.length > 0) {
-        setNextCoinTime(`Available for: ${formatTime(available[0].expiresAt - now)}`);
-    } else if (missed.length > 0 && isSessionActive) {
-        setNextCoinTime('You have missed coins to claim!');
-    } else if (nextCoin) {
-        setNextCoinTime(`Next coin in: ${formatTime(nextCoin.availableAt - now)}`);
-    } else {
-        const schedule = ['08:00', '12:00', '16:00', '22:00'];
-        const nowDate = new Date(now);
-        let nextCoinTimeValue: Date | null = null;
-        
-        for (const time of schedule) {
-            const [hour, minute] = time.split(':').map(Number);
-            const potentialTime = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), hour, minute, 0, 0);
-            if (potentialTime > nowDate) {
-                nextCoinTimeValue = potentialTime;
-                break;
-            }
-        }
-        
-        if (!nextCoinTimeValue) {
-            const tomorrow = new Date(nowDate);
-            tomorrow.setDate(nowDate.getDate() + 1);
-            const [hour, minute] = schedule[0].split(':').map(Number);
-            nextCoinTimeValue = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), hour, minute, 0, 0);
-        }
-        
-        setNextCoinTime(`Next coin in: ${formatTime(nextCoinTimeValue.getTime() - now)}`);
-        
-        nextCoin = {
-            id: 'next-scheduled',
-            status: 'pending',
-            availableAt: nextCoinTimeValue.getTime(),
-            expiresAt: nextCoinTimeValue.getTime() + 30 * 60 * 1000
-        };
-    }
-    setNextPendingCoin(nextCoin);
-  }, [currentTime, dailyAdCoins, isSessionActive]);
+  }, [currentTime, dailyAdCoins]);
 
 
   const handleCollect = async (coinId: string) => {
@@ -361,9 +315,9 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
     const claimedAmount = await claimMissedAdCoin(coinId, adElement);
     if (claimedAmount) {
       setClaimedCoinAmount(claimedAmount);
-      setShowClaimDialog(false); // Close the list dialog
+      setShowClaimDialog(false);
       setTimeout(() => {
-        setShowClaimConfirmation(true); // Show the confirmation dialog after 15 seconds
+        setShowClaimConfirmation(true);
       }, 15000);
     }
   };
@@ -375,89 +329,23 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
     }, 20000); // 20 seconds
   };
 
-  const renderActionButton = () => {
-    if (availableCoins.length > 0) {
-      return (
-        <Button onClick={() => handleCollect(availableCoins[0].id)} disabled={isClaiming} className="w-full text-white font-bold shadow-lg border border-blue-400/50 hover:bg-blue-500 transition-all duration-150 transform hover:scale-105" style={{ backgroundColor: '#3180F5' }}>
-          <Gift className="mr-2 h-5 w-5" />
-          {isClaiming ? <Loader2 className="animate-spin" /> : `Collect Coin (${formatTime(availableCoins[0].expiresAt - currentTime)})`}
-        </Button>
-      );
-    }
-    if (isSessionActive && missedCoins.length > 0) {
-      return (
-        <Button onClick={() => setShowClaimDialog(true)} className="w-full bg-amber-500/80 text-amber-50 font-bold shadow-lg border border-amber-400/50 hover:bg-amber-500 transition-all duration-150 transform hover:scale-105">
-          <Coins className="mr-2 h-5 w-5" />
-          Claim Missed Coins ({missedCoins.length})
-        </Button>
-      );
-    }
-    
-    return null;
-  };
-
-  const CircuitNumber = ({ number }: { number: number }) => (
-    <svg viewBox="0 0 80 120" className="w-14 h-20" style={{ filter: "drop-shadow(0 0 10px #ffc107)" }}>
-      <defs>
-        <linearGradient id="circuit-glow" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#ffee77" />
-          <stop offset="100%" stopColor="#ffc107" />
-        </linearGradient>
-      </defs>
-      <text
-        x="40"
-        y="80"
-        fontFamily="sans-serif"
-        fontSize="100"
-        fontWeight="bold"
-        fill="url(#circuit-glow)"
-        textAnchor="middle"
-      >
-        {number}
-      </text>
-    </svg>
-  );
-
-  const showNextCoinInfo = availableCoins.length === 0 && nextPendingCoin;
+  if (availableCoins.length === 0 && (!isSessionActive || missedCoins.length === 0)) {
+      return null;
+  }
 
   return (
-      <div className="relative rounded-xl p-4 text-white overflow-hidden bg-black/30 backdrop-blur-sm" style={{ boxShadow: 'inset 0 0 0 1px #4a4a6a, 0 0 20px rgba(74, 74, 106, 0.5)' }}>
-        <div className="absolute inset-0 bg-grid-amber-300/10 [mask-image:radial-gradient(ellipse_at_center,white_20%,transparent_70%)]"></div>
-        <div className="absolute -inset-1 rounded-xl border-2 border-transparent" style={{ background: 'linear-gradient(135deg, #00d9ff, #c002ff) border-box', WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)', WebkitMaskComposite: 'xor', maskComposite: 'exclude' }}></div>
-        
-        <div className="relative z-10 flex flex-col justify-between">
-            <div className="flex justify-between items-start">
-                <div>
-                <CardTitle className="text-lg font-bold text-amber-300 flex items-center gap-2">
-                    <Clock className="h-5 w-5"/>
-                    Daily Coins
-                </CardTitle>
-                <CardDescription className="text-cyan-300/80 text-xs mt-1">
-                    {nextCoinTime}
-                </CardDescription>
-                </div>
-            </div>
-            
-            <div className="flex-grow flex items-center justify-center min-h-[8rem]">
-                {availableCoins.length > 0 ? (
-                    <div className="text-center">
-                        <CircuitNumber number={availableCoins.length} />
-                    </div>
-                ) : showNextCoinInfo ? (
-                    <div className="text-center">
-                        <p className="text-xl font-bold text-amber-300" style={{ textShadow: "0 0 8px rgba(251, 191, 36, 0.7)" }}>Next Coin</p>
-                        <p className="text-2xl font-bold text-white mt-1">
-                            {new Date(nextPendingCoin.availableAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
-                        </p>
-                    </div>
-                ) : null}
-            </div>
-
-
-            <div className="flex-shrink-0 pt-4">
-                {renderActionButton()}
-            </div>
-        </div>
+      <div className="w-full space-y-4">
+        {availableCoins.length > 0 ? (
+            <Button onClick={() => handleCollect(availableCoins[0].id)} disabled={isClaiming} className="w-full h-14 text-white font-bold shadow-lg border border-blue-400/50 hover:bg-blue-500 transition-all duration-150 transform hover:scale-[1.02]" style={{ backgroundColor: '#3180F5' }}>
+                <Gift className="mr-2 h-5 w-5" />
+                {isClaiming ? <Loader2 className="animate-spin" /> : `Collect Daily Coin (${formatTime(availableCoins[0].expiresAt - currentTime)})`}
+            </Button>
+        ) : isSessionActive && missedCoins.length > 0 ? (
+            <Button onClick={() => setShowClaimDialog(true)} className="w-full h-14 bg-amber-500 text-black font-bold shadow-lg border border-amber-400/50 hover:bg-amber-400 transition-all duration-150 transform hover:scale-[1.02]">
+                <Coins className="mr-2 h-5 w-5" />
+                Claim Missed Coins ({missedCoins.length})
+            </Button>
+        ) : null}
 
         <AlertDialog open={showClaimDialog} onOpenChange={setShowClaimDialog}>
              <AlertDialogContent className="text-white border-amber-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
@@ -1019,28 +907,11 @@ export function MiningDashboard() {
         
         <AirdropCard />
         
-        {isSessionActive && <DailyCoins isSessionActive={isSessionActive} />}
+        <DailyCoins isSessionActive={isSessionActive} />
         
         {userProfile.tournamentId && userProfile.tournamentId !== 'left' && <TournamentCard />}
 
-        <Card className="text-white border-amber-400/50 bg-slate-900/50">
-            <CardHeader>
-                <CardTitle className="text-amber-300">Mystery Box</CardTitle>
-                <CardDescription className="text-amber-200/80">Open for a chance to boost your mining rate!</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex justify-center">
-                    <div className="w-1/2 max-w-[150px]">
-                        <MysteryBox type="8H" userProfile={userProfile} isSessionActive={isSessionActive} />
-                    </div>
-                </div>
-                {!isSessionActive && !(userProfile.unclaimedCoins && userProfile.unclaimedCoins > 0) && (
-                <p className="text-center text-sm text-muted-foreground mt-4">
-                    Start mining to open the box.
-                </p>
-                )}
-            </CardContent>
-        </Card>
+        <MysteryBox type="8H" userProfile={userProfile} isSessionActive={isSessionActive} />
         
         <Card className="text-white border-amber-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
             <CardHeader>
