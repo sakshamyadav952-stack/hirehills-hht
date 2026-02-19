@@ -304,7 +304,7 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
   const handleClaimMissed = async (coinId: string, adElement: string) => {
     const claimedAmount = await claimMissedAdCoin(coinId, adElement);
     if (claimedAmount) {
-      setClaimedAmount(claimedAmount);
+      setClaimedCoinAmount(claimedAmount);
       setShowClaimDialog(false);
       setTimeout(() => {
         setShowClaimConfirmation(true);
@@ -792,16 +792,18 @@ export function MiningDashboard() {
                 {renderActionButton()}
                 </div>
             </div>
+
+            {/* Task Buttons Integrated into the Main Card */}
+            <div className="mt-8 space-y-4 pt-6 border-t border-amber-500/20">
+                <DailyCoins isSessionActive={isSessionActive} />
+                <MysteryBox type="8H" userProfile={userProfile} isSessionActive={isSessionActive} />
+            </div>
             </div>
         </div>
 
         <AirdropCard />
         
-        <DailyCoins isSessionActive={isSessionActive} />
-        
          {userProfile.tournamentId && userProfile.tournamentId !== 'left' && <TournamentCard />}
-
-        <MysteryBox type="8H" userProfile={userProfile} isSessionActive={isSessionActive} />
       </div>
     </div>
   );
