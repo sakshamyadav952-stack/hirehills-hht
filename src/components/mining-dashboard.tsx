@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -1045,18 +1043,18 @@ export function MiningDashboard() {
 
         <Card className="text-white border-amber-400/50 bg-slate-900/50">
             <CardHeader>
-                <CardTitle className="text-amber-300">Mystery Boxes</CardTitle>
+                <CardTitle className="text-amber-300">Mystery Box</CardTitle>
                 <CardDescription className="text-amber-200/80">Open for a chance to boost your mining rate!</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-3 gap-4">
-                    <MysteryBox type="2H" userProfile={userProfile} isSessionActive={isSessionActive} />
-                    <MysteryBox type="4H" userProfile={userProfile} isSessionActive={isSessionActive} />
-                    <MysteryBox type="8H" userProfile={userProfile} isSessionActive={isSessionActive} />
+                <div className="flex justify-center">
+                    <div className="w-1/2 max-w-[150px]">
+                        <MysteryBox type="8H" userProfile={userProfile} isSessionActive={isSessionActive} />
+                    </div>
                 </div>
                 {!isSessionActive && !(userProfile.unclaimedCoins && userProfile.unclaimedCoins > 0) && (
                 <p className="text-center text-sm text-muted-foreground mt-4">
-                    Start mining to open boxes.
+                    Start mining to open the box.
                 </p>
                 )}
             </CardContent>
@@ -1144,4 +1142,3 @@ export function MiningDashboard() {
     </div>
   );
 }
-
