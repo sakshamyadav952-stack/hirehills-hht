@@ -33,11 +33,6 @@ export function MysteryBox({ type, userProfile, isSessionActive }: MysteryBoxPro
   const [rewardClaimed, setRewardClaimed] = useState(false);
   const [claimedAmount, setClaimedAmount] = useState(0);
   const [adCooldownRemaining, setAdCooldownRemaining] = useState(0);
-  const [isAndroidApp, setIsAndroidApp] = useState(false);
-
-  useEffect(() => {
-    setIsAndroidApp(typeof window.Android !== 'undefined');
-  }, []);
 
   const hours = parseInt(type.replace('H', ''));
 
@@ -86,8 +81,8 @@ export function MysteryBox({ type, userProfile, isSessionActive }: MysteryBoxPro
     
     const boostRate = 0.1;
     
-    // Trigger the native rewarded ad
-    if (isAndroidApp && window.Android && typeof window.Android.showRewardedAd === "function") {
+    // Trigger the native rewarded ad if available, otherwise simulate
+    if (typeof window !== 'undefined' && window.Android && typeof window.Android.showRewardedAd === "function") {
         window.Android.showRewardedAd();
     } else {
         console.log("Ad started (simulated environment)");
@@ -182,15 +177,13 @@ export function MysteryBox({ type, userProfile, isSessionActive }: MysteryBoxPro
                         onClick={handleWatchAd} 
                         className="w-full bg-amber-500 text-black hover:bg-amber-400 font-bold shadow-lg border-b-4 border-amber-700 active:border-b-0" 
                         size="lg" 
-                        disabled={adCooldownRemaining > 0 || !isAndroidApp}
+                        disabled={adCooldownRemaining > 0}
                     >
                         <div className="flex items-center justify-center gap-2">
                             <Clapperboard className="h-5 w-5" />
                             <span>
                                 {adCooldownRemaining > 0
                                 ? `Next Ad in: ${Math.ceil(adCooldownRemaining / 1000)}s`
-                                : !isAndroidApp
-                                ? "Ad Not Available"
                                 : "Watch Ad to Boost"}
                             </span>
                         </div>

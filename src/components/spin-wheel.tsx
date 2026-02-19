@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import * as React from "react";
@@ -120,12 +118,7 @@ export function SpinWheel({ onSpinEnd, userProfile, isSessionActive }: SpinWheel
     const [claimedAmount, setClaimedAmount] = useState(0);
     const [lastSpinResult, setLastSpinResult] = useState<number | null>(null);
     const [adCooldownRemaining, setAdCooldownRemaining] = useState(0);
-    const [isAndroidApp, setIsAndroidApp] = useState(false);
     const [multiplier, setMultiplier] = useState(1.5);
-
-    useEffect(() => {
-        setIsAndroidApp(typeof window.Android !== 'undefined');
-    }, []);
 
     const winningValueRef = useRef<number | null>(null);
 
@@ -256,14 +249,11 @@ export function SpinWheel({ onSpinEnd, userProfile, isSessionActive }: SpinWheel
     const handleWatchAd = async () => {
         if (winnings === null || rewardClaimed) return;
 
-        // Immediately trigger the native ad
-        if (isAndroidApp && window.Android && typeof window.Android.showRewardedAd === "function") {
+        // Trigger the native ad if available, otherwise simulate
+        if (typeof window !== 'undefined' && window.Android && typeof window.Android.showRewardedAd === "function") {
             window.Android.showRewardedAd();
         } else {
-            console.log("Ad feature not available in this environment.");
-            // If the ad can't be shown, we should probably just give the base reward.
-            await handleClaimBaseReward();
-            return;
+            console.log("Simulating ad watch in this environment.");
         }
 
         const finalWinnings = winnings * multiplier;
@@ -432,14 +422,12 @@ export function SpinWheel({ onSpinEnd, userProfile, isSessionActive }: SpinWheel
                             </AlertDialogHeader>
                             <div className="space-y-4 pt-4">
                                 {canWatchAd && (
-                                    <Button onClick={handleWatchAd} className="w-full bg-amber-500 text-black hover:bg-amber-400 font-bold shadow-lg border-b-4 border-amber-700 active:border-b-0" size="lg" disabled={adCooldownRemaining > 0 || !isAndroidApp}>
+                                    <Button onClick={handleWatchAd} className="w-full bg-amber-500 text-black hover:bg-amber-400 font-bold shadow-lg border-b-4 border-amber-700 active:border-b-0" size="lg" disabled={adCooldownRemaining > 0}>
                                         <div className="flex items-center justify-center gap-2">
                                             <Clapperboard className="h-5 w-5" />
                                             <span>
                                                 {adCooldownRemaining > 0
                                                 ? `Next Ad in: ${Math.ceil(adCooldownRemaining / 1000)}s`
-                                                : !isAndroidApp
-                                                ? "Ad Not Available"
                                                 : `Watch Ad for x${multiplier} Reward`}
                                             </span>
                                         </div>

@@ -182,11 +182,6 @@ const MissedCoinItem = ({ coin, onClaim, claimAttemptCooldown, onClaimAttempt }:
   const { userProfile } = useAuth();
   const [isClaiming, setIsClaiming] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
-  const [isAndroidApp, setIsAndroidApp] = useState(false);
-
-  useEffect(() => {
-    setIsAndroidApp(typeof window.Android !== 'undefined');
-  }, []);
 
   useEffect(() => {
     if (!userProfile?.lastMissedCoinClaimTimestamp) {
@@ -227,7 +222,7 @@ const MissedCoinItem = ({ coin, onClaim, claimAttemptCooldown, onClaimAttempt }:
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
-  const isButtonDisabled = isClaiming || cooldownRemaining > 0 || !isAndroidApp || claimAttemptCooldown;
+  const isButtonDisabled = isClaiming || cooldownRemaining > 0 || claimAttemptCooldown;
 
   return (
     <div className="flex items-center justify-between p-3 border rounded-md bg-slate-800/60 border-amber-400/20">
@@ -240,8 +235,6 @@ const MissedCoinItem = ({ coin, onClaim, claimAttemptCooldown, onClaimAttempt }:
                 ? <Loader2 className="h-4 w-4 animate-spin" /> 
                 : cooldownRemaining > 0
                 ? `Wait ${formatTime(cooldownRemaining)}`
-                : !isAndroidApp
-                ? "App Only"
                 : claimAttemptCooldown
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : 'Claim'}
@@ -528,7 +521,6 @@ export function MiningDashboard() {
   const router = useRouter();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const [isAndroidApp, setIsAndroidApp] = useState(false);
   const [showPotentialEarnings, setShowPotentialEarnings] = useState(false);
   const firestore = useFirestore();
 
@@ -587,12 +579,6 @@ export function MiningDashboard() {
       .catch(console.error);
   }, [userProfile?.language, textsToTranslate, userProfile]);
   // End translation logic
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsAndroidApp(typeof window.Android !== 'undefined');
-    }
-  }, []);
 
   const formatTime = (ms: number) => {
     if (ms < 0) return '00:00:00';
@@ -690,14 +676,10 @@ export function MiningDashboard() {
   };
     
     const handleWatchAd = () => {
-        if (window.Android && typeof window.Android.showRewardedAd === 'function') {
+        if (typeof window !== 'undefined' && window.Android && typeof window.Android.showRewardedAd === 'function') {
             window.Android.showRewardedAd();
         } else {
-            toast({
-                title: "Feature not available",
-                description: "This feature is only available on our Android app.",
-                variant: "destructive",
-            });
+            console.log("Simulating ad watch...");
         }
     };
     
@@ -1116,7 +1098,7 @@ export function MiningDashboard() {
             <DialogHeader>
                 <DialogTitle className="text-cyan-300 flex items-center gap-2">
                     <AtSign />
-                    Confirm Your {followPlatform === 'facebook' ? 'Facebook' : 'X'} Profile
+                    Confirm Your {followPlatform === 'facebook' ? 'Facebook' : 'X'} profile
                 </DialogTitle>
                 <DialogDescription className="text-cyan-200/80 pt-2">
                     Please enter the name shown on your {followPlatform === 'facebook' ? 'Facebook' : 'X'} profile to help us verify your follow.
