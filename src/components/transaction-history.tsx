@@ -32,7 +32,16 @@ export function TransactionHistory() {
     );
   }, [userProfile, firestore]);
 
-  const { data: transactions, isLoading } = useCollection<Transaction>([sentQuery, receivedQuery].filter(q => q !== null));
+  const { data: sentTransactions, isLoading: isLoadingSent } = useCollection<Transaction>(sentQuery);
+  const { data: receivedTransactions, isLoading: isLoadingReceived } = useCollection<Transaction>(receivedQuery);
+
+  const transactions = useMemo(() => {
+    const allTransactions = [...(sentTransactions || []), ...(receivedTransactions || [])];
+    const uniqueTransactions = Array.from(new Map(allTransactions.map(t => [t.id, t])).values());
+    return uniqueTransactions;
+  }, [sentTransactions, receivedTransactions]);
+
+  const isLoading = isLoadingSent || isLoadingReceived;
   
   const sortedTransactions = useMemo(() => {
     if (!transactions) return [];
