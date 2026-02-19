@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -189,10 +188,7 @@
   }
 
   .mining-background {
-    background-image: url('https://firebasestorage.googleapis.com/v0/b/studio-7279145746-e15dc.firebasestorage.app/o/Background%20image.jpeg?alt=media&token=51f9ad07-3c32-4a83-ba70-ef97da025105');
-    background-size: 100% 100%;
-    background-position: center;
-    background-repeat: no-repeat;
+    background: linear-gradient(145deg, #1a1a2e, #16213e);
     color: white;
   }
 
