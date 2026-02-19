@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAuth } from '@/lib/auth';
 import { Button } from "@/components/ui/button";
 import { Pickaxe, Play, Loader2, LogIn, Check, X, Info, Coins, Clapperboard, Gift, Clock, Zap, MessageSquare, User, AtSign, Trash2, Pyramid, Download, Trophy, ArrowRight } from "lucide-react";
@@ -10,9 +9,7 @@ import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogFooter,
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose, DialogFooter } from './ui/dialog';
 import { MysteryBox } from "@/components/mystery-box";
 import { useRouter } from "next/navigation";
-import { MiningAnimationV2 } from "./mining-animation-v2";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { formatDistanceToNow } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useFirestore } from "@/firebase";
 import { doc, onSnapshot, getDocs, query, where, collection, Firestore, Timestamp } from "firebase/firestore";
@@ -22,8 +19,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ToastProvider, SwipeableAlert, SwipeableAlertTitle, SwipeableAlertDescription, SwipeableAlertClose } from "@/components/ui/swipeable-alert";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { FeedbackDialog } from "./feedback-dialog";
-import { Label } from "./ui/label";
-import { Input } from "./ui/input";
 import { PotentialEarningsDialog } from "./potential-earnings-dialog";
 import { AirdropCard } from './airdrop-card';
 import { translateText } from "@/ai/flows/translate-flow";
@@ -309,7 +304,7 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
   const handleClaimMissed = async (coinId: string, adElement: string) => {
     const claimedAmount = await claimMissedAdCoin(coinId, adElement);
     if (claimedAmount) {
-      setClaimedCoinAmount(claimedAmount);
+      setClaimedAmount(claimedAmount);
       setShowClaimDialog(false);
       setTimeout(() => {
         setShowClaimConfirmation(true);
@@ -395,20 +390,20 @@ export function MiningDashboard() {
   const firestore = useFirestore();
 
   const [isClaiming, setIsClaiming] = useState(false);
-  const [isStartingMining, setIsStartingMining] = useState(false);
+  const [isStartingMining, setIsStartingMining ] = useState(false);
   const [isTerminating, setIsTerminating] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState('');
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
   const [claimedAmountForFeedback, setClaimedAmountForFeedback] = useState(0);
   const [showDeviceConflictDialog, setShowDeviceConflictDialog] = useState(false);
   const [conflictingAccounts, setConflictingAccounts] = useState<Partial<UserProfile>[]>([]);
-  const [cumulativeFBloc, setCumulativeFBloc] = useState(0);
+  const [cumulativeFBloc, setCumulativeFBloc ] = useState(0);
   const animationFrameRef = useRef<number>();
   const [translations, setTranslations] = useState<Record<string, string>>({});
   
   const isSessionActive = useMemo(() => {
       if (!userProfile?.sessionEndTime) return false;
-      return Date.now() < userProfile.sessionEndTime;
+       return Date.now() < userProfile.sessionEndTime;
   }, [userProfile?.sessionEndTime]);
 
   const displayCoins = useMemo(() => {
@@ -433,7 +428,7 @@ export function MiningDashboard() {
   useEffect(() => {
     if (!userProfile) return;
 
-    const targetLanguage = userProfile.language || 'en';
+     const targetLanguage = userProfile.language || 'en';
     if (targetLanguage === 'en') {
       setTranslations({});
       return;
@@ -441,7 +436,7 @@ export function MiningDashboard() {
 
     translateText({ texts: textsToTranslate, targetLanguage, isAdmin: false })
       .then(result => {
-        setTranslations(result.translations);
+        setTranslations(result.translations); 
       })
       .catch(console.error);
   }, [userProfile?.language, textsToTranslate, userProfile]);
@@ -463,7 +458,7 @@ export function MiningDashboard() {
             const now = Date.now();
             const remainingMs = userProfile.sessionEndTime! - now;
             if (remainingMs > 0) {
-                setTimeRemaining(formatTime(remainingMs));
+                setTimeRemaining(formatTime(remainingMs)); 
             } else {
                 setTimeRemaining('00:00:00');
                 clearInterval(interval);
@@ -479,7 +474,7 @@ export function MiningDashboard() {
         } else {
              setTimeRemaining('00:00:00');
         }
-    }
+     }
 
     return () => {
         if (interval) clearInterval(interval);
@@ -505,7 +500,7 @@ export function MiningDashboard() {
     setIsStartingMining(true);
     try {
         const durationInMinutes = await getGlobalSessionDuration();
-        const now = Date.now();
+         const now = Date.now();
         const endTime = now + durationInMinutes * 60 * 1000;
         await updateMiningState(now, endTime);
     } catch (error) {
@@ -535,7 +530,7 @@ export function MiningDashboard() {
     try {
         await adminTerminateUserSession(userProfile.id);
         toast({ title: "Session Terminated", description: "Your mining session has been ended."});
-    } catch (error: any) {
+    } catch (error : any) {
     } finally {
         setIsTerminating(false);
     }
@@ -545,7 +540,7 @@ export function MiningDashboard() {
         const kuberBlocks = userProfile?.kuberBlocks;
         if (!kuberBlocks || kuberBlocks.length === 0) {
             setCumulativeFBloc(0);
-            if (animationFrameRef.current) {
+             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
             return;
@@ -554,7 +549,7 @@ export function MiningDashboard() {
         const tBlocRatePerMs = 0.25 / (1000 * 60 * 60);
 
         const animate = () => {
-            const now = Date.now();
+             const now = Date.now();
             let total = 0;
 
             kuberBlocks.forEach(block => {
@@ -592,7 +587,7 @@ export function MiningDashboard() {
     }, [userProfile?.kuberBlocks]);
 
   if (loading) {
-    return <div className="flex justify-center items-center h-full min-h-[calc(100vh-8rem)]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    return <div className="flex justify-center items-center h-full min-h-[calc( 100vh-8rem)]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
   if (!userProfile) {
@@ -602,7 +597,7 @@ export function MiningDashboard() {
                 <h2 className="text-2xl font-bold">Welcome to Blistree Tokens</h2>
                 <p className="text-muted-foreground">Your adventure in digital currency awaits. Log in to start your mining journey and see your fortune grow.</p>
             </div>
-            <div className="flex flex-col items-center justify-center gap-4">
+            <div className ="flex flex-col items-center justify-center gap-4">
                 <Pickaxe className="h-24 w-24 text-primary" />
                 <Button asChild size="lg">
                     <Link href="/auth/login">
@@ -612,7 +607,7 @@ export function MiningDashboard() {
                 </Button>
                 <p className="px-8 text-center text-sm text-muted-foreground">
                   By logging in, you agree to our{' '}
-                  <Link href="/privacy-policy" className="underline underline-offset-4 hover:text-primary">
+                  <Link href="/privacy-policy" className="underline underline -offset-4 hover:text-primary">
                     Privacy Policy
                   </Link>
                   .
@@ -630,7 +625,7 @@ export function MiningDashboard() {
             disabled
             className="w-24 h-24 rounded-full border-4 border-primary/50 flex items-center justify-center relative shadow-[0_0_20px] shadow-primary/50"
           >
-            <div className="w-20 h-20 rounded-full border-2 border-primary/80 flex flex-col items-center justify-center">
+             <div className="w-20 h-20 rounded-full border-2 border-primary/80 flex flex-col items-center justify-center">
               <Loader2 className="w-8 h-8 text-primary animate-spin" />
               <span className="text-xs font-semibold text-primary mt-1">Starting...</span>
             </div>
@@ -644,7 +639,7 @@ export function MiningDashboard() {
             <div className="flex flex-col items-center">
                 <Button size="lg" disabled className="bg-amber-500 hover:bg-amber-600 text-white shadow-[0_0_20px] shadow-amber-500/80">
                     <Loader2 className="mr-2 h-5 w-5 animate-spin"/>
-                    Claiming...
+                     Claiming...
                 </Button>
             </div>
         );
@@ -657,7 +652,7 @@ export function MiningDashboard() {
             <div className="w-20 h-20 rounded-full border-2 border-amber-400/80 flex flex-col items-center justify-center">
               <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
               <span className="text-xs text-amber-300 mt-1">Mining...</span>
-            </div>
+             </div>
           </div>
           {userProfile.isAdmin && (
             <Button onClick={handleTerminateSession} disabled={isTerminating} size="sm" variant="destructive" className="mt-2">
@@ -675,7 +670,7 @@ export function MiningDashboard() {
           <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
           <span className="text-xs text-amber-300 mt-2">Finalizing...</span>
         </div>
-      );
+       );
     }
 
     if (userProfile.unclaimedCoins && userProfile.unclaimedCoins > 0) {
@@ -701,11 +696,11 @@ export function MiningDashboard() {
               </div>
           </button>
       </div>
-    );
+     );
   };
 
   return (
-    <div className={cn("grid", "mining-background")}>
+    <div className={cn("min-h-screen", "mining-background")}>
       <PotentialEarningsDialog open={showPotentialEarnings} onOpenChange={setShowPotentialEarnings} userProfile={userProfile} />
       <FeedbackDialog open={showFeedbackDialog} onOpenChange={(open) => {
             setShowFeedbackDialog(open);
@@ -716,7 +711,7 @@ export function MiningDashboard() {
        <AlertDialog open={showDeviceConflictDialog} onOpenChange={setShowDeviceConflictDialog}>
         <AlertDialogContent className="text-white border-amber-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
             <AlertDialogHeader>
-                <AlertDialogTitle className="text-amber-300">Device Already in Use</AlertDialogTitle>
+                 <AlertDialogTitle className="text-amber-300">Device Already in Use</AlertDialogTitle>
                 <AlertDialogDescription className="text-amber-200/80">
                     This device is associated with another account. To prevent abuse, each device can only be used for one mining account.
                 </AlertDialogDescription>
@@ -740,85 +735,74 @@ export function MiningDashboard() {
                     <Trash2 className="mr-2 h-4 w-4"/>
                     Delete This Account
                 </AlertDialogAction>
-            </AlertDialogFooter>
+             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <div className="relative z-10 px-4 md:px-6 space-y-4">
+      
+      <div className="relative z-10 px-4 md:px-6 pt-4 space-y-4">
         <UniversalMessageNotification />
         <UserNotifications />
         <RateProposalNotification />
       </div>
 
-      <div
-        className="relative sm:rounded-3xl sm:border border-amber-500/30 bg-transparent backdrop-blur-sm p-6 text-white shadow-[0_0_30px] shadow-amber-500/20 overflow-hidden"
-      >
-        <Image
-          src='https://firebasestorage.googleapis.com/v0/b/studio-7279145746-e15dc.firebasestorage.app/o/Mining_card_image.jpeg?alt=media&token=440c3300-59bd-4735-ab18-96109187c453'
-          alt="Abstract background"
-          fill
-          priority
-          quality={75}
-          className="object-cover"
-        />
-        <div className="absolute top-4 left-4 w-1/3 h-1/3 border-t-2 border-l-2 border-amber-500/30 rounded-tl-xl"></div>
-        <div className="absolute bottom-4 right-4 w-1/3 h-1/3 border-b-2 border-r-2 border-amber-500/30 rounded-br-xl"></div>
-        
-        <div className="relative z-10">
-          <div className="flex justify-between items-start">
-            <div className="relative w-16 h-16 flex items-center justify-center">
-              <svg className="absolute w-full h-full text-amber-500/30" viewBox="0 0 100 100">
-                <path d="M50 0 L93.3 25 L93.3 75 L50 100 L6.7 75 L6.7 25 Z" stroke="currentColor" strokeWidth="2" fill="none" />
-              </svg>
-              <Coins className="w-8 h-8 text-amber-400" />
-            </div>
-            <Link href="/kuber" className="flex flex-col items-end cursor-pointer">
-                <div className="flex items-center gap-2">
-                    <Pyramid className="h-4 w-4 text-indigo-300" />
-                    <span className="font-mono text-lg font-bold text-indigo-300">{cumulativeFBloc.toFixed(4)}</span>
+       <div className="px-4 md:px-6 pt-4 space-y-6 max-w-2xl mx-auto pb-24">
+        <div
+            className="relative sm:rounded-3xl sm:border border-amber-500/30 bg-black/40 backdrop-blur-sm p-6 text-white shadow-[0_0_30px] shadow-amber-500/20 overflow-hidden"
+        >
+            <div className="absolute top-4 left-4 w-1/3 h-1/3 border-t-2 border-l-2 border-amber-500/30 rounded-tl-xl"></div>
+            <div className="absolute bottom-4 right-4 w-1/3 h-1/3 border-b-2 border-r-2 border-amber-500/30 rounded-br-xl"></div>
+            
+            <div className="relative z-10">
+            <div className="flex justify-between items-start">
+                <div className="relative w-16 h-16 flex items-center justify-center">
+                 <svg className="absolute w-full h-full text-amber-500/30" viewBox="0 0 100 100">
+                    <path d="M50 0 L93.3 25 L93.3 75 L50 100 L6.7 75 L6.7 25 Z" stroke="currentColor" strokeWidth="2" fill="none" />
+                </svg>
+                <Coins className="w-8 h-8 text-amber-400" />
                 </div>
-                <p className="text-xs text-indigo-200/80">From referrals</p>
-            </Link>
-          </div>
-
-          <div className="text-center">
-            <h2 className="text-5xl md:text-6xl font-bold text-amber-400 tracking-tighter" style={{textShadow: '0 0 10px rgba(251, 191, 36, 0.5)'}}>
-                {displayCoins.toFixed(4)}
-            </h2>
-            <p className="text-sm text-gray-300 mt-2">
-              {isSessionActive ? t("Blistree Tokens Earned This Session") : (userProfile.unclaimedCoins || 0) > 0 ? t("Coins Ready to Claim") : t("Start Mining")}
-            </p>
-            <p className="text-xs text-gray-400 mt-1 flex items-center justify-center gap-1">
-                <span>{t('Total Balance:')} {(userProfile.minedCoins || 0).toFixed(4)}</span>
-                <span className="font-sans font-bold">₿</span>
-            </p>
-          </div>
-
-          <div className="flex justify-between items-end gap-4">
-            <div className="bg-black/30 rounded-lg p-2 px-4 border border-white/20">
-              <p className="text-2xl font-mono text-amber-400" style={{textShadow: '0 0 8px rgba(251, 191, 36, 0.7)'}}>
-                {timeRemaining}
-              </p>
+                <Link href="/kuber" className ="flex flex-col items-end cursor-pointer">
+                    <div className="flex items-center gap-2">
+                        <Pyramid className="h-4 w-4 text-indigo-300" />
+                        <span className="font-mono text-lg font-bold text-indigo-300">{cumulativeFBloc.toFixed(4)}</span>
+                    </div>
+                    <p className="text-xs text-indigo-200/80">From referrals</p>
+                </Link>
             </div>
-             <div>
-               {renderActionButton()}
+
+            <div className="text-center my-4">
+                <h2 className="text-5xl md:text-6xl font-bold text-amber-400 tracking-tighter" style={{textShadow: '0 0 10px rgba(251, 191, 36, 0.5)'}}>
+                    {displayCoins.toFixed(4)}
+                </h2>
+                <p className="text-sm text-gray-300 mt-2">
+                {isSessionActive ? t("Blistree Tokens Earned This Session") : (userProfile.unclaimedCoins || 0) > 0 ? t("Coins Ready to Claim") : t("Start Mining")}
+                </p>
+                <p className="text-xs text-gray-400 mt-1 flex items-center justify-center gap-1">
+                    <span>{t('Total Balance:')} {(userProfile.minedCoins || 0).toFixed(4)}</span>
+                    <span className="font-sans font-bold">₿</span>
+                </p>
             </div>
-          </div>
+
+            <div className="flex justify-between items-end gap-4 mt-6">
+                <div className="bg-black/30 rounded-lg p-2 px-4 border border-white/20">
+                <p className="text-2xl font-mono text-amber-400" style={{textShadow: '0 0 8px rgba(251, 191, 36, 0.7)'}}>
+                    {timeRemaining}
+                </p>
+                </div>
+                <div>
+                {renderActionButton()}
+                </div>
+            </div>
+            </div>
         </div>
-      </div>
 
-
-      <div className="grid gap-6 mt-6 px-4 md:px-6 pb-24">
-        
         <AirdropCard />
         
         <DailyCoins isSessionActive={isSessionActive} />
         
-        {userProfile.tournamentId && userProfile.tournamentId !== 'left' && <TournamentCard />}
+         {userProfile.tournamentId && userProfile.tournamentId !== 'left' && <TournamentCard />}
 
         <MysteryBox type="8H" userProfile={userProfile} isSessionActive={isSessionActive} />
-        
       </div>
-      
     </div>
   );
 }
