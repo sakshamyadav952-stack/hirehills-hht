@@ -745,14 +745,7 @@ export function MiningDashboard() {
         <RateProposalNotification />
       </div>
 
-       <div className="px-4 md:px-6 pt-4 space-y-6 max-w-2xl mx-auto pb-24">
-        <div
-            className="relative sm:rounded-3xl sm:border border-amber-500/30 bg-black/40 backdrop-blur-sm p-6 text-white shadow-[0_0_30px] shadow-amber-500/20 overflow-hidden"
-        >
-            <div className="absolute top-4 left-4 w-1/3 h-1/3 border-t-2 border-l-2 border-amber-500/30 rounded-tl-xl"></div>
-            <div className="absolute bottom-4 right-4 w-1/3 h-1/3 border-b-2 border-r-2 border-amber-500/30 rounded-br-xl"></div>
-            
-            <div className="relative z-10">
+       <div className="px-4 md:px-6 pt-4 space-y-8 max-w-2xl mx-auto pb-24">
             <div className="flex justify-between items-start">
                 <div className="relative w-16 h-16 flex items-center justify-center">
                  <svg className="absolute w-full h-full text-amber-500/30" viewBox="0 0 100 100">
@@ -782,28 +775,25 @@ export function MiningDashboard() {
                 </p>
             </div>
 
-            <div className="flex justify-between items-end gap-4 mt-6">
+            <div className="flex justify-between items-center gap-4">
                 <div className="bg-black/30 rounded-lg p-2 px-4 border border-white/20">
-                <p className="text-2xl font-mono text-amber-400" style={{textShadow: '0 0 8px rgba(251, 191, 36, 0.7)'}}>
-                    {timeRemaining}
-                </p>
+                    <p className="text-2xl font-mono text-amber-400" style={{textShadow: '0 0 8px rgba(251, 191, 36, 0.7)'}}>
+                        {timeRemaining}
+                    </p>
                 </div>
                 <div>
-                {renderActionButton()}
+                    {renderActionButton()}
                 </div>
             </div>
 
-            {/* Task Buttons Integrated into the Main Card */}
-            <div className="mt-8 space-y-4 pt-6 border-t border-amber-500/20">
+            <div className="space-y-4">
                 <DailyCoins isSessionActive={isSessionActive} />
                 <MysteryBox type="8H" userProfile={userProfile} isSessionActive={isSessionActive} />
             </div>
-            </div>
-        </div>
 
-        <AirdropCard />
-        
-         {userProfile.tournamentId && userProfile.tournamentId !== 'left' && <TournamentCard />}
+            <AirdropCard />
+            
+            {userProfile.tournamentId && userProfile.tournamentId !== 'left' && <TournamentCard />}
       </div>
     </div>
   );
