@@ -20,7 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useFirestore } from "@/firebase";
 import { doc, onSnapshot, getDocs, query, where, collection, Firestore, Timestamp } from "firebase/firestore";
 import type { UniversalMessage, WithdrawalRequest, DailyAdCoin, UserProfile, KuberBlock, TournamentConfig } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { border, cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { ToastProvider, SwipeableAlert, SwipeableAlertTitle, SwipeableAlertDescription, SwipeableAlertClose } from "@/components/ui/swipeable-alert";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1019,7 +1019,7 @@ export function MiningDashboard() {
         
         <AirdropCard />
         
-        {isSessionActive && userProfile.adsUnlocked && <DailyCoins isSessionActive={isSessionActive} />}
+        {isSessionActive && <DailyCoins isSessionActive={isSessionActive} />}
         
         {userProfile.tournamentId && userProfile.tournamentId !== 'left' && <TournamentCard />}
 

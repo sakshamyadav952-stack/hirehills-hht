@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import type { ReactNode } from 'react';
@@ -313,8 +311,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
     const recentAds = (userProfile.adWatchHistory || []).filter(ad => ad.timestamp > twentyFourHoursAgo);
     
-    // Ads are available if the user has unlocked them AND has watched fewer than 5 ads in the last 24 hours.
-    setCanWatchAd(!!userProfile.adsUnlocked && recentAds.length < 5);
+    // Ads are available if the user has watched fewer than 5 ads in the last 24 hours.
+    // The requirement to "unlock" ads via claiming has been removed.
+    setCanWatchAd(recentAds.length < 5);
 }, [userProfile]);
 
   const emailVerified = user?.emailVerified || false;
@@ -407,7 +406,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         notes: [],
         chat: null,
         unreadSupportRepliesCount: 0,
-        adsUnlocked: false,
+        adsUnlocked: true, // Auto-unlock for new users now that the requirement is gone
         hasUnreadAdminMessage: false,
         hasUnreadUserMessage: false,
         chatStatus: null,
@@ -2659,10 +2658,8 @@ const collectDailyAdCoin = useCallback(async (coinId: string): Promise<number | 
 const claimMissedAdCoin = useCallback(async (coinId: string, adElement: string): Promise<number | undefined> => {
     if (!user || !userProfile) return;
     
-    if (!userProfile.adsUnlocked) {
-        console.log("Ads not unlocked for this user yet.");
-        return;
-    }
+    // Requirement to "unlock" ads via claiming has been removed.
+    // If the flag is still used in the database, we'll ignore it here.
 
     try {
         const functions = getFunctions();
@@ -2869,7 +2866,7 @@ const setUserHasRatedOnPlayStore = useCallback(async () => {
           });
         });
         await batch.commit();
-        toast({ title: 'Airdrop Launched', description: 'A new airdrop has been started and all user progress has been reset.' });
+        toast({ title: 'Airdrop Launched', description: ' a new airdrop has been started and all user progress has been reset.' });
       } else {
         toast({ title: 'Airdrop Config Updated', description: 'The airdrop configuration has been saved.' });
       }
@@ -3002,5 +2999,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-    
