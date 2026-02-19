@@ -8,11 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Pickaxe, Play, Loader2, LogIn, Check, X, Info, Coins, Clapperboard, Gift, Clock, Zap, MessageSquare, User, AtSign, Trash2, Pyramid, Download, Trophy, ArrowRight } from "lucide-react";
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogCancel, AlertDialogAction, AlertDialogDescription } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose, DialogFooter } from './ui/dialog';
-import { SpinWheel } from "@/components/spin-wheel";
 import { MysteryBox } from "@/components/mystery-box";
 import { useRouter } from "next/navigation";
-import { DailyQuote } from "./daily-quote";
-import { SpinningWheelIcon } from "./spinning-wheel-icon";
 import { MiningAnimationV2 } from "./mining-animation-v2";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { formatDistanceToNow } from "date-fns";
@@ -20,11 +17,10 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useFirestore } from "@/firebase";
 import { doc, onSnapshot, getDocs, query, where, collection, Firestore, Timestamp } from "firebase/firestore";
 import type { UniversalMessage, WithdrawalRequest, DailyAdCoin, UserProfile, KuberBlock, TournamentConfig } from "@/lib/types";
-import { border, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { ToastProvider, SwipeableAlert, SwipeableAlertTitle, SwipeableAlertDescription, SwipeableAlertClose } from "@/components/ui/swipeable-alert";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { FacebookIcon, XIcon } from "./icons/social-icons";
 import { FeedbackDialog } from "./feedback-dialog";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
@@ -204,9 +200,8 @@ const MissedCoinItem = ({ coin, onClaim, claimAttemptCooldown, onClaimAttempt }:
 
   const handleClaim = async () => {
     setIsClaiming(true);
-    onClaimAttempt(); // Trigger the 20-second UI cooldown
+    onClaimAttempt(); 
     await onClaim(coin.id, `Missed Coin ${coin.id}`);
-    // isClaiming will remain true as the dialog closes on success
   };
   
     const formatTime = (ms: number) => {
@@ -326,7 +321,7 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
     setClaimAttemptCooldown(true);
     setTimeout(() => {
       setClaimAttemptCooldown(false);
-    }, 20000); // 20 seconds
+    }, 20000); 
   };
 
   if (availableCoins.length === 0 && (!isSessionActive || missedCoins.length === 0)) {
@@ -391,21 +386,8 @@ function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
 }
 
 
-
-function maskEmail(email: string) {
-  if (!email || !email.includes('@')) return "Invalid Email";
-  const [name, domain] = email.split('@');
-  if (name.length <= 2) return `${name}***@${domain}`;
-  return `${name.substring(0, 2)}***@${domain}`;
-}
-
-function maskMobile(mobile: string) {
-    if (!mobile || mobile.length < 4) return "Invalid Number";
-    return `******${mobile.slice(-4)}`;
-}
-
 export function MiningDashboard() {
-  const { userProfile, updateMiningState, loading, liveCoins, claimMinedCoins, getGlobalSessionDuration, adminTerminateUserSession, requestFollow, deleteAccount, isFinalizing } = useAuth();
+  const { userProfile, updateMiningState, loading, liveCoins, claimMinedCoins, getGlobalSessionDuration, adminTerminateUserSession, deleteAccount, isFinalizing } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -418,8 +400,6 @@ export function MiningDashboard() {
   const [timeRemaining, setTimeRemaining] = useState('');
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
   const [claimedAmountForFeedback, setClaimedAmountForFeedback] = useState(0);
-  const [followPlatform, setFollowPlatform] = useState<'facebook' | 'x' | null>(null);
-  const [profileName, setProfileName] = useState('');
   const [showDeviceConflictDialog, setShowDeviceConflictDialog] = useState(false);
   const [conflictingAccounts, setConflictingAccounts] = useState<Partial<UserProfile>[]>([]);
   const [cumulativeFBloc, setCumulativeFBloc] = useState(0);
@@ -441,7 +421,6 @@ export function MiningDashboard() {
     return 0;
   }, [isSessionActive, liveCoins, userProfile?.unclaimedCoins]);
 
-  // Translation logic
   const textsToTranslate = useMemo(() => [
     'Blistree Tokens Earned This Session',
     'Coins Ready to Claim',
@@ -466,7 +445,6 @@ export function MiningDashboard() {
       })
       .catch(console.error);
   }, [userProfile?.language, textsToTranslate, userProfile]);
-  // End translation logic
 
   const formatTime = (ms: number) => {
     if (ms < 0) return '00:00:00';
@@ -562,34 +540,6 @@ export function MiningDashboard() {
         setIsTerminating(false);
     }
   };
-    
-    const handleWatchAd = () => {
-        if (typeof window !== 'undefined' && window.Android && typeof window.Android.showRewardedAd === 'function') {
-            window.Android.showRewardedAd();
-        } else {
-            console.log("Simulating ad watch...");
-        }
-    };
-    
-    const handleFollowClick = (platform: 'facebook' | 'x') => {
-        setFollowPlatform(platform);
-    };
-
-    const handleFollowProceed = () => {
-        if (!followPlatform || !profileName.trim()) {
-            toast({ title: "Profile Name Required", description: "Please enter your profile name.", variant: "destructive" });
-            return;
-        }
-
-        const url = followPlatform === 'facebook'
-          ? "https://www.facebook.com/profile.php?id=61584376044607"
-          : "https://twitter.com/Blistreetokens";
-        
-        window.open(url, '_blank');
-        requestFollow(followPlatform, profileName);
-        setFollowPlatform(null);
-        setProfileName('');
-    };
 
     useEffect(() => {
         const kuberBlocks = userProfile?.kuberBlocks;
@@ -620,7 +570,6 @@ export function MiningDashboard() {
 
             setCumulativeFBloc(total);
 
-            // Only continue animating if there are active calculations
             const isStillAnimating = kuberBlocks.some(block => {
                 const totalKuberPoints = (Math.max(0, block.referralSessionEndTime - block.userSessionStartTime) / (1000 * 60 * 60)) * 0.25;
                 const elapsedMsSinceStart = Math.max(0, now - block.userSessionStartTime);
@@ -641,45 +590,6 @@ export function MiningDashboard() {
             }
         };
     }, [userProfile?.kuberBlocks]);
-
-    const getFollowButton = (platform: 'facebook' | 'x') => {
-        const platformKey = platform === 'facebook' ? 'followStatusFacebook' : 'followStatusX';
-        const status = userProfile?.[platformKey];
-        const Icon = platform === 'facebook' ? FacebookIcon : XIcon;
-
-        const handleClick = () => {
-            if (status === 'followed') {
-                const url = platform === 'facebook'
-                    ? "https://www.facebook.com/profile.php?id=61584376044607"
-                    : "https://twitter.com/Blistreetokens";
-                window.open(url, '_blank');
-            } else {
-                handleFollowClick(platform);
-            }
-        };
-
-        return (
-            <Button onClick={handleClick} variant="outline" className="w-full justify-between bg-blue-600/10 border-blue-500/30 text-white hover:bg-blue-600/20 hover:text-white" disabled={status === 'pending'}>
-                <div className="flex items-center gap-2">
-                    <Icon />
-                    <span className="ml-2">Follow on {platform === 'facebook' ? 'Facebook' : 'X'}</span>
-                </div>
-                {status === 'followed' ? (
-                     <span className="font-bold text-sm flex items-center gap-1 text-green-400">
-                        <Check className="h-4 w-4"/>
-                        Following
-                    </span>
-                ) : status === 'pending' ? (
-                     <span className="font-bold text-sm flex items-center gap-1">
-                        <Loader2 className="h-4 w-4 animate-spin"/>
-                        Pending
-                    </span>
-                ) : (
-                    <span className="font-bold text-sm">+10 BLIT</span>
-                )}
-            </Button>
-        );
-    };
 
   if (loading) {
     return <div className="flex justify-center items-center h-full min-h-[calc(100vh-8rem)]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -712,10 +622,6 @@ export function MiningDashboard() {
     )
   }
 
-  const spinsAvailable = (userProfile.spinCount || 0) < 2;
-  const inCooldown = userProfile.spinCooldownEnd ? Date.now() < userProfile.spinCooldownEnd : false;
-  const showSpinIcon = isSessionActive && spinsAvailable && !inCooldown;
-  
   const renderActionButton = () => {
     if (isStartingMining) {
       return (
@@ -804,7 +710,7 @@ export function MiningDashboard() {
       <FeedbackDialog open={showFeedbackDialog} onOpenChange={(open) => {
             setShowFeedbackDialog(open);
             if (!open) {
-                setIsClaiming(false); // Reset state when dialog closes
+                setIsClaiming(false); 
             }
         }} claimedAmount={claimedAmountForFeedback} />
        <AlertDialog open={showDeviceConflictDialog} onOpenChange={setShowDeviceConflictDialog}>
@@ -854,7 +760,6 @@ export function MiningDashboard() {
           quality={75}
           className="object-cover"
         />
-        {/* Decorative circuit lines */}
         <div className="absolute top-4 left-4 w-1/3 h-1/3 border-t-2 border-l-2 border-amber-500/30 rounded-tl-xl"></div>
         <div className="absolute bottom-4 right-4 w-1/3 h-1/3 border-b-2 border-r-2 border-amber-500/30 rounded-br-xl"></div>
         
@@ -902,7 +807,6 @@ export function MiningDashboard() {
       </div>
 
 
-      {/* Other Sections */}
       <div className="grid gap-6 mt-6 px-4 md:px-6 pb-24">
         
         <AirdropCard />
@@ -913,85 +817,8 @@ export function MiningDashboard() {
 
         <MysteryBox type="8H" userProfile={userProfile} isSessionActive={isSessionActive} />
         
-        <Card className="text-white border-amber-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
-            <CardHeader>
-                <CardTitle className="text-amber-300">Follow Us & Earn</CardTitle>
-                <CardDescription className="text-amber-200/80">Get +10 BLIT coins for each follow! Stay updated with the latest news and announcements.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-               {getFollowButton('facebook')}
-               {getFollowButton('x')}
-            </CardContent>
-        </Card>
-
-        <Card className="text-white border-amber-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
-            <CardHeader>
-                <CardTitle className="text-amber-300 flex items-center gap-2">
-                    <Info className="h-5 w-5" />
-                    Blistree Team Notice
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-amber-200/80">
-                    Dear {userProfile.fullName},<br/><br/>
-                    Mine as many coins as you can while the mining speed is high. We’ve capped the supply at 200 million coins and revoked the minting authority to ensure trust, scarcity, and long-term value. The mining rate will reduce later, so don’t miss this opportunity.
-                </p>
-            </CardContent>
-        </Card>
-
-        {!isMobile && (
-          <Card className="text-white border-amber-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
-            <CardHeader>
-              <CardTitle className="text-amber-300">Spin the Wheel!</CardTitle>
-              <CardDescription className="text-amber-200/80">Spin for a chance to win bonus Blistree coins!</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                  disabled={!isSessionActive}
-                  asChild
-                  className="w-full bg-amber-500 text-black font-bold shadow-md border-b-4 border-amber-700 hover:bg-amber-400 active:border-b-0"
-              >
-                  <Link href="/spin-wheel">
-                  {isSessionActive ? 'Spin for a prize!' : 'Start mining to spin'}
-                  </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="mb-24">
-          <DailyQuote />
-        </div>
       </div>
       
-      <Dialog open={!!followPlatform} onOpenChange={() => setFollowPlatform(null)}>
-        <DialogContent className="text-white border-cyan-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
-            <DialogHeader>
-                <DialogTitle className="text-cyan-300 flex items-center gap-2">
-                    <AtSign />
-                    Confirm Your {followPlatform === 'facebook' ? 'Facebook' : 'X'} profile
-                </DialogTitle>
-                <DialogDescription className="text-cyan-200/80 pt-2">
-                    Please enter the name shown on your {followPlatform === 'facebook' ? 'Facebook' : 'X'} profile to help us verify your follow.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-2">
-                <Label htmlFor="profile-name" className="text-cyan-200/90">Profile Name</Label>
-                <Input
-                    id="profile-name"
-                    value={profileName}
-                    onChange={(e) => setProfileName(e.target.value)}
-                    placeholder={`Your ${followPlatform === 'facebook' ? 'Facebook' : 'X'} profile name`}
-                    className="bg-slate-900/50 border-cyan-400/30 text-white"
-                />
-            </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setFollowPlatform(null)} className="bg-transparent text-cyan-300 border-cyan-400/50 hover:bg-cyan-400/10 hover:text-white">Close</Button>
-                <Button onClick={handleFollowProceed} className="bg-cyan-500 text-black hover:bg-cyan-400">Proceed</Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
     </div>
   );
 }
