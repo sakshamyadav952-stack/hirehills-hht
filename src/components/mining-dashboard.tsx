@@ -1,22 +1,20 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from '@/lib/auth';
 import { Button } from "@/components/ui/button";
 import { 
   Play, Loader2, Coins, ChevronDown, 
-  Settings, Zap, Wallet, ArrowRight,
-  LayoutGrid, Activity, Gift, Clapperboard,
-  Database, Cpu, Network
+  Settings, Zap, LayoutGrid, Activity, 
+  Gift, Clapperboard, Database, Cpu, 
+  Network, Clock
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
 import { 
-  LineChart, Line, ResponsiveContainer, YAxis, 
-  CartesianGrid, Tooltip 
+  LineChart, Line, ResponsiveContainer, Tooltip 
 } from "recharts";
 import { useFirestore } from "@/firebase";
-import { doc, updateDoc, arrayUnion, increment, collection } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, increment } from "firebase/firestore";
 
 // Simulated Graph Data
 const generateChartData = () => {
@@ -89,7 +87,6 @@ export function MiningDashboard() {
     if (!userProfile || isProcessing) return;
     setIsProcessing('daily');
     try {
-      // In a real app, this would call the Android ad interface first
       if (typeof window !== 'undefined' && window.Android?.showRewardedAd) {
         window.Android.showRewardedAd();
       }
@@ -174,13 +171,11 @@ export function MiningDashboard() {
           </div>
         </div>
         
-        {/* Animated scanning line */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-500/50 to-transparent animate-scan pointer-events-none" />
       </div>
 
       {/* Primary Technical Dashboard */}
       <div className="glass-card rounded-[3rem] p-8 glow-border relative overflow-hidden">
-        {/* Background circuit pattern placeholder or subtle grid */}
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://picsum.photos/seed/tech/800/800')] mix-blend-overlay" />
 
         <div className="flex justify-between items-center mb-8">
@@ -226,7 +221,6 @@ export function MiningDashboard() {
             </div>
           </div>
           
-          {/* Technical Visualization */}
           <div className="h-24 w-full opacity-80">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
@@ -244,7 +238,6 @@ export function MiningDashboard() {
           </div>
         </div>
 
-        {/* Integrated Task Buttons */}
         <div className="mt-10 pt-10 border-t border-white/5 grid grid-cols-2 gap-4">
           <Button 
             variant="ghost" 
