@@ -164,7 +164,7 @@ export function MiningDashboard() {
   return (
     <div className="min-h-screen bg-black p-4 sm:p-6 space-y-6 pb-20">
       {/* High-Fidelity Branding Header */}
-      <div className="relative h-72 w-full rounded-[2.5rem] overflow-hidden glass-card border-white/5 bg-zinc-900/40">
+      <div className="relative h-80 w-full rounded-[2.5rem] overflow-hidden glass-card border-white/5 bg-zinc-900/40">
         <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-cyan-600/5" />
         
         {/* Header Icons */}
@@ -193,6 +193,21 @@ export function MiningDashboard() {
               <div className="flex items-center gap-3 mt-4 bg-cyan-500/10 px-4 py-1.5 rounded-full border border-cyan-500/20 backdrop-blur-md">
                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_#22d3ee]" />
                 <span className="text-cyan-400 text-[10px] font-black tracking-[0.3em] uppercase italic">Processing HOT</span>
+              </div>
+
+              {/* INTEGRATED PROGRESS SECTION */}
+              <div className="mt-6 w-full max-w-[200px] space-y-3">
+                <div className="relative">
+                  <Progress value={sessionProgress} className="h-1.5 bg-white/10 overflow-hidden" />
+                  <div 
+                    className="absolute inset-0 h-1.5 bg-gradient-to-r from-purple-600 to-cyan-400 blur-sm opacity-50 transition-all duration-1000" 
+                    style={{ width: `${sessionProgress}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-center gap-2 text-white/60 text-[10px] font-black uppercase tracking-[0.2em]">
+                  <Clock className="h-3 w-3" />
+                  <span>{timeRemaining} Remaining</span>
+                </div>
               </div>
             </div>
           ) : (
@@ -227,25 +242,7 @@ export function MiningDashboard() {
           </div>
         </div>
 
-        {/* Dynamic Progress Section */}
-        <div className="relative mb-6">
-          <Progress 
-            value={sessionProgress} 
-            className="h-3 bg-white/5 overflow-hidden" 
-          />
-          {isSessionActive && (
-            <div 
-              className="absolute inset-0 h-3 bg-gradient-to-r from-purple-600 via-cyan-400 to-purple-600 blur-md opacity-30 animate-pulse transition-all duration-1000" 
-              style={{ width: `${sessionProgress}%` }}
-            />
-          )}
-        </div>
-
-        <div className="flex justify-between text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-10">
-          <div className="flex items-center gap-2">
-            <Clock className="h-3 w-3" />
-            <span>Remaining: {isSessionActive ? timeRemaining : '08:00:00'}</span>
-          </div>
+        <div className="flex justify-end text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-10">
           <div className="flex items-center gap-2">
             <Database className="h-3 w-3" />
             <span>Pool: 200M HOT</span>
