@@ -1,799 +1,231 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import Link from 'next/link';
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from '@/lib/auth';
 import { Button } from "@/components/ui/button";
-import { Pickaxe, Play, Loader2, LogIn, Check, X, Info, Coins, Clapperboard, Gift, Clock, Zap, MessageSquare, User, AtSign, Trash2, Pyramid, Download, Trophy, ArrowRight } from "lucide-react";
-import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogCancel, AlertDialogAction, AlertDialogDescription } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose, DialogFooter } from './ui/dialog';
-import { MysteryBox } from "@/components/mystery-box";
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { useFirestore } from "@/firebase";
-import { doc, onSnapshot, getDocs, query, where, collection, Firestore, Timestamp } from "firebase/firestore";
-import type { UniversalMessage, WithdrawalRequest, DailyAdCoin, UserProfile, KuberBlock, TournamentConfig } from "@/lib/types";
+import { 
+  Play, Loader2, Coins, ChevronDown, 
+  Settings, Zap, Wallet, ArrowRight,
+  LayoutGrid, Activity
+} from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
-import { ToastProvider, SwipeableAlert, SwipeableAlertTitle, SwipeableAlertDescription, SwipeableAlertClose } from "@/components/ui/swipeable-alert";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { FeedbackDialog } from "./feedback-dialog";
-import { PotentialEarningsDialog } from "./potential-earnings-dialog";
-import { AirdropCard } from './airdrop-card';
-import { translateText } from "@/ai/flows/translate-flow";
-import { TournamentCard } from "./tournament-card";
+import { 
+  LineChart, Line, ResponsiveContainer, YAxis, 
+  CartesianGrid, Tooltip 
+} from "recharts";
 
-
-function UniversalMessageNotification() {
-    const firestore = useFirestore();
-    const [messageData, setMessageData] = useState<{ text: string; updatedAt: any } | null>(null);
-    const [isDismissed, setIsDismissed] = useState(false);
-    const [lastDismissedTimestamp, setLastDismissedTimestamp] = useState<number | null>(() => {
-        if (typeof window !== 'undefined') {
-            const stored = localStorage.getItem('dismissedUniversalMessageTimestamp');
-            return stored ? Number(stored) : null;
-        }
-        return null;
-    });
-    
-    const show = useMemo(() => {
-        if (!messageData?.text || isDismissed) {
-            return false;
-        }
-        const messageTimestamp = messageData.updatedAt?.seconds;
-        if (!messageTimestamp) {
-            return true; // Show if timestamp is missing
-        }
-        if (lastDismissedTimestamp === null || messageTimestamp > lastDismissedTimestamp) {
-            return true;
-        }
-        return false;
-    }, [messageData, isDismissed, lastDismissedTimestamp]);
-
-
-    const handleDismiss = useCallback(() => {
-        if (messageData?.updatedAt?.seconds) {
-            const timestampToStore = messageData.updatedAt.seconds;
-            localStorage.setItem('dismissedUniversalMessageTimestamp', String(timestampToStore));
-            setLastDismissedTimestamp(timestampToStore);
-        }
-        setIsDismissed(true);
-    }, [messageData]);
-
-    useEffect(() => {
-        if (!firestore) return;
-
-        const unsub = onSnapshot(doc(firestore, 'universal_messages', 'current'), (doc) => {
-            if (doc.exists() && doc.data().text) {
-                const data = doc.data() as UniversalMessage;
-                 const messageTimestamp = data.updatedAt?.seconds;
-                const lastDismissed = typeof window !== 'undefined' ? Number(localStorage.getItem('dismissedUniversalMessageTimestamp')) : null;
-
-                if (!lastDismissed || (messageTimestamp && messageTimestamp > lastDismissed)) {
-                    setMessageData({ text: data.text, updatedAt: data.updatedAt });
-                    setIsDismissed(false);
-                } else if (!messageData || (messageTimestamp && messageData.updatedAt?.seconds < messageTimestamp)) {
-                    setMessageData({ text: data.text, updatedAt: data.updatedAt });
-                    if(lastDismissed && messageTimestamp && messageTimestamp > lastDismissed){
-                        setIsDismissed(false);
-                    } else {
-                        setIsDismissed(true);
-                    }
-                }
-            } else {
-                setMessageData(null);
-            }
-        });
-        return () => unsub();
-    }, [firestore, messageData]);
-
-
-    if (!show) {
-        return null;
-    }
-
-    return (
-        <ToastProvider>
-            <SwipeableAlert 
-                open={show}
-                onOpenChange={(open) => { if (!open) handleDismiss(); }} 
-                onSwipeEnd={handleDismiss}
-                className="text-white border-amber-400/50 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 relative"
-            >
-                <div className="grid gap-1">
-                    <SwipeableAlertTitle className="text-amber-300 flex items-center gap-2">
-                         <MessageSquare className="h-4 w-4" /> Message from Admin
-                    </SwipeableAlertTitle>
-                    <SwipeableAlertDescription>{messageData?.text}</SwipeableAlertDescription>
-                </div>
-                <SwipeableAlertClose onClick={handleDismiss} />
-            </SwipeableAlert>
-        </ToastProvider>
-    );
-}
-
-function UserNotifications() {
-    const { userProfile, clearUserNotifications } = useAuth();
-    const notifications = userProfile?.notifications;
-
-    if (!notifications || notifications.length === 0) {
-        return null;
-    }
-
-    return (
-        <ToastProvider>
-            <SwipeableAlert onSwipeEnd={clearUserNotifications} open={true} onOpenChange={(open) => !open && clearUserNotifications()}>
-                <div className="grid gap-1">
-                    <SwipeableAlertTitle>Notifications</SwipeableAlertTitle>
-                    <SwipeableAlertDescription>
-                         <ul className="list-disc list-inside">
-                            {notifications.map((notif, index) => (
-                                <li key={index}>{notif}</li>
-                            ))}
-                        </ul>
-                    </SwipeableAlertDescription>
-                </div>
-                 <SwipeableAlertClose onClick={clearUserNotifications} />
-            </SwipeableAlert>
-        </ToastProvider>
-    );
-}
-
-function RateProposalNotification() {
-    const { userProfile, respondToRateProposal } = useAuth();
-    
-    const proposedRequest = useMemo(() => {
-        return userProfile?.withdrawalRequests?.find(req => req.rateStatus === 'proposed');
-    }, [userProfile?.withdrawalRequests]);
-
-    if (!proposedRequest) {
-        return null;
-    }
-
-    const { requestId, rateAmount, rateCurrency, rateBlistreeCoins } = proposedRequest;
-
-    return (
-        <Alert variant="default" className="mb-4">
-             <AlertTitle>New Withdrawal Rate Proposal</AlertTitle>
-             <AlertDescription>
-                <p>
-                    Admin has proposed a rate of <span className="font-bold">{rateAmount} {rateCurrency?.toUpperCase()}</span> for <span className="font-bold">{rateBlistreeCoins} Blistree</span>.
-                </p>
-                <div className="flex justify-end gap-2 mt-4">
-                    <Button size="sm" variant="destructive" onClick={() => respondToRateProposal(requestId, false)}>Deny</Button>
-                    <Button size="sm" variant="secondary" onClick={() => respondToRateProposal(requestId, true)}>Accept</Button>
-                </div>
-            </AlertDescription>
-        </Alert>
-    );
-}
-
-const MissedCoinItem = ({ coin, onClaim, claimAttemptCooldown, onClaimAttempt }: { coin: DailyAdCoin, onClaim: (coinId: string, adElement: string) => void, claimAttemptCooldown: boolean, onClaimAttempt: () => void }) => {
-  const { userProfile } = useAuth();
-  const [isClaiming, setIsClaiming] = useState(false);
-  const [cooldownRemaining, setCooldownRemaining] = useState(0);
-
-  useEffect(() => {
-    if (!userProfile?.lastMissedCoinClaimTimestamp) {
-        setCooldownRemaining(0);
-        return;
-    }
-
-    const cooldownEndTime = userProfile.lastMissedCoinClaimTimestamp + 60 * 60 * 1000; // 1 hour
-
-    const updateCooldown = () => {
-        const now = Date.now();
-        const remaining = Math.max(0, cooldownEndTime - now);
-        setCooldownRemaining(remaining);
-    };
-
-    updateCooldown();
-    const interval = setInterval(updateCooldown, 1000);
-    return () => clearInterval(interval);
-  }, [userProfile?.lastMissedCoinClaimTimestamp]);
-
-  const handleClaim = async () => {
-    setIsClaiming(true);
-    onClaimAttempt(); 
-    await onClaim(coin.id, `Missed Coin ${coin.id}`);
-  };
-  
-    const formatTime = (ms: number) => {
-    if (ms <= 0) return '00:00:00';
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    if(hours > 0) {
-      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    }
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
-  const isButtonDisabled = isClaiming || cooldownRemaining > 0 || claimAttemptCooldown;
-
-  return (
-    <div className="flex items-center justify-between p-3 border rounded-md bg-slate-800/60 border-amber-400/20">
-        <div>
-            <p className="font-medium text-amber-200">Missed coin</p>
-            <p className="text-xs text-muted-foreground">Claim now by watching an ad.</p>
-        </div>
-        <Button size="sm" onClick={handleClaim} disabled={isButtonDisabled} className="bg-amber-500 text-black hover:bg-amber-400">
-            {isClaiming 
-                ? <Loader2 className="h-4 w-4 animate-spin" /> 
-                : cooldownRemaining > 0
-                ? `Wait ${formatTime(cooldownRemaining)}`
-                : claimAttemptCooldown
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : 'Claim'}
-        </Button>
-    </div>
-  );
+// Simulated Graph Data
+const generateChartData = () => {
+  return Array.from({ length: 20 }, (_, i) => ({
+    time: i,
+    value: 1200 + Math.random() * 100,
+  }));
 };
 
-
-function DailyCoins({ isSessionActive }: { isSessionActive: boolean }) {
-  const { dailyAdCoins, collectDailyAdCoin, claimMissedAdCoin } = useAuth();
-  const [isClaiming, setIsClaiming] = useState(false);
-  const [showClaimDialog, setShowClaimDialog] = useState(false);
-  const [showClaimConfirmation, setShowClaimConfirmation] = useState(false);
-  const [claimedCoinAmount, setClaimedCoinAmount] = useState<number | null>(null);
-  const [claimAttemptCooldown, setClaimAttemptCooldown] = useState(false);
-  const [availableCoins, setAvailableCoins] = useState<DailyAdCoin[]>([]);
-  const [missedCoins, setMissedCoins] = useState<DailyAdCoin[]>([]);
-  const [currentTime, setCurrentTime] = useState(Date.now());
-
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTime = (ms: number) => {
-    if (ms <= 0) return '00:00:00';
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    if(hours > 0) {
-      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    }
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
-  useEffect(() => {
-    const allCoins = dailyAdCoins || [];
-    const now = currentTime;
-
-    const available: DailyAdCoin[] = [];
-    const missed: DailyAdCoin[] = [];
-
-    allCoins.forEach(coin => {
-      if (coin.status === 'collected') return;
-
-      if (coin.finalExpiryAt && now >= coin.finalExpiryAt) {
-          return;
-      }
-
-      if (now >= coin.availableAt && now < coin.expiresAt) {
-        available.push(coin);
-      } else if (now >= coin.expiresAt) {
-        missed.push(coin);
-      }
-    });
-
-    setAvailableCoins(available);
-    setMissedCoins(missed);
-  }, [currentTime, dailyAdCoins]);
-
-
-  const handleCollect = async (coinId: string) => {
-    if (!coinId || isClaiming) return;
-    setIsClaiming(true);
-    const claimedAmount = await collectDailyAdCoin(coinId);
-    if(claimedAmount) {
-        setClaimedCoinAmount(claimedAmount);
-        setShowClaimConfirmation(true);
-    }
-    setIsClaiming(false);
-  };
-  
-  const handleClaimMissed = async (coinId: string, adElement: string) => {
-    const claimedAmount = await claimMissedAdCoin(coinId, adElement);
-    if (claimedAmount) {
-      setClaimedCoinAmount(claimedAmount);
-      setShowClaimDialog(false);
-      setTimeout(() => {
-        setShowClaimConfirmation(true);
-      }, 15000);
-    }
-  };
-
-  const handleClaimAttempt = () => {
-    setClaimAttemptCooldown(true);
-    setTimeout(() => {
-      setClaimAttemptCooldown(false);
-    }, 20000); 
-  };
-
-  if (availableCoins.length === 0 && (!isSessionActive || missedCoins.length === 0)) {
-      return null;
-  }
-
-  return (
-      <div className="w-full space-y-4">
-        {availableCoins.length > 0 ? (
-            <Button onClick={() => handleCollect(availableCoins[0].id)} disabled={isClaiming} className="w-full h-14 text-white font-bold shadow-lg border border-blue-400/50 hover:bg-blue-500 transition-all duration-150 transform hover:scale-[1.02]" style={{ backgroundColor: '#3180F5' }}>
-                <Gift className="mr-2 h-5 w-5" />
-                {isClaiming ? <Loader2 className="animate-spin" /> : `Collect Daily Coin (${formatTime(availableCoins[0].expiresAt - currentTime)})`}
-            </Button>
-        ) : isSessionActive && missedCoins.length > 0 ? (
-            <Button onClick={() => setShowClaimDialog(true)} className="w-full h-14 bg-amber-500 text-black font-bold shadow-lg border border-amber-400/50 hover:bg-amber-400 transition-all duration-150 transform hover:scale-[1.02]">
-                <Coins className="mr-2 h-5 w-5" />
-                Claim Missed Coins ({missedCoins.length})
-            </Button>
-        ) : null}
-
-        <AlertDialog open={showClaimDialog} onOpenChange={setShowClaimDialog}>
-             <AlertDialogContent className="text-white border-amber-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
-                <AlertDialogHeader>
-                    <AlertDialogTitle className="text-amber-300">Claim Your Missed Coins</AlertDialogTitle>
-                    <AlertDialogDescription className="text-amber-200/80">
-                        You missed collecting these coins. You can claim them now by watching an ad. Missed coins expire 48 hours after they become available.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-2 mt-4">
-                    {missedCoins.map(coin => (
-                        <MissedCoinItem key={coin.id} coin={coin} onClaim={handleClaimMissed} claimAttemptCooldown={claimAttemptCooldown} onClaimAttempt={handleClaimAttempt} />
-                    ))}
-                </div>
-                <AlertDialogFooter className="mt-4">
-                    <Button variant="outline" onClick={() => setShowClaimDialog(false)} className="bg-transparent text-amber-300 border-amber-400/50 hover:bg-amber-400/10 hover:text-white">Close</Button>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-
-        <AlertDialog open={showClaimConfirmation} onOpenChange={setShowClaimConfirmation}>
-            <AlertDialogContent className="text-white border-green-400/50" style={{ background: 'linear-gradient(145deg, #1a2e2e, #163e3e)' }}>
-                <AlertDialogHeader className="text-center">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20 mb-4 border-2 border-green-500/50">
-                        <Check className="h-8 w-8 text-green-400" />
-                    </div>
-                    <AlertDialogTitle className="text-xl font-bold text-green-300">Coin Claimed!</AlertDialogTitle>
-                    <AlertDialogDescription className="text-green-200/80">
-                        You have successfully claimed {claimedCoinAmount} BLIT coin. It has been added to your wallet.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="mt-4">
-                    <AlertDialogAction onClick={() => {
-                        setShowClaimConfirmation(false);
-                    }} className="w-full bg-green-500 text-white hover:bg-green-600">
-                        Awesome!
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-      </div>
-  );
-}
-
-
 export function MiningDashboard() {
-  const { userProfile, updateMiningState, loading, liveCoins, claimMinedCoins, getGlobalSessionDuration, adminTerminateUserSession, deleteAccount, isFinalizing } = useAuth();
-  const router = useRouter();
-  const { toast } = useToast();
-  const isMobile = useIsMobile();
-  const [showPotentialEarnings, setShowPotentialEarnings] = useState(false);
-  const firestore = useFirestore();
+  const { userProfile, updateMiningState, loading, liveCoins, getGlobalSessionDuration } = useAuth();
+  const [isStarting, setIsStarting] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState('00:00:00');
+  const [chartData, setChartData] = useState(generateChartData());
 
-  const [isClaiming, setIsClaiming] = useState(false);
-  const [isStartingMining, setIsStartingMining ] = useState(false);
-  const [isTerminating, setIsTerminating] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState('');
-  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
-  const [claimedAmountForFeedback, setClaimedAmountForFeedback] = useState(0);
-  const [showDeviceConflictDialog, setShowDeviceConflictDialog] = useState(false);
-  const [conflictingAccounts, setConflictingAccounts] = useState<Partial<UserProfile>[]>([]);
-  const [cumulativeFBloc, setCumulativeFBloc ] = useState(0);
-  const animationFrameRef = useRef<number>();
-  const [translations, setTranslations] = useState<Record<string, string>>({});
-  
   const isSessionActive = useMemo(() => {
-      if (!userProfile?.sessionEndTime) return false;
-       return Date.now() < userProfile.sessionEndTime;
+    if (!userProfile?.sessionEndTime) return false;
+    return Date.now() < userProfile.sessionEndTime;
   }, [userProfile?.sessionEndTime]);
 
-  const displayCoins = useMemo(() => {
+  useEffect(() => {
     if (isSessionActive) {
-      return liveCoins;
+      const interval = setInterval(() => {
+        setChartData(prev => [...prev.slice(1), { 
+          time: prev[prev.length - 1].time + 1, 
+          value: 1200 + Math.random() * 100 
+        }]);
+      }, 3000);
+      return () => clearInterval(interval);
     }
-    if (userProfile?.unclaimedCoins && userProfile.unclaimedCoins > 0) {
-      return userProfile.unclaimedCoins;
-    }
-    return 0;
-  }, [isSessionActive, liveCoins, userProfile?.unclaimedCoins]);
-
-  const textsToTranslate = useMemo(() => [
-    'Blistree Tokens Earned This Session',
-    'Coins Ready to Claim',
-    'Start Mining',
-    'Total Balance:',
-  ], []);
-
-  const t = useCallback((text: string) => translations[text] || text, [translations]);
+  }, [isSessionActive]);
 
   useEffect(() => {
-    if (!userProfile) return;
-
-     const targetLanguage = userProfile.language || 'en';
-    if (targetLanguage === 'en') {
-      setTranslations({});
-      return;
-    }
-
-    translateText({ texts: textsToTranslate, targetLanguage, isAdmin: false })
-      .then(result => {
-        setTranslations(result.translations); 
-      })
-      .catch(console.error);
-  }, [userProfile?.language, textsToTranslate, userProfile]);
-
-  const formatTime = (ms: number) => {
-    if (ms < 0) return '00:00:00';
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout | undefined;
-
+    let interval: NodeJS.Timeout;
     if (isSessionActive && userProfile?.sessionEndTime) {
-        const updateTimer = () => {
-            const now = Date.now();
-            const remainingMs = userProfile.sessionEndTime! - now;
-            if (remainingMs > 0) {
-                setTimeRemaining(formatTime(remainingMs)); 
-            } else {
-                setTimeRemaining('00:00:00');
-                clearInterval(interval);
-            }
-        };
-
-        updateTimer();
-        interval = setInterval(updateTimer, 1000);
-    } else if (userProfile?.unclaimedCoins && userProfile.unclaimedCoins > 0) {
-        if (userProfile.miningStartTime && userProfile.sessionEndTime) {
-            const duration = userProfile.sessionEndTime - userProfile.miningStartTime;
-            setTimeRemaining(formatTime(duration));
-        } else {
-             setTimeRemaining('00:00:00');
+      const updateTimer = () => {
+        const diff = userProfile.sessionEndTime! - Date.now();
+        if (diff <= 0) {
+          setTimeRemaining('00:00:00');
+          return;
         }
-     }
-
-    return () => {
-        if (interval) clearInterval(interval);
-    };
-  }, [isSessionActive, userProfile?.sessionEndTime, userProfile?.unclaimedCoins, userProfile?.miningStartTime, liveCoins]);
-
-
-  const handleStartMining = useCallback(async () => {
-    if (!userProfile) {
-      router.push('/auth/login');
-      return;
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        setTimeRemaining(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+      };
+      updateTimer();
+      interval = setInterval(updateTimer, 1000);
     }
-    if (isSessionActive || isStartingMining) return;
-    if (userProfile.unclaimedCoins && userProfile.unclaimedCoins > 0) {
-        toast({
-            title: "Claim Required",
-            description: "You must claim your previously mined coins before starting a new session.",
-            variant: "destructive"
-        });
-        return;
-    }
+    return () => clearInterval(interval);
+  }, [isSessionActive, userProfile?.sessionEndTime]);
 
-    setIsStartingMining(true);
+  const handleStartMining = async () => {
+    if (isSessionActive || isStarting) return;
+    setIsStarting(true);
     try {
-        const durationInMinutes = await getGlobalSessionDuration();
-         const now = Date.now();
-        const endTime = now + durationInMinutes * 60 * 1000;
-        await updateMiningState(now, endTime);
-    } catch (error) {
-        console.error("Error starting mining session:", error);
-        toast({ title: 'Error', description: 'Could not start mining session.', variant: 'destructive' });
+      const duration = await getGlobalSessionDuration();
+      const now = Date.now();
+      await updateMiningState(now, now + duration * 60000);
     } finally {
-        setIsStartingMining(false);
-    }
-  }, [userProfile, isSessionActive, isStartingMining, toast, router, getGlobalSessionDuration, updateMiningState]);
-
-  const handleClaimCoins = useCallback(async () => {
-    if (!userProfile || !userProfile.unclaimedCoins || userProfile.unclaimedCoins <= 0 || isClaiming) return;
-    
-    setIsClaiming(true);
-    const claimedAmount = await claimMinedCoins();
-    if (claimedAmount !== undefined) {
-        setClaimedAmountForFeedback(claimedAmount);
-        setShowFeedbackDialog(true);
-    } else {
-        setIsClaiming(false);
-    }
-  }, [userProfile, isClaiming, claimMinedCoins]);
-  
-  const handleTerminateSession = async () => {
-    if (!userProfile) return;
-    setIsTerminating(true);
-    try {
-        await adminTerminateUserSession(userProfile.id);
-        toast({ title: "Session Terminated", description: "Your mining session has been ended."});
-    } catch (error : any) {
-    } finally {
-        setIsTerminating(false);
+      setIsStarting(false);
     }
   };
-
-    useEffect(() => {
-        const kuberBlocks = userProfile?.kuberBlocks;
-        if (!kuberBlocks || kuberBlocks.length === 0) {
-            setCumulativeFBloc(0);
-             if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
-            }
-            return;
-        }
-
-        const tBlocRatePerMs = 0.25 / (1000 * 60 * 60);
-
-        const animate = () => {
-             const now = Date.now();
-            let total = 0;
-
-            kuberBlocks.forEach(block => {
-                const durationMs = Math.max(0, block.referralSessionEndTime - block.userSessionStartTime);
-                const durationHours = durationMs / (1000 * 60 * 60);
-                const totalKuberPoints = durationHours * 0.25;
-                
-                const elapsedMsSinceStart = Math.max(0, now - block.userSessionStartTime);
-                const currentSimulatedPoints = Math.min(elapsedMsSinceStart * tBlocRatePerMs, totalKuberPoints);
-                
-                total += currentSimulatedPoints;
-            });
-
-            setCumulativeFBloc(total);
-
-            const isStillAnimating = kuberBlocks.some(block => {
-                const totalKuberPoints = (Math.max(0, block.referralSessionEndTime - block.userSessionStartTime) / (1000 * 60 * 60)) * 0.25;
-                const elapsedMsSinceStart = Math.max(0, now - block.userSessionStartTime);
-                const currentSimulatedPoints = Math.min(elapsedMsSinceStart * tBlocRatePerMs, totalKuberPoints);
-                return currentSimulatedPoints < totalKuberPoints;
-            });
-            
-            if (isStillAnimating) {
-                animationFrameRef.current = requestAnimationFrame(animate);
-            }
-        };
-
-        animationFrameRef.current = requestAnimationFrame(animate);
-
-        return () => {
-            if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
-            }
-        };
-    }, [userProfile?.kuberBlocks]);
 
   if (loading) {
-    return <div className="flex justify-center items-center h-full min-h-[calc( 100vh-8rem)]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    return <div className="flex items-center justify-center h-screen bg-black"><Loader2 className="animate-spin text-primary" /></div>;
   }
-  
-  if (!userProfile) {
-    return (
-        <div className="grid gap-6 rounded-lg p-6">
-            <div className="text-center">
-                <h2 className="text-2xl font-bold">Welcome to Blistree Tokens</h2>
-                <p className="text-muted-foreground">Your adventure in digital currency awaits. Log in to start your mining journey and see your fortune grow.</p>
-            </div>
-            <div className ="flex flex-col items-center justify-center gap-4">
-                <Pickaxe className="h-24 w-24 text-primary" />
-                <Button asChild size="lg">
-                    <Link href="/auth/login">
-                        <LogIn className="mr-2 h-5 w-5" />
-                        Login to Start Mining
-                    </Link>
-                </Button>
-                <p className="px-8 text-center text-sm text-muted-foreground">
-                  By logging in, you agree to our{' '}
-                  <Link href="/privacy-policy" className="underline underline -offset-4 hover:text-primary">
-                    Privacy Policy
-                  </Link>
-                  .
-                </p>
-            </div>
-        </div>
-    )
-  }
-
-  const renderActionButton = () => {
-    if (isStartingMining) {
-      return (
-        <div className="flex flex-col items-center">
-          <button
-            disabled
-            className="w-24 h-24 rounded-full border-4 border-primary/50 flex items-center justify-center relative shadow-[0_0_20px] shadow-primary/50"
-          >
-             <div className="w-20 h-20 rounded-full border-2 border-primary/80 flex flex-col items-center justify-center">
-              <Loader2 className="w-8 h-8 text-primary animate-spin" />
-              <span className="text-xs font-semibold text-primary mt-1">Starting...</span>
-            </div>
-          </button>
-        </div>
-      );
-    }
-  
-    if (isClaiming) {
-        return (
-            <div className="flex flex-col items-center">
-                <Button size="lg" disabled className="bg-amber-500 hover:bg-amber-600 text-white shadow-[0_0_20px] shadow-amber-500/80">
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin"/>
-                     Claiming...
-                </Button>
-            </div>
-        );
-    }
-
-    if (isSessionActive) {
-      return (
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-24 h-24 rounded-full border-4 border-amber-400/50 flex items-center justify-center relative shadow-[0_0_20px] shadow-amber-400/50">
-            <div className="w-20 h-20 rounded-full border-2 border-amber-400/80 flex flex-col items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
-              <span className="text-xs text-amber-300 mt-1">Mining...</span>
-             </div>
-          </div>
-          {userProfile.isAdmin && (
-            <Button onClick={handleTerminateSession} disabled={isTerminating} size="sm" variant="destructive" className="mt-2">
-                {isTerminating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Zap className="mr-2 h-4 w-4"/>}
-                Terminate
-            </Button>
-          )}
-        </div>
-      );
-    }
-  
-    if (isFinalizing) {
-      return (
-        <div className="flex flex-col items-center justify-center h-24 w-24">
-          <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
-          <span className="text-xs text-amber-300 mt-2">Finalizing...</span>
-        </div>
-       );
-    }
-
-    if (userProfile.unclaimedCoins && userProfile.unclaimedCoins > 0) {
-      return (
-        <div className="flex flex-col items-center">
-            <Button size="lg" onClick={handleClaimCoins} className="bg-amber-500 hover:bg-amber-600 text-white shadow-[0_0_20px] shadow-amber-500/80">
-              <Coins className="mr-2 h-5 w-5" />
-              {t('Claim Coins')}
-            </Button>
-        </div>
-      );
-    }
-    
-    return (
-      <div className="flex flex-col items-center">
-          <button
-              onClick={handleStartMining}
-              className={cn("w-24 h-24 rounded-full border-4 border-primary/50 flex items-center justify-center relative shadow-[0_0_20px] shadow-primary/50 transition-colors cursor-pointer hover:bg-primary/10")}
-          >
-              <div className="w-20 h-20 rounded-full border-2 border-primary/80 flex flex-col items-center justify-center">
-                  <Play className="w-8 h-8 text-primary" />
-                  <span className="text-sm font-semibold text-primary mt-1">{t('Start')}</span>
-              </div>
-          </button>
-      </div>
-     );
-  };
 
   return (
-    <div className={cn("min-h-screen", "mining-background")}>
-      <PotentialEarningsDialog open={showPotentialEarnings} onOpenChange={setShowPotentialEarnings} userProfile={userProfile} />
-      <FeedbackDialog open={showFeedbackDialog} onOpenChange={(open) => {
-            setShowFeedbackDialog(open);
-            if (!open) {
-                setIsClaiming(false); 
-            }
-        }} claimedAmount={claimedAmountForFeedback} />
-       <AlertDialog open={showDeviceConflictDialog} onOpenChange={setShowDeviceConflictDialog}>
-        <AlertDialogContent className="text-white border-amber-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
-            <AlertDialogHeader>
-                 <AlertDialogTitle className="text-amber-300">Device Already in Use</AlertDialogTitle>
-                <AlertDialogDescription className="text-amber-200/80">
-                    This device is associated with another account. To prevent abuse, each device can only be used for one mining account.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="my-4 space-y-2">
-                <p className="text-sm font-semibold text-amber-200/90">Conflicting Account(s):</p>
-                <ul className="space-y-1 text-sm text-amber-200/80 list-disc list-inside">
-                    {conflictingAccounts.map(acc => (
-                        <li key={acc.id}>
-                           {acc.fullName} ({acc.profileCode})
-                        </li>
-                    ))}
-                </ul>
-            </div>
-            <AlertDialogFooter className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <Button variant="outline" onClick={() => {setShowDeviceConflictDialog(false); router.push('/chat');}} className="sm:col-span-1 bg-transparent text-cyan-300 border-cyan-400/50 hover:bg-cyan-400/10 hover:text-white">
-                    <MessageSquare className="mr-2 h-4 w-4" /> Support
-                </Button>
-                <AlertDialogCancel className="sm:col-span-1">Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deleteAccount()} className="sm:col-span-1 bg-destructive hover:bg-destructive/90">
-                    <Trash2 className="mr-2 h-4 w-4"/>
-                    Delete This Account
-                </AlertDialogAction>
-             </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      
-      <div className="relative z-10 px-4 md:px-6 pt-4 space-y-4">
-        <UniversalMessageNotification />
-        <UserNotifications />
-        <RateProposalNotification />
+    <div className="app-background p-4 sm:p-6 space-y-6 pb-24">
+      {/* Design Header */}
+      <div className="relative h-48 w-full rounded-3xl overflow-hidden glass-card border-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/40 via-transparent to-cyan-900/20" />
+        <div className="absolute top-6 left-6 flex items-center gap-4">
+          <Button variant="ghost" size="icon" className="bg-white/5 border border-white/10 rounded-xl">
+            <LayoutGrid className="text-white h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-white font-bold text-lg leading-tight">Hirehills</h1>
+            <p className="text-white/60 text-xs font-medium">Official Token</p>
+          </div>
+        </div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <span className="hot-logo-text text-7xl">HOT</span>
+        </div>
+        <div className="absolute top-6 right-6">
+          <Button variant="ghost" size="icon" className="bg-white/5 border border-white/10 rounded-xl">
+            <Settings className="text-white h-5 w-5" />
+          </Button>
+        </div>
+        {/* Bottom Reflector */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white/10 to-transparent pointer-events-none" />
       </div>
 
-       <div className="px-4 md:px-6 pt-4 space-y-8 max-w-2xl mx-auto pb-24">
-            <div className="flex justify-between items-start">
-                <div className="relative w-16 h-16 flex items-center justify-center">
-                 <svg className="absolute w-full h-full text-amber-500/30" viewBox="0 0 100 100">
-                    <path d="M50 0 L93.3 25 L93.3 75 L50 100 L6.7 75 L6.7 25 Z" stroke="currentColor" strokeWidth="2" fill="none" />
-                </svg>
-                <Coins className="w-8 h-8 text-amber-400" />
-                </div>
-                <Link href="/kuber" className ="flex flex-col items-end cursor-pointer">
-                    <div className="flex items-center gap-2">
-                        <Pyramid className="h-4 w-4 text-indigo-300" />
-                        <span className="font-mono text-lg font-bold text-indigo-300">{cumulativeFBloc.toFixed(4)}</span>
-                    </div>
-                    <p className="text-xs text-indigo-200/80">From referrals</p>
-                </Link>
-            </div>
+      {/* Mining Section */}
+      <div className="glass-card rounded-[2.5rem] p-6 glow-border">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <span className="text-white font-bold text-lg">Mining</span>
+            <ChevronDown className="h-4 w-4 text-cyan-400" />
+          </div>
+          <span className="text-white/80 font-mono text-sm">$:2:500</span>
+        </div>
 
-            <div className="text-center my-4">
-                <h2 className="text-5xl md:text-6xl font-bold text-amber-400 tracking-tighter" style={{textShadow: '0 0 10px rgba(251, 191, 36, 0.5)'}}>
-                    {displayCoins.toFixed(4)}
-                </h2>
-                <p className="text-sm text-gray-300 mt-2">
-                {isSessionActive ? t("Blistree Tokens Earned This Session") : (userProfile.unclaimedCoins || 0) > 0 ? t("Coins Ready to Claim") : t("Start Mining")}
-                </p>
-                <p className="text-xs text-gray-400 mt-1 flex items-center justify-center gap-1">
-                    <span>{t('Total Balance:')} {(userProfile.minedCoins || 0).toFixed(4)}</span>
-                    <span className="font-sans font-bold">₿</span>
-                </p>
-            </div>
+        <div className="relative mb-4">
+          <Progress value={isSessionActive ? 65 : 0} className="h-2 bg-white/5" />
+          <div className="absolute inset-0 h-2 bg-gradient-to-r from-purple-500 to-cyan-400 blur-sm opacity-50" />
+        </div>
 
-            <div className="flex justify-between items-center gap-4">
-                <div className="bg-black/30 rounded-lg p-2 px-4 border border-white/20">
-                    <p className="text-2xl font-mono text-amber-400" style={{textShadow: '0 0 8px rgba(251, 191, 36, 0.7)'}}>
-                        {timeRemaining}
-                    </p>
-                </div>
-                <div>
-                    {renderActionButton()}
-                </div>
-            </div>
+        <div className="flex justify-between text-white/40 text-xs mb-8">
+          <span>{isSessionActive ? timeRemaining : '08:00:00'}</span>
+          <span>$3.500</span>
+        </div>
 
-            <div className="space-y-4">
-                <DailyCoins isSessionActive={isSessionActive} />
-                <MysteryBox type="8H" userProfile={userProfile} isSessionActive={isSessionActive} />
+        <div className="space-y-1">
+          <p className="text-white/60 text-sm font-medium">Hash Rate</p>
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-neon-cyan text-4xl font-bold tracking-tighter">1,234.56</h2>
+            <div className="text-right">
+              <span className="text-cyan-400/60 text-[10px] uppercase font-bold block">Hash Rate</span>
+              <span className="text-neon-cyan text-2xl font-bold">117,576</span>
             </div>
+          </div>
+        </div>
 
-            <AirdropCard />
+        {/* Technical Graph Overlay */}
+        <div className="h-32 w-full mt-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <Line 
+                type="stepAfter" 
+                dataKey="value" 
+                stroke="#06b6d4" 
+                strokeWidth={2} 
+                dot={false}
+                isAnimationActive={false}
+              />
+              <Tooltip content={() => null} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-white/5 space-y-4">
+          <div className="flex justify-between text-xs font-mono">
+            <span className="text-white/40 italic">Hash Rate</span>
+            <span className="text-white/80">213,96.079</span>
+          </div>
+          <div className="flex justify-between text-xs font-mono">
+            <span className="text-neon-cyan italic">Hash Rate</span>
+            <span className="text-white/80">201,26.000</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Wallet Balance Section */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center px-2">
+          <h3 className="text-white font-bold text-lg">Wallet Balance</h3>
+          <ArrowRight className="h-5 w-5 text-white/40" />
+        </div>
+
+        {/* Holographic Balance Card */}
+        <div className="relative p-8 rounded-[2.5rem] overflow-hidden border border-white/10 group">
+          {/* Holographic Background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-black" />
+          <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/tech/800/400')] opacity-10 mix-blend-overlay" />
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-cyan-500/20 blur-[100px] rounded-full" />
+          
+          <div className="relative flex items-center gap-6">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
+                <span className="text-white font-black text-xs">HOT</span>
+              </div>
+              <div className="absolute inset-0 bg-white/20 blur-md rounded-full -z-10 animate-pulse" />
+            </div>
             
-            {userProfile.tournamentId && userProfile.tournamentId !== 'left' && <TournamentCard />}
+            <div className="space-y-1">
+              <span className="text-white/40 text-sm font-bold uppercase tracking-widest">HOT</span>
+              <h4 className="text-white text-4xl font-bold tracking-tighter">
+                {(userProfile?.minedCoins || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </h4>
+            </div>
+          </div>
+
+          {/* Decorative UI elements */}
+          <div className="absolute bottom-4 right-8 flex gap-1">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="w-1 h-1 rounded-full bg-cyan-400/40" />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Fixed Action Button */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md px-6">
+        {isSessionActive ? (
+          <Button 
+            className="w-full h-16 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-tighter shadow-xl shadow-cyan-500/20"
+          >
+            <Activity className="mr-2 h-5 w-5 animate-pulse" />
+            Active Mining
+          </Button>
+        ) : (
+          <Button 
+            onClick={handleStartMining}
+            disabled={isStarting}
+            className="w-full h-16 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black uppercase tracking-tighter shadow-xl shadow-purple-500/20"
+          >
+            {isStarting ? <Loader2 className="animate-spin mr-2" /> : <Play className="mr-2 h-5 w-5" />}
+            Start Mining Session
+          </Button>
+        )}
       </div>
     </div>
   );
