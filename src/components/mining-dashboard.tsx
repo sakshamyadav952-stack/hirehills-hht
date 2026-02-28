@@ -180,9 +180,9 @@ export function MiningDashboard() {
         <div className="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 select-none pointer-events-none text-center w-full px-4">
           {isSessionActive ? (
             <div className="flex flex-col items-center animate-in zoom-in-95 duration-500">
-              <span className="text-cyan-400/40 text-[10px] font-black uppercase tracking-[0.5em] mb-3">Session Earnings Stream</span>
+              <span className="text-cyan-400/40 text-[10px] font-black uppercase tracking-[0.5em] mb-3">Live Accumulation</span>
               <div className="relative group">
-                <h2 className="hot-logo-text text-7xl md:text-9xl font-black tracking-tighter tabular-nums drop-shadow-[0_0_30px_rgba(168,85,247,0.4)]">
+                <h2 className="text-white text-5xl md:text-7xl font-black tracking-tighter tabular-nums drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
                   {liveCoins.toFixed(4)}
                 </h2>
                 {/* Visual Flair: Pulsing scanning line */}
@@ -190,7 +190,7 @@ export function MiningDashboard() {
               </div>
               <div className="flex items-center gap-3 mt-4 bg-cyan-500/10 px-4 py-1.5 rounded-full border border-cyan-500/20 backdrop-blur-md">
                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_#22d3ee]" />
-                <span className="text-cyan-400 text-[10px] font-black tracking-[0.3em] uppercase italic">Core Processing Active</span>
+                <span className="text-cyan-400 text-[10px] font-black tracking-[0.3em] uppercase italic">Processing HOT</span>
               </div>
             </div>
           ) : (
@@ -242,17 +242,17 @@ export function MiningDashboard() {
         <div className="flex justify-between text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-10">
           <div className="flex items-center gap-2">
             <Clock className="h-3 w-3" />
-            <span>Cycle Remaining: {isSessionActive ? timeRemaining : '08:00:00'}</span>
+            <span>Remaining: {isSessionActive ? timeRemaining : '08:00:00'}</span>
           </div>
           <div className="flex items-center gap-2">
             <Database className="h-3 w-3" />
-            <span>Node Pool: 200M HOT</span>
+            <span>Pool: 200M HOT</span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
           <div className="space-y-2">
-            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Rate Efficiency</p>
+            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Efficiency</p>
             <div className="flex items-baseline gap-4">
               <h2 className="text-white text-5xl font-black tracking-tighter italic">
                 {isSessionActive ? totalMiningRate.toFixed(2) : "0.00"}
@@ -263,7 +263,7 @@ export function MiningDashboard() {
               <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/5">
                 <Activity className="h-4 w-4 text-cyan-400" />
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Live Accumulation</span>
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Total Active</span>
                   <span className="text-lg font-mono font-bold text-white tracking-tight">{liveCoins.toFixed(6)}</span>
                 </div>
               </div>
