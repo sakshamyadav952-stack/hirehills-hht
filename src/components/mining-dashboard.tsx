@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -316,8 +317,10 @@ export function MiningDashboard() {
               <Activity className="text-cyan-400 h-6 w-6 animate-pulse" />
             </div>
             <div className="flex-1">
-              <p className="text-white font-black text-sm uppercase tracking-tighter">Core Processing</p>
-              <p className="text-cyan-400/60 text-[10px] font-bold">OPTIMIZED_FREQ_LOCKED</p>
+              <p className="text-white font-black text-sm uppercase tracking-tighter tabular-nums">
+                HOT: {liveCoins.toFixed(4)}
+              </p>
+              <p className="text-cyan-400/60 text-[10px] font-bold uppercase tracking-widest animate-pulse">Mining Active</p>
             </div>
             <div className="text-right">
               <p className="text-white font-mono font-bold">{timeRemaining}</p>
