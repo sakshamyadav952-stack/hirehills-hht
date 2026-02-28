@@ -7,31 +7,17 @@ import {
   useUser,
   useAuth as useFirebaseAuth,
   useFirestore,
-  useFirebaseApp,
 } from '@/firebase';
 import {
   signOut,
-  deleteUser,
   User,
-  RecaptchaVerifier,
-  linkWithPhoneNumber,
-  ConfirmationResult,
-  signInWithPhoneNumber as firebaseSignInWithPhoneNumber,
   GoogleAuthProvider,
   signInWithCredential,
+  signInWithPopup,
 } from 'firebase/auth';
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { doc, serverTimestamp, onSnapshot, updateDoc, runTransaction, arrayUnion, query, collection, where, documentId, getDocs, writeBatch, deleteDoc, setDoc, getDoc, increment, addDoc, orderBy, Timestamp, arrayRemove, Firestore } from 'firebase/firestore';
-import type { UserProfile, Transaction, PendingTransfer, WithdrawalRequest, ActiveBoost, DailyAdCoin, SessionConfig, AdWatchEvent, AirdropConfig, KuberBlock, KuberRequest, KuberId, TournamentConfig } from '@/lib/types';
+import { doc, serverTimestamp, onSnapshot, updateDoc, query, collection, where, getDocs, getDoc, increment, Timestamp, Firestore } from 'firebase/firestore';
+import type { UserProfile, SessionConfig } from '@/lib/types';
 import { useToast, toast as toastFn } from '@/hooks/use-toast';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { differenceInHours } from 'date-fns';
-import { parsePhoneNumber } from 'libphonenumber-js';
-
-type CooldownType = '2H' | '4H' | '8H';
-type Theme = 'light' | 'dark';
 
 interface MiningRateBreakdown {
   base: number;
@@ -86,7 +72,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const auth = useFirebaseAuth();
   const firestore = useFirestore();
   const router = useRouter();
-  const pathname = usePathname();
   const { toast } = useToast();
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -96,8 +81,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [miningRateBreakdown, setMiningRateBreakdown] = useState<MiningRateBreakdown | null>(null);
   const [liveCoins, setLiveCoins] = useState(0);
   const [activeReferralsCount, setActiveReferralsCount] = useState(0);
-
-  const loginTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const createNewUserProfile = useCallback(async (user: User): Promise<UserProfile> => {
     const userDocRef = doc(firestore, 'users', user.uid);
@@ -182,6 +165,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await createNewUserProfile(result.user);
       }
       router.push('/');
+    } catch (e) {
+      console.error(e);
     } finally {
       setIsSigningIn(false);
     }
@@ -202,7 +187,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await updateDoc(doc(firestore, 'users', user.uid), {
       miningStartTime: start,
       sessionEndTime: end,
-      unclaimedCoins: start ? 0 : userProfile?.unclaimedCoins || 0
+      unclaimedCoins: start ? 0 : userProfile?.unclaimedCoins || 0,
+      spinCount: 0,
+      spinCooldownEnd: null,
+      activeBoosts: [],
+      spinWinnings: 0
     });
   }, [user, userProfile, firestore]);
 

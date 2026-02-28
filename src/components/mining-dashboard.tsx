@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from '@/lib/auth';
 import { Button } from "@/components/ui/button";
 import { 
   Play, Loader2, Coins, ChevronDown, 
   Settings, Zap, Wallet, ArrowRight,
-  LayoutGrid, Activity
+  LayoutGrid, Activity, Gift, Clapperboard,
+  Database, Cpu, Network
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -14,38 +15,44 @@ import {
   LineChart, Line, ResponsiveContainer, YAxis, 
   CartesianGrid, Tooltip 
 } from "recharts";
+import { useFirestore } from "@/firebase";
+import { doc, updateDoc, arrayUnion, increment, collection } from "firebase/firestore";
 
 // Simulated Graph Data
 const generateChartData = () => {
-  return Array.from({ length: 20 }, (_, i) => ({
+  return Array.from({ length: 25 }, (_, i) => ({
     time: i,
-    value: 1200 + Math.random() * 100,
+    value: 1200 + Math.random() * 150,
   }));
 };
 
 export function MiningDashboard() {
-  const { userProfile, updateMiningState, loading, liveCoins, getGlobalSessionDuration } = useAuth();
+  const { userProfile, updateMiningState, loading, liveCoins, getGlobalSessionDuration, totalMiningRate, toast } = useAuth();
+  const firestore = useFirestore();
   const [isStarting, setIsStarting] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState('00:00:00');
   const [chartData, setChartData] = useState(generateChartData());
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
 
   const isSessionActive = useMemo(() => {
     if (!userProfile?.sessionEndTime) return false;
     return Date.now() < userProfile.sessionEndTime;
   }, [userProfile?.sessionEndTime]);
 
+  // Dynamic Chart Update
   useEffect(() => {
     if (isSessionActive) {
       const interval = setInterval(() => {
         setChartData(prev => [...prev.slice(1), { 
           time: prev[prev.length - 1].time + 1, 
-          value: 1200 + Math.random() * 100 
+          value: 1200 + Math.random() * 150 
         }]);
-      }, 3000);
+      }, 2000);
       return () => clearInterval(interval);
     }
   }, [isSessionActive]);
 
+  // Timer Update
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isSessionActive && userProfile?.sessionEndTime) {
@@ -78,155 +85,281 @@ export function MiningDashboard() {
     }
   };
 
+  const handleClaimMissedCoin = async () => {
+    if (!userProfile || isProcessing) return;
+    setIsProcessing('daily');
+    try {
+      // In a real app, this would call the Android ad interface first
+      if (typeof window !== 'undefined' && window.Android?.showRewardedAd) {
+        window.Android.showRewardedAd();
+      }
+      
+      const userRef = doc(firestore, 'users', userProfile.id);
+      await updateDoc(userRef, {
+        minedCoins: increment(1),
+        adWatchHistory: arrayUnion({
+          id: Math.random().toString(36).substr(2, 9),
+          element: 'Daily Bonus',
+          timestamp: Date.now()
+        })
+      });
+      toast({ title: "Bonus Applied", description: "1.00 HOT added to your balance." });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleOpenMysteryBox = async () => {
+    if (!userProfile || isProcessing) return;
+    setIsProcessing('mystery');
+    try {
+      if (typeof window !== 'undefined' && window.Android?.showRewardedAd) {
+        window.Android.showRewardedAd();
+      }
+
+      const userRef = doc(firestore, 'users', userProfile.id);
+      const newBoost = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: '8H',
+        rate: 0.1,
+        startTime: Date.now(),
+        endTime: Date.now() + (8 * 3600000),
+        adWatched: true
+      };
+
+      await updateDoc(userRef, {
+        activeBoosts: arrayUnion(newBoost),
+        adWatchHistory: arrayUnion({
+          id: newBoost.id,
+          element: 'Mining Optimization',
+          timestamp: Date.now()
+        })
+      });
+      toast({ title: "Hardware Optimized", description: "+0.10 HOT/hr boost active." });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
   if (loading) {
-    return <div className="flex items-center justify-center h-screen bg-black"><Loader2 className="animate-spin text-primary" /></div>;
+    return <div className="flex items-center justify-center h-screen bg-black"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>;
   }
 
   return (
-    <div className="app-background p-4 sm:p-6 space-y-6 pb-24">
-      {/* Design Header */}
-      <div className="relative h-48 w-full rounded-3xl overflow-hidden glass-card border-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/40 via-transparent to-cyan-900/20" />
-        <div className="absolute top-6 left-6 flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="bg-white/5 border border-white/10 rounded-xl">
-            <LayoutGrid className="text-white h-5 w-5" />
-          </Button>
+    <div className="app-background p-4 sm:p-6 space-y-6 pb-32">
+      {/* High-Fidelity Branding Header */}
+      <div className="relative h-56 w-full rounded-[2.5rem] overflow-hidden glass-card border-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-cyan-600/10" />
+        <div className="absolute top-8 left-8 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md">
+            <LayoutGrid className="text-white h-6 w-6" />
+          </div>
           <div>
-            <h1 className="text-white font-bold text-lg leading-tight">Hirehills</h1>
-            <p className="text-white/60 text-xs font-medium">Official Token</p>
+            <h1 className="text-white font-black text-xl leading-none tracking-tight">HIREHILLS</h1>
+            <p className="text-purple-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">Official Token</p>
           </div>
         </div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <span className="hot-logo-text text-7xl">HOT</span>
+        
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 select-none pointer-events-none">
+          <span className="hot-logo-text text-8xl md:text-9xl">HOT</span>
         </div>
-        <div className="absolute top-6 right-6">
-          <Button variant="ghost" size="icon" className="bg-white/5 border border-white/10 rounded-xl">
-            <Settings className="text-white h-5 w-5" />
-          </Button>
+
+        <div className="absolute top-8 right-8">
+          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md">
+            <Settings className="text-white h-6 w-6" />
+          </div>
         </div>
-        {/* Bottom Reflector */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white/10 to-transparent pointer-events-none" />
+        
+        {/* Animated scanning line */}
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-500/50 to-transparent animate-scan pointer-events-none" />
       </div>
 
-      {/* Mining Section */}
-      <div className="glass-card rounded-[2.5rem] p-6 glow-border">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
-            <span className="text-white font-bold text-lg">Mining</span>
-            <ChevronDown className="h-4 w-4 text-cyan-400" />
+      {/* Primary Technical Dashboard */}
+      <div className="glass-card rounded-[3rem] p-8 glow-border relative overflow-hidden">
+        {/* Background circuit pattern placeholder or subtle grid */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://picsum.photos/seed/tech/800/800')] mix-blend-overlay" />
+
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="text-white font-black text-lg uppercase tracking-tighter">Engine Status</span>
+            <ChevronDown className="h-5 w-5 text-white/20" />
           </div>
-          <span className="text-white/80 font-mono text-sm">$:2:500</span>
+          <div className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10">
+            <span className="text-white/80 font-mono text-xs font-bold tracking-widest">
+              SYS_REV: {totalMiningRate.toFixed(2)}/HR
+            </span>
+          </div>
         </div>
 
-        <div className="relative mb-4">
-          <Progress value={isSessionActive ? 65 : 0} className="h-2 bg-white/5" />
-          <div className="absolute inset-0 h-2 bg-gradient-to-r from-purple-500 to-cyan-400 blur-sm opacity-50" />
+        <div className="relative mb-6">
+          <Progress 
+            value={isSessionActive ? 65 : 0} 
+            className="h-3 bg-white/5 overflow-hidden" 
+          />
+          <div className="absolute inset-0 h-3 bg-gradient-to-r from-purple-600 via-cyan-400 to-purple-600 blur-md opacity-30 animate-pulse" />
         </div>
 
-        <div className="flex justify-between text-white/40 text-xs mb-8">
-          <span>{isSessionActive ? timeRemaining : '08:00:00'}</span>
-          <span>$3.500</span>
+        <div className="flex justify-between text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-10">
+          <div className="flex items-center gap-2">
+            <Clock className="h-3 w-3" />
+            <span>Remaining: {isSessionActive ? timeRemaining : '08:00:00'}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Database className="h-3 w-3" />
+            <span>Target: 200M MAX</span>
+          </div>
         </div>
 
-        <div className="space-y-1">
-          <p className="text-white/60 text-sm font-medium">Hash Rate</p>
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-neon-cyan text-4xl font-bold tracking-tighter">1,234.56</h2>
-            <div className="text-right">
-              <span className="text-cyan-400/60 text-[10px] uppercase font-bold block">Hash Rate</span>
-              <span className="text-neon-cyan text-2xl font-bold">117,576</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
+          <div className="space-y-2">
+            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Current Hash Rate</p>
+            <div className="flex items-baseline gap-4">
+              <h2 className="text-white text-5xl font-black tracking-tighter italic">
+                {isSessionActive ? (1234.56 + Math.random() * 10).toFixed(2) : "0.00"}
+              </h2>
+              <span className="text-cyan-400 font-black text-xl italic">TH/s</span>
             </div>
           </div>
+          
+          {/* Technical Visualization */}
+          <div className="h-24 w-full opacity-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <Line 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="#a855f7" 
+                  strokeWidth={3} 
+                  dot={false}
+                  isAnimationActive={false}
+                />
+                <Tooltip content={() => null} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
-        {/* Technical Graph Overlay */}
-        <div className="h-32 w-full mt-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <Line 
-                type="stepAfter" 
-                dataKey="value" 
-                stroke="#06b6d4" 
-                strokeWidth={2} 
-                dot={false}
-                isAnimationActive={false}
-              />
-              <Tooltip content={() => null} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {/* Integrated Task Buttons */}
+        <div className="mt-10 pt-10 border-t border-white/5 grid grid-cols-2 gap-4">
+          <Button 
+            variant="ghost" 
+            onClick={handleClaimMissedCoin}
+            disabled={!isSessionActive || isProcessing === 'daily'}
+            className="h-16 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group"
+          >
+            {isProcessing === 'daily' ? <Loader2 className="animate-spin h-5 w-5" /> : (
+              <>
+                <div className="flex items-center gap-2">
+                  <Coins className="h-4 w-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-xs font-black uppercase">Daily Claim</span>
+                </div>
+                <span className="text-[10px] text-white/40 font-bold tracking-wider">1.00 HOT Bonus</span>
+              </>
+            )}
+          </Button>
 
-        <div className="mt-6 pt-6 border-t border-white/5 space-y-4">
-          <div className="flex justify-between text-xs font-mono">
-            <span className="text-white/40 italic">Hash Rate</span>
-            <span className="text-white/80">213,96.079</span>
-          </div>
-          <div className="flex justify-between text-xs font-mono">
-            <span className="text-neon-cyan italic">Hash Rate</span>
-            <span className="text-white/80">201,26.000</span>
-          </div>
+          <Button 
+            variant="ghost"
+            onClick={handleOpenMysteryBox}
+            disabled={!isSessionActive || isProcessing === 'mystery'}
+            className="h-16 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group"
+          >
+            {isProcessing === 'mystery' ? <Loader2 className="animate-spin h-5 w-5" /> : (
+              <>
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-purple-400 group-hover:animate-pulse" />
+                  <span className="text-xs font-black uppercase">Turbo Boost</span>
+                </div>
+                <span className="text-[10px] text-white/40 font-bold tracking-wider">+0.10 HOT/HR</span>
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
-      {/* Wallet Balance Section */}
+      {/* Wallet Balance Card */}
       <div className="space-y-4">
-        <div className="flex justify-between items-center px-2">
-          <h3 className="text-white font-bold text-lg">Wallet Balance</h3>
-          <ArrowRight className="h-5 w-5 text-white/40" />
+        <div className="flex justify-between items-center px-4">
+          <h3 className="text-white font-black text-sm uppercase tracking-[0.3em]">Hardware Wallet</h3>
+          <div className="flex items-center gap-2 text-white/40">
+            <span className="text-[10px] font-bold">SECURE_LINK_ACTIVE</span>
+            <Network className="h-3 w-3" />
+          </div>
         </div>
 
-        {/* Holographic Balance Card */}
-        <div className="relative p-8 rounded-[2.5rem] overflow-hidden border border-white/10 group">
-          {/* Holographic Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-black" />
-          <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/tech/800/400')] opacity-10 mix-blend-overlay" />
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-cyan-500/20 blur-[100px] rounded-full" />
+        <div className="relative p-10 rounded-[3rem] overflow-hidden border border-white/10 group bg-zinc-950">
+          <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-950" />
+          <div className="absolute -top-24 -right-24 w-80 h-80 bg-purple-600/10 blur-[120px] rounded-full" />
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-cyan-600/10 blur-[120px] rounded-full" />
           
-          <div className="relative flex items-center gap-6">
+          <div className="relative flex items-center gap-8">
             <div className="relative">
-              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
-                <span className="text-white font-black text-xs">HOT</span>
+              <div className="w-20 h-20 rounded-[2rem] bg-white/5 flex items-center justify-center border border-white/10 rotate-12 group-hover:rotate-0 transition-transform duration-500 backdrop-blur-xl">
+                <span className="text-white font-black text-sm tracking-tighter">HOT</span>
               </div>
-              <div className="absolute inset-0 bg-white/20 blur-md rounded-full -z-10 animate-pulse" />
+              <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full -z-10 animate-pulse" />
             </div>
             
             <div className="space-y-1">
-              <span className="text-white/40 text-sm font-bold uppercase tracking-widest">HOT</span>
-              <h4 className="text-white text-4xl font-bold tracking-tighter">
-                {(userProfile?.minedCoins || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <span className="text-white/30 text-[10px] font-black uppercase tracking-[0.4em]">Available Balance</span>
+              <h4 className="text-white text-5xl font-black tracking-tighter">
+                {liveCoins.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
               </h4>
             </div>
           </div>
 
-          {/* Decorative UI elements */}
-          <div className="absolute bottom-4 right-8 flex gap-1">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="w-1 h-1 rounded-full bg-cyan-400/40" />
+          <div className="absolute bottom-6 right-10 flex gap-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="w-6 h-1 rounded-full bg-white/10" />
             ))}
           </div>
         </div>
       </div>
 
-      {/* Fixed Action Button */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md px-6">
+      {/* Main Action Control */}
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-8 z-50">
         {isSessionActive ? (
-          <Button 
-            className="w-full h-16 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-tighter shadow-xl shadow-cyan-500/20"
-          >
-            <Activity className="mr-2 h-5 w-5 animate-pulse" />
-            Active Mining
-          </Button>
+          <div className="w-full h-20 rounded-3xl bg-zinc-900 border border-white/10 flex items-center px-6 gap-4 shadow-2xl shadow-black">
+            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center">
+              <Cpu className="text-cyan-400 h-6 w-6 animate-spin-slow" />
+            </div>
+            <div className="flex-1">
+              <p className="text-white font-black text-sm uppercase tracking-tighter">Core Processing</p>
+              <p className="text-cyan-400/60 text-[10px] font-bold">OPTIMIZED_FREQ_LOCKED</p>
+            </div>
+            <div className="text-right">
+              <p className="text-white font-mono font-bold">{timeRemaining}</p>
+            </div>
+          </div>
         ) : (
           <Button 
             onClick={handleStartMining}
             disabled={isStarting}
-            className="w-full h-16 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black uppercase tracking-tighter shadow-xl shadow-purple-500/20"
+            className="w-full h-20 rounded-[2rem] bg-purple-600 hover:bg-purple-500 text-white font-black text-xl uppercase tracking-tighter shadow-[0_20px_50px_rgba(168,85,247,0.3)] border-t border-white/20 active:scale-95 transition-all"
           >
-            {isStarting ? <Loader2 className="animate-spin mr-2" /> : <Play className="mr-2 h-5 w-5" />}
-            Start Mining Session
+            {isStarting ? <Loader2 className="animate-spin mr-3 h-6 w-6" /> : <Play className="mr-3 h-6 w-6 fill-current" />}
+            Initialize Mining
           </Button>
         )}
       </div>
+
+      <style jsx global>{`
+        @keyframes scan {
+          0% { top: 0; }
+          100% { top: 100%; }
+        }
+        .animate-scan {
+          animation: scan 4s linear infinite;
+        }
+        .animate-spin-slow {
+          animation: spin 6s linear infinite;
+        }
+      `}</style>
     </div>
   );
 }
