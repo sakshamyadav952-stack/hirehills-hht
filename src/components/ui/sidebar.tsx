@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -22,7 +23,7 @@ import {
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
-const SIDEBAR_WIDTH_MOBILE = "16rem"
+const SIDEBAR_WIDTH_MOBILE = "100%"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
@@ -201,11 +202,11 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] p-0 text-white border-amber-400/50"
+            className="w-full sm:max-w-none p-0 text-white border-none"
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-                 background: 'linear-gradient(145deg, #1a1a2e, #16213e)'
+                 background: '#000000'
               } as React.CSSProperties
             }
             side={side}
@@ -224,7 +225,7 @@ const Sidebar = React.forwardRef<
             "flex h-full w-[--sidebar-width] flex-col text-white",
             className
           )}
-           style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}
+           style={{ background: '#000000' }}
           ref={ref}
           {...props}
         >
@@ -269,8 +270,8 @@ const Sidebar = React.forwardRef<
         >
           <div
             data-sidebar="sidebar"
-            className="flex h-full w-full flex-col border-amber-400/50 group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
-            style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}
+            className="flex h-full w-full flex-col border-white/5 group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
+            style={{ background: '#000000' }}
           >
             {children}
           </div>
@@ -410,7 +411,7 @@ const SidebarSeparator = React.forwardRef<
     <Separator
       ref={ref}
       data-sidebar="separator"
-      className={cn("mx-2 w-auto bg-amber-400/20", className)}
+      className={cn("mx-2 w-auto bg-white/5", className)}
       {...props}
     />
   )
@@ -461,7 +462,7 @@ const SidebarGroupLabel = React.forwardRef<
       ref={ref}
       data-sidebar="group-label"
       className={cn(
-        "duration-200 flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-amber-300/70 outline-none ring-sidebar-ring transition-[margin,opa] ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
+        "duration-200 flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-white/40 outline-none ring-sidebar-ring transition-[margin,opa] ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
         "group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0",
         className
       )}
@@ -474,7 +475,7 @@ SidebarGroupLabel.displayName = "SidebarGroupLabel"
 const SidebarGroupAction = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<"button"> & { asChild?: boolean }
->(({ className, asChild = false, ...props }, ref) => {
+>(({ className, asChild = false, showOnHover = false, ...props }, ref) => {
   const Comp = asChild ? Slot : "button"
 
   return (
@@ -534,18 +535,18 @@ const SidebarMenuItem = React.forwardRef<
 SidebarMenuItem.displayName = "SidebarMenuItem"
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-amber-400/10 hover:text-white focus-visible:ring-2 active:bg-amber-400/20 active:text-white disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-amber-400/20 data-[active=true]:font-medium data-[active=true]:text-white data-[state=open]:hover:bg-amber-400/10 data-[state=open]:hover:text-white group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex w-full items-center gap-3 overflow-hidden rounded-xl p-3 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-white/5 hover:text-white focus-visible:ring-2 active:bg-white/10 active:text-white disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-white/10 data-[active=true]:font-bold data-[active=true]:text-white data-[state=open]:hover:bg-white/5 data-[state=open]:hover:text-white group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 [&>span:last-child]:truncate [&>svg]:size-5 [&>svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "hover:bg-amber-400/10 hover:text-white",
+        default: "hover:bg-white/5 hover:text-white",
         outline:
-          "bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-amber-400/10 hover:text-white hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
+          "bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-white/5 hover:text-white hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
       },
       size: {
-        default: "h-8 text-sm",
-        sm: "h-7 text-xs",
-        lg: "h-12 text-sm group-data-[collapsible=icon]:!p-0",
+        default: "h-12 text-sm",
+        sm: "h-10 text-xs",
+        lg: "h-14 text-sm group-data-[collapsible=icon]:!p-0",
       },
     },
     defaultVariants: {
@@ -584,7 +585,7 @@ const SidebarMenuButton = React.forwardRef<
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
-        className={cn(sidebarMenuButtonVariants({ variant, size }), className, "text-amber-200/90")}
+        className={cn(sidebarMenuButtonVariants({ variant, size }), className, "text-white/70")}
         {...props}
       />
     )
@@ -712,7 +713,7 @@ const SidebarMenuSub = React.forwardRef<
     ref={ref}
     data-sidebar="menu-sub"
     className={cn(
-      "mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-amber-400/20 px-2.5 py-0.5",
+      "mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-white/5 px-2.5 py-0.5",
       "group-data-[collapsible=icon]:hidden",
       className
     )}
@@ -744,8 +745,8 @@ const SidebarMenuSubButton = React.forwardRef<
       data-size={size}
       data-active={isActive}
       className={cn(
-        "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-white outline-none ring-sidebar-ring hover:bg-amber-400/10 hover:text-white focus-visible:ring-2 active:bg-amber-400/20 active:text-white disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-amber-300",
-        "data-[active=true]:bg-amber-400/20 data-[active=true]:text-white",
+        "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-white outline-none ring-sidebar-ring hover:bg-white/5 hover:text-white focus-visible:ring-2 active:bg-white/10 active:text-white disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-white/40",
+        "data-[active=true]:bg-white/10 data-[active=true]:text-white",
         size === "sm" && "text-xs",
         size === "md" && "text-sm",
         "group-data-[collapsible=icon]:hidden",
