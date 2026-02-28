@@ -3,9 +3,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from '@/lib/auth';
 import { Button } from "@/components/ui/button";
+import Link from 'next/link';
 import { 
   Play, Loader2, Coins, ChevronDown, 
-  Settings, Zap, LayoutGrid, Clock, Cpu, 
+  Wallet, Zap, LayoutGrid, Clock, Cpu, 
   Database, Network, Activity
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -162,8 +163,8 @@ export function MiningDashboard() {
   return (
     <div className="min-h-screen bg-black p-4 sm:p-6 space-y-6 pb-20">
       {/* High-Fidelity Branding Header */}
-      <div className="relative h-72 w-full rounded-[2.5rem] overflow-hidden glass-card border-white/5 bg-zinc-900/20">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 via-transparent to-cyan-600/5" />
+      <div className="relative h-72 w-full rounded-[2.5rem] overflow-hidden glass-card border-white/5 bg-zinc-900/40">
+        <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-cyan-600/5" />
         
         {/* Header Icons */}
         <div className="absolute top-8 left-8 flex items-center gap-4">
@@ -201,15 +202,15 @@ export function MiningDashboard() {
           )}
         </div>
 
-        <div className="absolute top-8 right-8">
-          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md">
-            <Settings className="text-white h-6 w-6" />
+        <Link href="/wallet" className="absolute top-8 right-8 transition-transform hover:scale-110 active:scale-95 z-10">
+          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md hover:bg-white/10">
+            <Wallet className="text-white h-6 w-6" />
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Primary Technical Dashboard */}
-      <div className="glass-card rounded-[3rem] p-8 glow-border relative overflow-hidden bg-zinc-900/10">
+      <div className="glass-card rounded-[3rem] p-8 glow-border relative overflow-hidden bg-zinc-900/20">
         <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://picsum.photos/seed/tech/800/800')] mix-blend-overlay" />
 
         <div className="flex justify-between items-center mb-8">
