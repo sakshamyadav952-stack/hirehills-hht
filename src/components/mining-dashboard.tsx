@@ -29,6 +29,7 @@ export function MiningDashboard() {
   const firestore = useFirestore();
   const [isStarting, setIsStarting] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState('00:00:00');
+  const [sessionProgress, setSessionProgress] = useState(0);
   const [chartData, setChartData] = useState(generateChartData());
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
 
@@ -50,26 +51,39 @@ export function MiningDashboard() {
     }
   }, [isSessionActive]);
 
-  // Timer Update
+  // Timer & Progress Update
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isSessionActive && userProfile?.sessionEndTime) {
-      const updateTimer = () => {
-        const diff = userProfile.sessionEndTime! - Date.now();
+    if (isSessionActive && userProfile?.sessionEndTime && userProfile?.miningStartTime) {
+      const updateMetrics = () => {
+        const now = Date.now();
+        const diff = userProfile.sessionEndTime! - now;
+        
+        // Timer
         if (diff <= 0) {
           setTimeRemaining('00:00:00');
+          setSessionProgress(100);
           return;
         }
         const h = Math.floor(diff / 3600000);
         const m = Math.floor((diff % 3600000) / 60000);
         const s = Math.floor((diff % 60000) / 1000);
         setTimeRemaining(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+
+        // Progress Bar
+        const total = userProfile.sessionEndTime! - userProfile.miningStartTime!;
+        const elapsed = now - userProfile.miningStartTime!;
+        const progress = Math.min(100, Math.max(0, (elapsed / total) * 100));
+        setSessionProgress(progress);
       };
-      updateTimer();
-      interval = setInterval(updateTimer, 1000);
+      updateMetrics();
+      interval = setInterval(updateMetrics, 1000);
+    } else {
+      setSessionProgress(0);
+      setTimeRemaining('08:00:00');
     }
     return () => clearInterval(interval);
-  }, [isSessionActive, userProfile?.sessionEndTime]);
+  }, [isSessionActive, userProfile?.sessionEndTime, userProfile?.miningStartTime]);
 
   const handleStartMining = async () => {
     if (isSessionActive || isStarting) return;
@@ -147,7 +161,7 @@ export function MiningDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-black p-4 sm:p-6 space-y-6 pb-32">
+    <div className="min-h-screen bg-black p-4 sm:p-6 space-y-6 pb-20">
       {/* High-Fidelity Branding Header */}
       <div className="relative h-64 w-full rounded-[2.5rem] overflow-hidden glass-card border-white/5 bg-zinc-900/20">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 via-transparent to-cyan-600/5" />
@@ -210,13 +224,17 @@ export function MiningDashboard() {
           </div>
         </div>
 
+        {/* Dynamic Progress Section */}
         <div className="relative mb-6">
           <Progress 
-            value={isSessionActive ? 65 : 0} 
+            value={sessionProgress} 
             className="h-3 bg-white/5 overflow-hidden" 
           />
           {isSessionActive && (
-            <div className="absolute inset-0 h-3 bg-gradient-to-r from-purple-600 via-cyan-400 to-purple-600 blur-md opacity-30 animate-pulse" />
+            <div 
+              className="absolute inset-0 h-3 bg-gradient-to-r from-purple-600 via-cyan-400 to-purple-600 blur-md opacity-30 animate-pulse transition-all duration-1000" 
+              style={{ width: `${sessionProgress}%` }}
+            />
           )}
         </div>
 
@@ -240,6 +258,12 @@ export function MiningDashboard() {
               </h2>
               <span className="text-cyan-400 font-black text-xl italic">HOT/HR</span>
             </div>
+            {isSessionActive && (
+              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/5">
+                <Coins className="h-3 w-3 text-amber-400" />
+                <span className="text-[10px] font-mono text-white/60">Balance Offset: +{liveCoins.toFixed(4)} HOT</span>
+              </div>
+            )}
           </div>
           
           <div className="h-24 w-full opacity-80">
@@ -258,6 +282,20 @@ export function MiningDashboard() {
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Start Mining Toggle */}
+        {!isSessionActive && (
+          <div className="mt-10 pt-10 border-t border-white/5">
+            <Button 
+              onClick={handleStartMining}
+              disabled={isStarting}
+              className="w-full h-16 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-lg uppercase tracking-tighter shadow-[0_10px_30px_rgba(168,85,247,0.3)] active:scale-95 transition-all"
+            >
+              {isStarting ? <Loader2 className="animate-spin mr-3 h-5 w-5" /> : <Play className="mr-3 h-5 w-5 fill-current" />}
+              Initialize Mining Sequence
+            </Button>
+          </div>
+        )}
 
         <div className="mt-10 pt-10 border-t border-white/5 grid grid-cols-2 gap-4">
           <button 
@@ -307,35 +345,6 @@ export function MiningDashboard() {
             </div>
         </div>
         <span className="text-[9px] font-mono">v4.0.2-release</span>
-      </div>
-
-      {/* Main Action Control */}
-      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-8 z-50">
-        {isSessionActive ? (
-          <div className="w-full h-20 rounded-3xl bg-zinc-900/90 border border-white/10 flex items-center px-6 gap-4 shadow-2xl shadow-black backdrop-blur-xl">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center">
-              <Activity className="text-cyan-400 h-6 w-6 animate-pulse" />
-            </div>
-            <div className="flex-1">
-              <p className="text-white font-black text-sm uppercase tracking-tighter tabular-nums">
-                HOT: {liveCoins.toFixed(4)}
-              </p>
-              <p className="text-cyan-400/60 text-[10px] font-bold uppercase tracking-widest animate-pulse">Mining Active</p>
-            </div>
-            <div className="text-right">
-              <p className="text-white font-mono font-bold">{timeRemaining}</p>
-            </div>
-          </div>
-        ) : (
-          <Button 
-            onClick={handleStartMining}
-            disabled={isStarting}
-            className="w-full h-20 rounded-[2rem] bg-purple-600 hover:bg-purple-500 text-white font-black text-xl uppercase tracking-tighter shadow-[0_20px_50px_rgba(168,85,247,0.3)] border-t border-white/20 active:scale-95 transition-all"
-          >
-            {isStarting ? <Loader2 className="animate-spin mr-3 h-6 w-6" /> : <Play className="mr-3 h-6 w-6 fill-current" />}
-            Initialize Mining
-          </Button>
-        )}
       </div>
 
       <style jsx global>{`
