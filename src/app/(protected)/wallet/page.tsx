@@ -28,19 +28,19 @@ export default function WalletPage() {
             <main className="flex-1 overflow-y-auto p-6 space-y-8 pb-40">
                  <Card className="futuristic-card-bg-secondary">
                     <CardContent className="p-6 text-center">
-                        <p className="text-sm text-amber-300/70 uppercase tracking-widest">Available Coins</p>
+                        <p className="text-sm text-amber-300/70 uppercase tracking-widest">Available HOT</p>
                         <div className="flex items-baseline justify-center gap-2 mt-2">
                             <span className="text-3xl sm:text-5xl font-bold tracking-wider text-white">{(userProfile?.minedCoins || 0).toFixed(4)}</span>
-                            <span className="text-xl sm:text-2xl font-semibold text-amber-300/80">BLIT</span>
+                            <span className="text-xl sm:text-2xl font-semibold text-amber-300/80">HOT</span>
                         </div>
                     </CardContent>
                 </Card>
 
                 <Card className="futuristic-card-bg-secondary">
                     <CardHeader>
-                        <CardTitle className="text-amber-200">Withdraw Coins</CardTitle>
+                        <CardTitle className="text-amber-200">Withdraw Tokens</CardTitle>
                         <CardDescription className="text-amber-300/70">
-                            Enter your Solana (SOL) wallet address to prepare for future withdrawals.
+                            Enter your Solana (SOL) wallet address to prepare for future HOT withdrawals.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
@@ -64,7 +64,7 @@ export default function WalletPage() {
 
                         <Button disabled className="w-full h-14 bg-slate-800 text-slate-400 border border-slate-700 opacity-50 cursor-not-allowed">
                             <Wallet className="mr-2 h-5 w-5" />
-                            Withdraw Coins (Coming Soon)
+                            Withdraw HOT (Coming Soon)
                         </Button>
                     </CardContent>
                 </Card>

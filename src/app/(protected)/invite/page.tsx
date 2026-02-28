@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React from 'react';
@@ -56,8 +55,8 @@ export default function InvitePage() {
   };
 
   const referralCode = userProfile.profileCode;
-  const webLink = "https://play.google.com/store/apps/details?id=com.blistree.app";
-  const shareText = `Join me on Blistree! When you use my code, you'll get 10 BLIT coins instantly + a 0.25/hr mining boost. I'll get a 0.25/hr boost too. It's a win-win! 🚀\n\n1. Download the app: ${webLink}\n\n2. Sign up and go to the "Apply Code" section in the menu.\n\n3. Enter my code: ${referralCode}\n\nHappy Mining!`;
+  const webLink = "https://play.google.com/store/apps/details?id=com.hirehills.app";
+  const shareText = `Join me on Hirehills! When you use my code, you'll get 10 HOT tokens instantly + a 0.25/hr mining boost. I'll get a 0.25/hr boost too. It's a win-win! 🚀\n\n1. Download the app: ${webLink}\n\n2. Sign up and go to the "Apply Code" section in the menu.\n\n3. Enter my code: ${referralCode}\n\nHappy Mining!`;
   const encodedShareText = encodeURIComponent(shareText);
 
   const shareOptions = [
@@ -82,7 +81,7 @@ export default function InvitePage() {
                 <UserPlus className="h-10 w-10 text-cyan-300" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-white">Invite & Earn Together</h1>
-            <p className="mt-2 text-cyan-200/70 max-w-sm mx-auto">When a friend uses your code, they get 10 BLIT + a 0.25/hr boost, and you get a 0.25/hr boost.</p>
+            <p className="mt-2 text-cyan-200/70 max-w-sm mx-auto">When a friend uses your code, they get 10 HOT + a 0.25/hr boost, and you get a 0.25/hr boost.</p>
         </div>
         
         <div className="space-y-4">

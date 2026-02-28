@@ -25,7 +25,7 @@ export function NishkaCoinIcon() {
       {/* Rim */}
       <circle cx="50" cy="50" r="42" fill="none" stroke="#A87900" strokeWidth="1.5" opacity="0.7" />
 
-      {/* 'B' for Blistree */}
+      {/* 'H' for Hirehills */}
       <text 
         x="50" 
         y="68" 
@@ -36,7 +36,7 @@ export function NishkaCoinIcon() {
         textAnchor="middle"
         style={{ filter: 'drop-shadow(1px 1px 0px #FFFDE4)' }}
       >
-        B
+        H
       </text>
 
       {/* Glint effect */}

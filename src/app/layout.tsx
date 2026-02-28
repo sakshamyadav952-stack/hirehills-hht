@@ -124,13 +124,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
        <Head>
-        <title>Blistree Tokens</title>
-        <meta name='description' content='Mine Blistree coins and track your progress.' />
+        <title>Hirehills Tokens</title>
+        <meta name='description' content='Mine HOT tokens and track your progress with Hirehills.' />
         <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' />
         <meta name="robots" content="noindex, nofollow" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <meta name="theme-color" content="#1a1a2e"/>
+        <meta name="theme-color" content="#000000"/>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />

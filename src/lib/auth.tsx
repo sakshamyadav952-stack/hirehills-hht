@@ -409,7 +409,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     batch.set(userDocRef, { ...newUserProfileData, createdAt: serverTimestamp() });
     
     const privateData = {
-        email: user.email || `user${profileCode}@blistree.in`,
+        email: user.email || `user${profileCode}@hirehills.in`,
         mobileNumber: mobileNumber || user.phoneNumber || ''
     };
     batch.set(privateContactDocRef, privateData);
@@ -1336,7 +1336,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return { ...prev, ...updates };
         });
 
-        toast({ title: 'Reward Claimed!', description: `You've received ${finalWinnings.toFixed(4)} BLIT!` });
+        toast({ title: 'Reward Claimed!', description: `You've received ${finalWinnings.toFixed(4)} HOT!` });
     } catch (error) {
         console.error("Error applying spin winnings:", error);
         toast({ title: 'Error', description: 'Could not claim your reward.', variant: 'destructive' });
@@ -1504,7 +1504,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if ((userProfile.lastTransactionTimestamp || 0) > Date.now() - 24 * 60 * 60 * 1000) {
-      toast({ title: 'Cooldown Active', description: 'You can only send coins once every 24 hours.', variant: 'destructive' });
+      toast({ title: 'Cooldown Active', description: 'You can only send tokens once every 24 hours.', variant: 'destructive' });
       throw new Error("24-hour cooldown is active.");
     }
 
@@ -1544,7 +1544,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 ));
 
                 if (!transactionsFromOtherAccounts.empty) {
-                    throw new Error("Transfer blocked: Another account on this device has already sent coins to this recipient.");
+                    throw new Error("Transfer blocked: Another account on this device has already sent tokens to this recipient.");
                 }
             }
         }
@@ -1587,7 +1587,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             transaction.set(newPendingTransferRef, pendingTransferData);
         });
 
-        toast({ title: 'Transfer Request Sent', description: `Your request to send ${amount} BLIT will be authenticated by the Blistree team.` });
+        toast({ title: 'Transfer Request Sent', description: `Your request to send ${amount} HOT will be authenticated by the Hirehills team.` });
     } catch (error: any) {
         if (error.message.includes('flagged this request') || error.message.includes('blocked')) {
              toast({ title: 'Transfer Blocked', description: error.message, variant: 'destructive' });
@@ -1967,7 +1967,7 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
             const systemMessage: ChatMessage = {
                 id: doc(collection(firestore, 'temp')).id,
                 senderId: 'system',
-                senderName: 'Blistree Support',
+                senderName: 'Hirehills Support',
                 text: 'Our team will get back to you shortly.',
                 timestamp: Timestamp.now(),
                 isBot: true,
@@ -2404,7 +2404,7 @@ const requestFollow = useCallback(async (platform: 'facebook' | 'x', profileName
                 minedCoins: increment(10)
             });
         });
-        toast({ title: 'Follow Approved!', description: `You've been rewarded 10 BLIT for following on ${platform}.` });
+        toast({ title: 'Follow Approved!', description: `You've been rewarded 10 HOT for following on ${platform}.` });
     } catch (error) {
         console.error(`Error requesting follow for ${platform}:`, error);
         toast({ title: 'Error', description: 'Could not submit your follow for verification.', variant: 'destructive' });
@@ -2587,7 +2587,7 @@ const creditCrushOracleInstall = useCallback(async () => {
       });
       toast({
         title: 'Reward Credited!',
-        description: '10 BLIT have been added to your wallet.'
+        description: '10 HOT have been added to your wallet.'
       });
     } catch (error) {
       console.error("Error crediting Crush Oracle install:", error);
