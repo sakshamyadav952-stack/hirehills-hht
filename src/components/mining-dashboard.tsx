@@ -210,9 +210,27 @@ export function MiningDashboard() {
           </div>
         </div>
 
+        {/* Real-time Increasing Balance Display */}
+        <div className="mb-10 p-6 rounded-3xl bg-white/5 border border-white/10 relative group">
+            <div className="absolute -top-3 left-6 px-3 py-1 bg-purple-600 rounded-full text-[10px] font-black uppercase tracking-widest">
+                Real-Time Accumulation
+            </div>
+            <div className="flex items-center gap-6">
+                <div className="w-14 h-14 rounded-2xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
+                    <Coins className="text-purple-400 h-8 w-8" />
+                </div>
+                <div className="space-y-1">
+                    <span className="text-white/30 text-[10px] font-black uppercase tracking-[0.4em]">Current Balance</span>
+                    <h4 className="text-white text-4xl sm:text-5xl font-black tracking-tighter">
+                        {liveCoins.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
+                    </h4>
+                </div>
+            </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
           <div className="space-y-2">
-            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Current Mining Rate</p>
+            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Mining Performance</p>
             <div className="flex items-baseline gap-4">
               <h2 className="text-white text-5xl font-black tracking-tighter italic">
                 {isSessionActive ? totalMiningRate.toFixed(2) : "0.00"}
@@ -275,43 +293,19 @@ export function MiningDashboard() {
         </div>
       </div>
 
-      {/* Wallet Balance Card */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center px-4">
-          <h3 className="text-white font-black text-sm uppercase tracking-[0.3em]">Hardware Wallet</h3>
-          <div className="flex items-center gap-2 text-white/40">
-            <span className="text-[10px] font-bold">SECURE_LINK_ACTIVE</span>
-            <Network className="h-3 w-3" />
-          </div>
-        </div>
-
-        <div className="relative p-10 rounded-[3rem] overflow-hidden border border-white/10 group bg-zinc-950">
-          <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-950" />
-          <div className="absolute -top-24 -right-24 w-80 h-80 bg-purple-600/10 blur-[120px] rounded-full" />
-          <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-cyan-600/10 blur-[120px] rounded-full" />
-          
-          <div className="relative flex items-center gap-8">
-            <div className="relative">
-              <div className="w-20 h-20 rounded-[2rem] bg-white/5 flex items-center justify-center border border-white/10 rotate-12 group-hover:rotate-0 transition-transform duration-500 backdrop-blur-xl">
-                <span className="text-white font-black text-sm tracking-tighter">HOT</span>
-              </div>
-              <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full -z-10 animate-pulse" />
+      {/* Hardware Stats Footer */}
+      <div className="px-4 py-6 border-t border-white/5 flex justify-between items-center text-white/20">
+        <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+                <Cpu className="h-3 w-3" />
+                <span className="text-[9px] font-bold uppercase tracking-widest">Optimized_CPU</span>
             </div>
-            
-            <div className="space-y-1">
-              <span className="text-white/30 text-[10px] font-black uppercase tracking-[0.4em]">Available Balance</span>
-              <h4 className="text-white text-5xl font-black tracking-tighter">
-                {liveCoins.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
-              </h4>
+            <div className="flex items-center gap-2">
+                <Network className="h-3 w-3" />
+                <span className="text-[9px] font-bold uppercase tracking-widest">Hot_Net_Node</span>
             </div>
-          </div>
-
-          <div className="absolute bottom-6 right-10 flex gap-2">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="w-6 h-1 rounded-full bg-white/10" />
-            ))}
-          </div>
         </div>
+        <span className="text-[9px] font-mono">v4.0.2-release</span>
       </div>
 
       {/* Main Action Control */}
