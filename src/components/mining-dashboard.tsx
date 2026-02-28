@@ -16,7 +16,7 @@ import {
 import { useFirestore } from "@/firebase";
 import { doc, updateDoc, arrayUnion, increment } from "firebase/firestore";
 
-// Simulated Graph Data
+// Simulated Graph Data for visual flair
 const generateChartData = () => {
   return Array.from({ length: 25 }, (_, i) => ({
     time: i,
@@ -185,8 +185,8 @@ export function MiningDashboard() {
             <ChevronDown className="h-5 w-5 text-white/20" />
           </div>
           <div className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10">
-            <span className="text-white/80 font-mono text-xs font-bold tracking-widest">
-              SYS_REV: {totalMiningRate.toFixed(2)}/HR
+            <span className="text-white/80 font-mono text-xs font-bold tracking-widest uppercase">
+              Core_Sync: Connected
             </span>
           </div>
         </div>
@@ -212,12 +212,12 @@ export function MiningDashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
           <div className="space-y-2">
-            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Current Hash Rate</p>
+            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Current Mining Rate</p>
             <div className="flex items-baseline gap-4">
               <h2 className="text-white text-5xl font-black tracking-tighter italic">
-                {isSessionActive ? (1234.56 + Math.random() * 10).toFixed(2) : "0.00"}
+                {isSessionActive ? totalMiningRate.toFixed(2) : "0.00"}
               </h2>
-              <span className="text-cyan-400 font-black text-xl italic">TH/s</span>
+              <span className="text-cyan-400 font-black text-xl italic">HOT/HR</span>
             </div>
           </div>
           
