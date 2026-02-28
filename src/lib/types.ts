@@ -42,6 +42,15 @@ export type TournamentConfig = {
   isActive: boolean;
 };
 
+export type ChatMessage = {
+  id: string;
+  text: string;
+  senderId: string;
+  senderName: string;
+  isBot?: boolean;
+  timestamp: Timestamp;
+};
+
 export type UserProfile = {
   id: string;
   fullName: string;
