@@ -196,9 +196,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </Sidebar>
         <SidebarInset className="bg-transparent">
           <div className="flex flex-col h-full overflow-hidden">
-            <header className="h-16 flex items-center px-6 md:hidden">
-              <SidebarTrigger className="text-white" />
-            </header>
             <main className="flex-1 overflow-y-auto">
               {children}
             </main>
