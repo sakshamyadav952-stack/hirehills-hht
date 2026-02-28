@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -163,7 +162,7 @@ export function MiningDashboard() {
   return (
     <div className="min-h-screen bg-black p-4 sm:p-6 space-y-6 pb-20">
       {/* High-Fidelity Branding Header */}
-      <div className="relative h-64 w-full rounded-[2.5rem] overflow-hidden glass-card border-white/5 bg-zinc-900/20">
+      <div className="relative h-72 w-full rounded-[2.5rem] overflow-hidden glass-card border-white/5 bg-zinc-900/20">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 via-transparent to-cyan-600/5" />
         
         {/* Header Icons */}
@@ -177,22 +176,26 @@ export function MiningDashboard() {
           </div>
         </div>
 
-        {/* PROMINENT LIVE COUNTER */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 select-none pointer-events-none text-center w-full px-4">
+        {/* PROMINENT LIVE COUNTER - HERO ELEMENT */}
+        <div className="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 select-none pointer-events-none text-center w-full px-4">
           {isSessionActive ? (
             <div className="flex flex-col items-center animate-in zoom-in-95 duration-500">
-              <span className="text-white/20 text-[10px] font-black uppercase tracking-[0.5em] mb-2">Live HOT Accumulation</span>
-              <h2 className="hot-logo-text text-6xl md:text-8xl font-black tracking-tighter tabular-nums">
-                {liveCoins.toFixed(4)}
-              </h2>
-              <div className="flex items-center gap-2 mt-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                <span className="text-cyan-400 text-xs font-black tracking-widest uppercase italic">Mining Active</span>
+              <span className="text-cyan-400/40 text-[10px] font-black uppercase tracking-[0.5em] mb-3">Session Earnings Stream</span>
+              <div className="relative group">
+                <h2 className="hot-logo-text text-7xl md:text-9xl font-black tracking-tighter tabular-nums drop-shadow-[0_0_30px_rgba(168,85,247,0.4)]">
+                  {liveCoins.toFixed(4)}
+                </h2>
+                {/* Visual Flair: Pulsing scanning line */}
+                <div className="absolute inset-0 border-y border-white/5 animate-scan-line pointer-events-none" />
+              </div>
+              <div className="flex items-center gap-3 mt-4 bg-cyan-500/10 px-4 py-1.5 rounded-full border border-cyan-500/20 backdrop-blur-md">
+                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_#22d3ee]" />
+                <span className="text-cyan-400 text-[10px] font-black tracking-[0.3em] uppercase italic">Core Processing Active</span>
               </div>
             </div>
           ) : (
             <div className="flex flex-col items-center">
-              <span className="hot-logo-text text-8xl md:text-9xl">HOT</span>
+              <span className="hot-logo-text text-8xl md:text-9xl opacity-20">HOT</span>
               <span className="text-white/30 text-[10px] font-bold tracking-[0.3em] -mt-2">SYSTEM STANDBY</span>
             </div>
           )}
@@ -203,8 +206,6 @@ export function MiningDashboard() {
             <Settings className="text-white h-6 w-6" />
           </div>
         </div>
-        
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-500/30 to-transparent animate-scan pointer-events-none" />
       </div>
 
       {/* Primary Technical Dashboard */}
@@ -219,7 +220,7 @@ export function MiningDashboard() {
           </div>
           <div className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10">
             <span className="text-white/80 font-mono text-xs font-bold tracking-widest uppercase">
-              {isSessionActive ? 'State: Processing' : 'State: Idle'}
+              {isSessionActive ? 'State: Running' : 'State: Ready'}
             </span>
           </div>
         </div>
@@ -245,7 +246,7 @@ export function MiningDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <Database className="h-3 w-3" />
-            <span>Pool Limit: 200M HOT</span>
+            <span>Node Pool: 200M HOT</span>
           </div>
         </div>
 
@@ -259,9 +260,12 @@ export function MiningDashboard() {
               <span className="text-cyan-400 font-black text-xl italic">HOT/HR</span>
             </div>
             {isSessionActive && (
-              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/5">
-                <Coins className="h-3 w-3 text-amber-400" />
-                <span className="text-[10px] font-mono text-white/60">Balance Offset: +{liveCoins.toFixed(4)} HOT</span>
+              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/5">
+                <Activity className="h-4 w-4 text-cyan-400" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Live Accumulation</span>
+                  <span className="text-lg font-mono font-bold text-white tracking-tight">{liveCoins.toFixed(6)}</span>
+                </div>
               </div>
             )}
           </div>
@@ -346,16 +350,6 @@ export function MiningDashboard() {
         </div>
         <span className="text-[9px] font-mono">v4.0.2-release</span>
       </div>
-
-      <style jsx global>{`
-        @keyframes scan {
-          0% { top: 0; }
-          100% { top: 100%; }
-        }
-        .animate-scan {
-          animation: scan 4s linear infinite;
-        }
-      `}</style>
     </div>
   );
 }

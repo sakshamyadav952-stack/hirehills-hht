@@ -79,3 +79,12 @@
   background: rgba(168, 85, 247, 0.2);
   border-radius: 10px;
 }
+
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(1000%); }
+}
+
+.animate-scan-line {
+  animation: scan 3s linear infinite;
+}
