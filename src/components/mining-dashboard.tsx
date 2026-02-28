@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { 
   Play, Loader2, Coins, ChevronDown, 
   Settings, Zap, LayoutGrid, Clock, Cpu, 
-  Database, Network
+  Database, Network, Activity
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -259,11 +259,10 @@ export function MiningDashboard() {
         </div>
 
         <div className="mt-10 pt-10 border-t border-white/5 grid grid-cols-2 gap-4">
-          <Button 
-            variant="ghost" 
+          <button 
             onClick={handleClaimMissedCoin}
             disabled={!isSessionActive || isProcessing === 'daily'}
-            className="h-16 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group"
+            className="h-16 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group disabled:opacity-50"
           >
             {isProcessing === 'daily' ? <Loader2 className="animate-spin h-5 w-5" /> : (
               <>
@@ -274,13 +273,12 @@ export function MiningDashboard() {
                 <span className="text-[10px] text-white/40 font-bold tracking-wider">1.00 HOT Bonus</span>
               </>
             )}
-          </Button>
+          </button>
 
-          <Button 
-            variant="ghost"
+          <button 
             onClick={handleOpenMysteryBox}
             disabled={!isSessionActive || isProcessing === 'mystery'}
-            className="h-16 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group"
+            className="h-16 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group disabled:opacity-50"
           >
             {isProcessing === 'mystery' ? <Loader2 className="animate-spin h-5 w-5" /> : (
               <>
@@ -291,7 +289,7 @@ export function MiningDashboard() {
                 <span className="text-[10px] text-white/40 font-bold tracking-wider">+0.10 HOT/HR</span>
               </>
             )}
-          </Button>
+          </button>
         </div>
       </div>
 
