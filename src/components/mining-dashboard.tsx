@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { 
   LineChart, Line, ResponsiveContainer, Tooltip 
 } from "recharts";
-import { format, addMinutes, differenceInSeconds } from "date-fns";
+import { differenceInSeconds } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +35,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
-// Simulated Graph Data for visual flair
 const generateChartData = () => {
   return Array.from({ length: 25 }, (_, i) => ({
     time: i,
@@ -50,12 +49,21 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
 
     const handleClaim = async (coinId: string, status: 'available' | 'missed') => {
         setIsClaiming(coinId);
+        
+        // Immediate native ad call
+        if (status === 'missed' && typeof window !== 'undefined' && window.Android?.showRewardedAd) {
+            window.Android.showRewardedAd();
+        }
+
+        // Wait for 10 seconds sync sequence as requested
+        await new Promise(resolve => setTimeout(resolve, 10000));
+
         try {
             if (status === 'available') {
                 await collectDailyAdCoin(coinId);
                 setShowSuccessDialog(true);
             } else {
-                const result = await claimMissedAdCoin(coinId, `Recovery: ${coinId}`);
+                const result = await claimMissedAdCoin(coinId, `Sync: ${coinId}`);
                 if (result) {
                     setShowSuccessDialog(true);
                 }
@@ -75,7 +83,7 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
                         CLAIM COINS
                     </DialogTitle>
                     <DialogDescription className="text-white/40 text-xs font-bold uppercase tracking-widest">
-                        Node Synchronization Tasks
+                        Last 8 Node Sync Tasks
                     </DialogDescription>
                 </DialogHeader>
 
@@ -100,7 +108,7 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
                                             Slot: {coin.id.split('-').pop()}
                                         </p>
                                         <p className="text-sm font-bold text-white uppercase">
-                                            {coin.status === 'available' ? 'Live Bonus' : 'Missed Node'}
+                                            {coin.status === 'available' ? 'Live Node' : 'Missed Node'}
                                         </p>
                                     </div>
                                 </div>
@@ -129,7 +137,7 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
                 <DialogFooter>
                     <DialogClose asChild>
                         <Button variant="ghost" className="w-full text-white/40 font-bold uppercase tracking-widest text-[10px]">
-                            Minimize Terminal
+                            Close Terminal
                         </Button>
                     </DialogClose>
                 </DialogFooter>
@@ -142,14 +150,14 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20 mb-4 border-2 border-green-500/50">
                         <Check className="h-8 w-8 text-green-400" />
                     </div>
-                    <AlertDialogTitle className="text-xl font-bold text-green-300">Synchronization Complete!</AlertDialogTitle>
+                    <AlertDialogTitle className="text-xl font-bold text-green-300 uppercase tracking-tighter">Sync Successful!</AlertDialogTitle>
                     <AlertDialogDescription className="text-green-200/80">
                         The HOT token from your node slot has been successfully synchronized and credited to your wallet.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="mt-4">
-                    <AlertDialogAction onClick={() => setShowSuccessDialog(false)} className="w-full bg-green-500 text-white hover:bg-green-600 font-bold">
-                        Continue Mining
+                    <AlertDialogAction onClick={() => setShowSuccessDialog(false)} className="w-full bg-green-500 text-white hover:bg-green-600 font-black uppercase tracking-widest text-xs h-12 rounded-2xl">
+                        Accept Transmission
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
@@ -265,41 +273,29 @@ export function MiningDashboard() {
   const handleTurboBoost = async () => {
     if (!userProfile || isProcessing || !isSessionActive) return;
     
-    const boostCount = (userProfile.activeBoosts || []).filter(
-        b => b.startTime >= userProfile.miningStartTime!
-    ).length;
-
-    if (boostCount >= 10) return; 
-
     setIsProcessing('turbo');
     try {
       if (typeof window !== 'undefined' && window.Android?.showRewardedAd) {
         window.Android.showRewardedAd();
       }
       
-      await updateMiningRate('8H', 0.10, true);
-      
-      // Wait for 5 seconds as requested before showing confirmation
+      // Wait for 5 seconds "Overclocking" delay
       await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      await updateMiningRate('8H', 0.10, true);
       setShowBoostSuccess(true);
     } finally {
       setIsProcessing(null);
     }
   };
 
-  const currentTaskCoin = useMemo(() => {
-      const available = dailyAdCoins.find(c => c.status === 'available');
-      if (available) return available;
-      return dailyAdCoins.sort((a, b) => b.availableAt - a.availableAt).find(c => c.status === 'missed');
-  }, [dailyAdCoins]);
-
   if (loading) {
     return <div className="flex items-center justify-center h-screen bg-black"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>;
   }
 
   return (
-    <div className="min-h-screen bg-black p-4 sm:p-6 space-y-6 pb-20">
-      <div className="relative min-h-[450px] w-full rounded-[2.5rem] overflow-hidden glass-card border-white/5 bg-zinc-900/40 transition-all duration-500">
+    <div className="min-h-screen bg-black p-4 sm:p-6 space-y-6 pb-24">
+      <div className="relative min-h-[480px] w-full rounded-[2.5rem] overflow-hidden glass-card border-white/5 bg-zinc-900/40">
         <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-cyan-600/5" />
         
         <div className="absolute top-8 left-8 flex items-center gap-4">
@@ -308,7 +304,7 @@ export function MiningDashboard() {
           </div>
           <div>
             <h1 className="text-white font-black text-xl leading-none tracking-tight uppercase">HIREHILLS</h1>
-            <p className="text-purple-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">CORE NODE v4.0</p>
+            <p className="text-purple-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">NODE CLUSTER v4.0</p>
           </div>
         </div>
 
@@ -320,63 +316,56 @@ export function MiningDashboard() {
 
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full px-6 flex flex-col items-center">
           {isSessionActive ? (
-            <div className="flex flex-col items-center animate-in zoom-in-95 duration-500 w-full">
-              <span className="text-cyan-400/40 text-[10px] font-black uppercase tracking-[0.5em] mb-3">Session Accumulation</span>
-              <div className="relative">
-                <h2 className="text-white text-5xl md:text-7xl font-black tracking-tighter tabular-nums drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+            <div className="flex flex-col items-center animate-in zoom-in-95 duration-500 w-full max-w-md">
+              <span className="text-cyan-400/40 text-[10px] font-black uppercase tracking-[0.5em] mb-3">Live Session Counter</span>
+              <div className="relative mb-4">
+                <h2 className="text-white text-6xl md:text-8xl font-black tracking-tighter tabular-nums drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
                   {liveCoins.toFixed(4)}
                 </h2>
                 <div className="absolute inset-0 border-y border-white/5 animate-scan-line pointer-events-none" />
               </div>
               
-              <div className="flex items-center gap-3 mt-4 bg-cyan-500/10 px-4 py-1.5 rounded-full border border-cyan-500/20 backdrop-blur-md">
+              <div className="flex items-center gap-3 bg-cyan-500/10 px-4 py-1.5 rounded-full border border-cyan-500/20 backdrop-blur-md">
                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_#22d3ee]" />
-                <span className="text-cyan-400 text-[10px] font-black tracking-[0.3em] uppercase italic">Processing HOT</span>
+                <span className="text-cyan-400 text-[10px] font-black tracking-[0.3em] uppercase italic">Processing HOT Protocol</span>
               </div>
 
-              <div className="mt-8 w-full max-w-[280px] space-y-4">
-                <div className="relative">
-                  <Progress value={sessionProgress} className="h-2 bg-white/10 overflow-hidden" />
-                  <div 
-                    className="absolute inset-0 h-2 bg-gradient-to-r from-purple-600 to-cyan-400 blur-sm opacity-50 transition-all duration-1000" 
-                    style={{ width: `${sessionProgress}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-center gap-2 text-white/60 text-[10px] font-black uppercase tracking-[0.2em]">
-                  <Clock className="h-3 w-3" />
-                  <span>{timeRemaining} Remaining</span>
+              <div className="mt-8 w-full max-w-[320px] space-y-4">
+                <div className="space-y-2">
+                    <div className="relative">
+                        <Progress value={sessionProgress} className="h-2.5 bg-white/10 overflow-hidden rounded-full" />
+                        <div 
+                            className="absolute inset-0 h-2.5 bg-gradient-to-r from-purple-600 to-cyan-400 blur-sm opacity-50 transition-all duration-1000" 
+                            style={{ width: `${sessionProgress}%` }}
+                        />
+                    </div>
+                    <div className="flex items-center justify-center gap-2 text-white/60 text-[10px] font-black uppercase tracking-[0.2em]">
+                        <Clock className="h-3 w-3" />
+                        <span>{timeRemaining} Cycle Remaining</span>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-4">
+                <div className="grid grid-cols-2 gap-3 pt-2">
                   <button 
                     onClick={() => setIsClaimDialogOpen(true)}
-                    className="h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group disabled:opacity-50"
+                    className="h-16 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group transition-all"
                   >
-                    {currentTaskCoin ? (
-                        <>
-                            <Coins className={cn("h-4 w-4 group-hover:scale-110 transition-transform", currentTaskCoin.status === 'available' ? 'text-green-400' : 'text-amber-400')} />
-                            <span className="text-[9px] font-black uppercase">
-                                Claim Coins
-                            </span>
-                        </>
-                    ) : (
-                        <>
-                            <Clock className="h-4 w-4 text-white/20" />
-                            <span className="text-[8px] font-black uppercase text-white/20">{nextSlotCountdown}</span>
-                        </>
-                    )}
+                    <Coins className="h-5 w-5 text-amber-400 group-hover:scale-110 transition-transform" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Claim Coins</span>
                   </button>
 
                   <button 
                     onClick={handleTurboBoost}
-                    disabled={isProcessing === 'turbo'}
-                    className="h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group disabled:opacity-50"
+                    disabled={!!isProcessing}
+                    className="h-16 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group disabled:opacity-50 transition-all"
                   >
-                    {isProcessing === 'turbo' ? <Loader2 className="animate-spin h-4 w-4" /> : (
-                      <>
-                        <Zap className="h-4 w-4 text-purple-400 group-hover:animate-pulse" />
-                        <span className="text-[9px] font-black uppercase">Turbo Boost</span>
-                      </>
+                    {isProcessing === 'turbo' ? (
+                        <Loader2 className="animate-spin h-5 w-5" />
+                    ) : (
+                        <>
+                            <Zap className="h-5 w-5 text-purple-400 group-hover:animate-pulse" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Turbo Boost</span>
+                        </>
                     )}
                   </button>
                 </div>
@@ -384,16 +373,23 @@ export function MiningDashboard() {
             </div>
           ) : (
             <div className="flex flex-col items-center animate-in fade-in duration-700 w-full max-w-sm">
-              <span className="hot-logo-text text-8xl md:text-9xl opacity-20 mb-8">HOT</span>
+              <div className="relative mb-12">
+                <span className="hot-logo-text text-9xl md:text-[10rem] opacity-20 select-none">HOT</span>
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <Database className="h-12 w-12 text-white/5" />
+                </div>
+              </div>
               <Button 
                 onClick={handleStartMining}
                 disabled={isStarting}
-                className="w-full h-20 rounded-3xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xl uppercase tracking-tighter shadow-[0_15px_40px_rgba(168,85,247,0.4)] active:scale-95 transition-all border-b-4 border-purple-800 active:border-b-0"
+                className="w-full h-20 rounded-[2rem] bg-purple-600 hover:bg-purple-500 text-white font-black text-xl uppercase tracking-tighter shadow-[0_15px_40px_rgba(168,85,247,0.4)] active:scale-95 transition-all border-b-4 border-purple-800 active:border-b-0"
               >
                 {isStarting ? <Loader2 className="animate-spin mr-3 h-6 w-6" /> : <Play className="mr-3 h-6 w-6 fill-current" />}
                 Initialize Node
               </Button>
-              <span className="text-white/30 text-[10px] font-bold tracking-[0.3em] mt-6 uppercase text-center">System Standby: Authenticate to Start session</span>
+              <p className="text-white/20 text-[9px] font-black tracking-[0.4em] mt-8 uppercase text-center max-w-[200px] leading-relaxed">
+                Terminal standby: authenticate encryption to begin cycle
+              </p>
             </div>
           )}
         </div>
@@ -404,16 +400,16 @@ export function MiningDashboard() {
       <AlertDialog open={showBoostSuccess} onOpenChange={setShowBoostSuccess}>
         <AlertDialogContent className="text-white border-purple-400/50" style={{ background: 'linear-gradient(145deg, #0d0d1a, #1a1a2e)' }}>
             <AlertDialogHeader className="text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-500/20 mb-4 border-2 border-purple-500/50">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-purple-500/20 mb-4 border-2 border-purple-500/50">
                     <Rocket className="h-8 w-8 text-purple-400" />
                 </div>
-                <AlertDialogTitle className="text-xl font-bold text-purple-300">CORE TURBO ACTIVATED</AlertDialogTitle>
+                <AlertDialogTitle className="text-xl font-black text-purple-300 uppercase italic">TURBO_ACTIVE</AlertDialogTitle>
                 <AlertDialogDescription className="text-purple-200/80">
-                    Neural link established. Your node efficiency has been increased by <span className="text-white font-bold">+0.10 HOT/hr</span> for the remainder of this cycle.
+                    Neural link established. Node efficiency increased by <span className="text-white font-bold">+0.10 HOT/hr</span> for the current sequence.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="mt-4">
-                <AlertDialogAction onClick={() => setShowBoostSuccess(false)} className="w-full bg-purple-600 text-white hover:bg-purple-500 font-bold uppercase tracking-widest text-xs h-12 rounded-2xl">
+                <AlertDialogAction onClick={() => setShowBoostSuccess(false)} className="w-full bg-purple-600 text-white hover:bg-purple-500 font-black uppercase tracking-widest text-xs h-12 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.3)]">
                     Acknowledge
                 </AlertDialogAction>
             </AlertDialogFooter>
@@ -421,42 +417,35 @@ export function MiningDashboard() {
       </AlertDialog>
 
       <div className="glass-card rounded-[3rem] p-8 glow-border relative overflow-hidden bg-zinc-900/20">
-        <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://picsum.photos/seed/tech/800/800')] mix-blend-overlay" />
+        <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://picsum.photos/seed/cyber/800/800')] mix-blend-overlay" />
 
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-3">
             <div className={`w-2 h-2 rounded-full ${isSessionActive ? 'bg-cyan-400 animate-pulse' : 'bg-red-500'}`} />
-            <span className="text-white font-black text-lg uppercase tracking-tighter">Computation Core</span>
+            <span className="text-white font-black text-lg uppercase tracking-tighter italic">Computation_Core</span>
             <ChevronDown className="h-5 w-5 text-white/20" />
           </div>
           <div className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10">
-            <span className="text-white/80 font-mono text-xs font-bold tracking-widest uppercase">
-              {isSessionActive ? 'State: Running' : 'State: Ready'}
+            <span className="text-white/80 font-mono text-[10px] font-bold tracking-widest uppercase">
+              {isSessionActive ? 'RUNNING' : 'OFFLINE'}
             </span>
-          </div>
-        </div>
-
-        <div className="flex justify-end text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-10">
-          <div className="flex items-center gap-2">
-            <Database className="h-3 w-3" />
-            <span>Pool: 200M HOT</span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
           <div className="space-y-2">
-            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Efficiency</p>
+            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Protocol Efficiency</p>
             <div className="flex items-baseline gap-4">
-              <h2 className="text-white text-5xl font-black tracking-tighter italic">
+              <h2 className="text-white text-5xl font-black tracking-tighter italic tabular-nums">
                 {isSessionActive ? totalMiningRate.toFixed(2) : "0.00"}
               </h2>
-              <span className="text-cyan-400 font-black text-xl italic">HOT/HR</span>
+              <span className="text-cyan-400 font-black text-xl italic tracking-tighter">HOT/HR</span>
             </div>
             {isSessionActive && (
               <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/5">
                 <Activity className="h-4 w-4 text-cyan-400" />
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Session Gain</span>
+                  <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Protocol Gain</span>
                   <span className="text-lg font-mono font-bold text-white tracking-tight">{liveCoins.toFixed(6)}</span>
                 </div>
               </div>
@@ -489,10 +478,10 @@ export function MiningDashboard() {
             </div>
             <div className="flex items-center gap-2">
                 <Network className="h-3 w-3" />
-                <span className="text-[9px] font-bold uppercase tracking-widest">Hot_Net_Node</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest">Hills_Net_Node</span>
             </div>
         </div>
-        <span className="text-[9px] font-mono">v4.0.5-release</span>
+        <span className="text-[9px] font-mono tracking-tighter opacity-50">STABLE_BUILD_4.0.12</span>
       </div>
     </div>
   );
