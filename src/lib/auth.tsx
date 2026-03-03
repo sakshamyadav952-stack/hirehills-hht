@@ -1247,7 +1247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const adminTerminateUserSession = useCallback(async (userId: string) => {
     const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
     if (!isAdmin) {
-        toast({ title: 'Unauthorized', description: 'You do not have permission.', variant: 'destructive' });
+        toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
         throw new Error('Not an admin');
     }
 
@@ -2246,17 +2246,17 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     }
   }, [userProfile?.unclaimedCoins]);
   
-    // Effect to generate daily coins based on claimed history
+    // Effect to generate and synchronize last 8 slots for daily coins
     useEffect(() => {
         if (!user || !userProfile) return;
 
         const generateAndFilterDailyCoins = () => {
             const now = new Date();
-            const schedule = ['22:00', '16:00', '12:00', '08:00']; // From latest to earliest
+            const schedule = ['22:00', '16:00', '12:00', '08:00'];
             
-            // 1. Calculate the last 8 valid slots
+            // 1. Calculate the last 8 valid slots from current time backwards
             const last8Slots: { id: string, availableAt: Date }[] = [];
-            const tempDate = new Date(now);
+            let tempDate = new Date(now);
 
             while (last8Slots.length < 8) {
                 for (const timeSlot of schedule) {
@@ -2277,30 +2277,32 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
                 tempDate.setDate(tempDate.getDate() - 1);
             }
 
-            // 2. Prune old/invalid claimed IDs from Firestore
+            // 2. Filter claimed history to keep only the last 8 most recent entries
             const validSlotIds = new Set(last8Slots.map(s => s.id));
             const userClaimedIds = userProfile.dailyClaimedCoins || [];
-            const newClaimedIds = userClaimedIds.filter(id => validSlotIds.has(id));
+            
+            // Ensure we keep only IDs that are part of the current "active" window logic
+            const prunedClaimedIds = userClaimedIds
+                .filter(id => validSlotIds.has(id))
+                .sort((a, b) => b.localeCompare(a)) // Sort newest first
+                .slice(0, 8);
 
-            if (newClaimedIds.length !== userClaimedIds.length) {
+            if (JSON.stringify(prunedClaimedIds) !== JSON.stringify(userClaimedIds)) {
                 const userDocRef = doc(firestore, 'users', user.uid);
-                updateDocumentNonBlocking(userDocRef, { dailyClaimedCoins: newClaimedIds });
+                updateDocumentNonBlocking(userDocRef, { dailyClaimedCoins: prunedClaimedIds });
             }
 
-            // 3. Generate the list of coins to be displayed (available or missed)
+            // 3. Construct the list of coins visible to the user (available now or missed recently)
             const newGeneratedCoins: DailyAdCoin[] = [];
-            const claimedIdSet = new Set(newClaimedIds);
+            const claimedIdSet = new Set(prunedClaimedIds);
 
             for (const slot of last8Slots) {
                 if (!claimedIdSet.has(slot.id)) {
                     const availableAtTime = slot.availableAt.getTime();
-                    const expiresAt = availableAtTime + 30 * 60 * 1000;
-                    const finalExpiryAt = availableAtTime + 48 * 60 * 60 * 1000;
+                    const expiresAt = availableAtTime + 30 * 60 * 1000; // 30m window
+                    const finalExpiryAt = availableAtTime + 48 * 60 * 60 * 1000; // 48h recovery limit
 
-                    // Skip fully expired coins that can no longer be claimed even with an ad
-                    if (now.getTime() > finalExpiryAt) {
-                        continue;
-                    }
+                    if (now.getTime() > finalExpiryAt) continue;
 
                     const status: 'available' | 'missed' = (now.getTime() >= availableAtTime && now.getTime() < expiresAt) ? 'available' : 'missed';
 
@@ -2314,17 +2316,15 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
                 }
             }
             
-            // 4. Update the component's state
             setDailyAdCoins(currentCoins => {
-                if (JSON.stringify(currentCoins) === JSON.stringify(newGeneratedCoins)) {
-                  return currentCoins;
-                }
+                if (JSON.stringify(currentCoins) === JSON.stringify(newGeneratedCoins)) return currentCoins;
                 return newGeneratedCoins;
             });
         };
 
         generateAndFilterDailyCoins();
-        // This effect should run when the user profile changes, e.g., after claiming a coin.
+        const interval = setInterval(generateAndFilterDailyCoins, 60000); // Check every minute
+        return () => clearInterval(interval);
     }, [user, userProfile, firestore]);
 
 const collectDailyAdCoin = useCallback(async (coinId: string): Promise<number | undefined> => {
@@ -2337,6 +2337,7 @@ const collectDailyAdCoin = useCallback(async (coinId: string): Promise<number | 
         const data = result.data as { success: boolean, claimedAmount: number };
         
         if (data.success) {
+            toast({ title: 'HOT Collected', description: '1.00 HOT added to your balance.' });
             return data.claimedAmount;
         }
         return undefined;
@@ -2351,7 +2352,7 @@ const claimMissedAdCoin = useCallback(async (coinId: string, adElement: string):
     if (!user || !userProfile) return;
     
     if (!userProfile.adsUnlocked) {
-        console.log("Ads not unlocked for this user yet.");
+        toast({ title: 'Access Denied', description: 'Ads are currently not available for your node.', variant: 'destructive' });
         return;
     }
 
@@ -2359,7 +2360,6 @@ const claimMissedAdCoin = useCallback(async (coinId: string, adElement: string):
         const functions = getFunctions();
         const claimFunction = httpsCallable(functions, 'claimDailyCoin');
         
-        // Command to show the ad on Android
         if (window.Android && typeof window.Android.showRewardedAd === 'function') {
             window.Android.showRewardedAd();
         }
@@ -2368,14 +2368,15 @@ const claimMissedAdCoin = useCallback(async (coinId: string, adElement: string):
         const data = result.data as { success: boolean, claimedAmount: number };
         
         if (data.success) {
-            startAdCooldown(); // Start UI cooldown after successful claim
+            toast({ title: 'Recovery Success', description: '1.00 HOT recovered via node optimization.' });
+            startAdCooldown();
             return data.claimedAmount;
         }
         return undefined;
 
     } catch (error: any) {
         console.error("Error claiming missed coin:", error);
-        toast({ title: 'Error', description: error.message || 'Could not claim the missed coin.', variant: 'destructive' });
+        toast({ title: 'Recovery Failed', description: error.message || 'Could not recover the coin.', variant: 'destructive' });
     }
 }, [user, userProfile, toast, startAdCooldown]);
 
