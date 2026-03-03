@@ -346,23 +346,26 @@ export function MiningDashboard() {
           </div>
         </div>
 
-        {/* Header Rate Pill */}
-        <button 
-            onClick={() => setIsRateBreakdownOpen(true)}
-            className="absolute top-4 xs:top-6 sm:top-8 left-1/2 -translate-x-1/2 transition-all hover:scale-105 active:scale-95 z-10 flex items-center gap-1 sm:gap-2 px-2 py-1 xs:px-3 xs:py-1.5 sm:px-4 sm:py-2 rounded-xl xs:rounded-2xl bg-secondary border border-border shadow-sm hover:border-primary/50"
-        >
-            <Zap className="text-primary h-2.5 w-2.5 xs:h-3 xs:w-3 sm:h-4 sm:w-4" />
-            <span className="text-[7px] xs:text-[8px] sm:text-[10px] font-black text-foreground uppercase tracking-widest">
-                {isSessionActive ? totalMiningRate.toFixed(2) : "0.00"} HOT/HR
-            </span>
-        </button>
+        {/* Right Side header actions (Rate + Wallet) */}
+        <div className="absolute top-4 xs:top-6 sm:top-8 right-4 xs:right-6 sm:right-8 flex flex-col items-end gap-2 z-10">
+            {/* Rate Pill */}
+            <button 
+                onClick={() => setIsRateBreakdownOpen(true)}
+                className="transition-all hover:scale-105 active:scale-95 flex items-center gap-1 sm:gap-2 px-2 py-1 xs:px-3 xs:py-1.5 sm:px-4 sm:py-2 rounded-xl xs:rounded-2xl bg-secondary border border-border shadow-sm hover:border-primary/50"
+            >
+                <Zap className="text-primary h-2.5 w-2.5 xs:h-3 xs:w-3 sm:h-4 sm:w-4" />
+                <span className="text-[7px] xs:text-[8px] sm:text-[10px] font-black text-foreground uppercase tracking-widest">
+                    {isSessionActive ? totalMiningRate.toFixed(2) : "0.00"} HOT/HR
+                </span>
+            </button>
 
-        {/* Wallet Link */}
-        <Link href="/wallet" className="absolute top-4 xs:top-6 sm:top-8 right-4 xs:right-6 sm:right-8 transition-transform hover:scale-110 active:scale-95 z-10">
-          <div className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 rounded-lg xs:rounded-xl bg-secondary border border-border flex items-center justify-center shadow-inner hover:bg-accent">
-            <Wallet className="text-primary h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6" />
-          </div>
-        </Link>
+            {/* Wallet Link */}
+            <Link href="/wallet" className="transition-transform hover:scale-110 active:scale-95">
+                <div className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 rounded-lg xs:rounded-xl bg-secondary border border-border flex items-center justify-center shadow-inner hover:bg-accent">
+                    <Wallet className="text-primary h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6" />
+                </div>
+            </Link>
+        </div>
 
         {/* Main Content Area */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full px-4 xs:px-6 flex flex-col items-center mt-6 xs:mt-4 sm:mt-0">
