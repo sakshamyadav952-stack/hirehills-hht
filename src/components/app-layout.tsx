@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -6,7 +7,7 @@ import {
   User, LogIn, LogOut, Wallet, 
   Trophy, LayoutGrid,
   FileText, ShieldCheck, UserPlus,
-  ArrowLeft, ChevronRight
+  ArrowLeft, ChevronRight, Ticket
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
@@ -63,6 +64,11 @@ function SidebarLayoutContent() {
           <SidebarMenuItem onClick={handleLinkClick}>
             <SidebarMenuButton asChild isActive={pathname === '/referrals'} tooltip="Security Circle">
               <Link href="/referrals"><ShieldCheck className="text-green-400" /><span>Security Circle</span></Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem onClick={handleLinkClick}>
+            <SidebarMenuButton asChild isActive={pathname === '/apply-code'} tooltip="Apply Code">
+              <Link href="/apply-code"><Ticket className="text-yellow-400" /><span>Apply Code</span></Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem onClick={handleLinkClick}>
