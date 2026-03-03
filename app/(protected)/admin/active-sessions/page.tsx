@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -6,7 +5,7 @@ import { useFirestore } from '@/firebase';
 import { collection, query, where, onSnapshot, getDocs, orderBy, limit, startAfter, endBefore, limitToLast, DocumentSnapshot } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Loader2, Clapperboard, User, Inbox, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
+import { Loader2, Clapperboard, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
@@ -100,7 +99,7 @@ export default function ActiveSessionsPage() {
 
     useEffect(() => {
         fetchActiveUsers('reset');
-    }, [firestore]);
+    }, [firestore, fetchActiveUsers]);
 
 
     if (isLoading && activeUsers.length === 0) {
@@ -153,7 +152,7 @@ export default function ActiveSessionsPage() {
                 <CardContent>
                     {activeUsers.length === 0 ? (
                          <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
-                            <Inbox className="h-12 w-12 text-muted-foreground" />
+                            <Activity className="h-12 w-12 text-muted-foreground" />
                             <h3 className="font-semibold">No Active Sessions</h3>
                             <p className="text-sm text-muted-foreground">There are currently no users with an active mining session.</p>
                         </div>

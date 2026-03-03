@@ -1,33 +1,26 @@
-
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { collection, onSnapshot, doc, updateDoc, runTransaction, arrayUnion, query, where, getDocs, writeBatch, increment, getDoc, orderBy, Timestamp, documentId, limit, DocumentSnapshot, startAfter } from 'firebase/firestore';
-import { Loader2, User, Shield, Inbox, Check, X, Coins, Award, Settings, MessageSquare, Send, Star, Banknote, Building2, UserCheck, Share2, AtSign, Smartphone, Gift, Save, FilePen, Search, Crown, Trash2, Trophy, Users as UsersIcon, ArrowRight } from 'lucide-react';
-import type { UserProfile, WithdrawalRequest, PendingTransfer, Transaction, Note, Review, AirdropConfig, TournamentConfig, PrizeTier, ConcludedTournament } from '@/lib/types';
+import { useFirestore } from '@/firebase';
+import { collection, onSnapshot, doc, getDocs, query, where, orderBy, limit, documentId, startAfter, Timestamp, DocumentSnapshot } from 'firebase/firestore';
+import { Loader2, Coins, Award, Settings, Building2, UserCheck, Gift, Save, Search, Crown, Trash2, Trophy, Users as UsersIcon } from 'lucide-react';
+import type { UserProfile, AirdropConfig, TournamentConfig, PrizeTier, ConcludedTournament } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
-import { FacebookIcon, XIcon } from '@/components/icons/social-icons';
 import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -41,7 +34,6 @@ const miningRateSchema = z.object({
 function SetMiningRateForm() {
     const { setGlobalBaseMiningRate } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { toast } = useToast();
 
     const form = useForm<z.infer<typeof miningRateSchema>>({
         resolver: zodResolver(miningRateSchema),
@@ -52,9 +44,7 @@ function SetMiningRateForm() {
         setIsSubmitting(true);
         try {
             await setGlobalBaseMiningRate(data.rate);
-            form.reset({ rate: data.rate }); // Keep the new rate in the form
-        } catch (error) {
-            // Toast is handled in the auth hook
+            form.reset({ rate: data.rate });
         } finally {
             setIsSubmitting(false);
         }
@@ -95,7 +85,7 @@ function SetSessionDurationForm() {
     
     const form = useForm<z.infer<typeof sessionDurationSchema>>({
         resolver: zodResolver(sessionDurationSchema),
-        defaultValues: { duration: 480 }, // Default to 8 hours (480 minutes)
+        defaultValues: { duration: 480 },
     });
     
     useEffect(() => {
@@ -195,7 +185,7 @@ function TotalSupplyManager() {
             <Card>
                 <CardHeader>
                     <CardTitle>Set Global Base Mining Rate</CardTitle>
-                    <CardDescription>Update the base mining rate for all users in the system. This action is irreversible for a session.</CardDescription>
+                    <CardDescription>Update the base mining rate for all users in the system.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <SetMiningRateForm />
@@ -303,7 +293,7 @@ function AirdropManager() {
                         <Input id="referralLimit" type="number" value={config.referralLimit || ''} onChange={(e) => handleUpdate('referralLimit', Number(e.target.value))} />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="rewardAmount">Reward/Referral (BLIT)</Label>
+                        <Label htmlFor="rewardAmount">Reward/Referral (HOT)</Label>
                         <Input id="rewardAmount" type="number" value={config.rewardAmount || ''} onChange={(e) => handleUpdate('rewardAmount', Number(e.target.value))} />
                     </div>
                 </div>
@@ -327,7 +317,7 @@ function AirdropManager() {
                             <Input id="bonusReferralTarget" type="number" value={config.bonusReferralTarget || ''} onChange={(e) => handleUpdate('bonusReferralTarget', Number(e.target.value))} />
                         </div>
                          <div className="space-y-2 col-span-2">
-                            <Label htmlFor="bonusReward">Bonus Reward (BLIT)</Label>
+                            <Label htmlFor="bonusReward">Bonus Reward (HOT)</Label>
                             <Input id="bonusReward" type="number" value={config.bonusReward || ''} onChange={(e) => handleUpdate('bonusReward', Number(e.target.value))} />
                         </div>
                     </div>
@@ -336,7 +326,7 @@ function AirdropManager() {
                 <div className="p-4 border rounded-md">
                      <h4 className="font-semibold mb-2">Completion Bonus</h4>
                      <div className="space-y-2">
-                        <Label htmlFor="completionBonus">Airdrop Completion Bonus (BLIT)</Label>
+                        <Label htmlFor="completionBonus">Airdrop Completion Bonus (HOT)</Label>
                         <Input id="completionBonus" type="number" value={config.completionBonus || ''} onChange={(e) => handleUpdate('completionBonus', Number(e.target.value))} />
                     </div>
                 </div>
@@ -359,12 +349,6 @@ function AirdropManager() {
                     <Button onClick={() => handleUpdate('isActive', !config.isActive)}>
                         {config.isActive ? 'Deactivate Airdrop' : 'Launch Airdrop'}
                     </Button>
-                    {config.isActive && (
-                        <>
-                            <Button variant="destructive" onClick={() => handleUpdate('isActive', false)}>Withdraw Airdrop</Button>
-                            <Button variant="secondary">Pause Airdrop</Button>
-                        </>
-                    )}
                 </div>
                 <Button onClick={handleSave} className="w-full mt-4">
                     <Save className="mr-2 h-4 w-4" />
@@ -402,7 +386,7 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
                     collection(firestore, 'users'),
                     where('sessionEndTime', '>', Date.now()),
                     orderBy('sessionEndTime', 'desc'),
-                    limit(PAGE_SIZE * 2) // Fetch more to have a better chance of filling the page
+                    limit(PAGE_SIZE * 2)
                 );
                 if (startAfterDoc && !refresh) {
                     q = query(q, startAfter(startAfterDoc));
@@ -415,17 +399,12 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
 
             users = users.filter(user => {
                 if (user.minedCoins <= 100) return false;
-
-                // For search, we need to manually check if the user is active
                 if (searchTerm && (!user.sessionEndTime || user.sessionEndTime <= Date.now())) {
                     return false;
                 }
-
                 if (forTournament) {
-                    // For league eligibility, user must not already be enrolled.
                     return !user.tournamentId;
                 } else {
-                    // For promoter eligibility, user must not already be a promoter.
                     return !user.isPromoter;
                 }
             });
@@ -471,7 +450,7 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
         setMakingPromoter(userId);
         try {
             await makeUserPromoter(userId);
-            handleRefresh(); // Refresh the list to remove the new promoter
+            handleRefresh();
         } finally {
             setMakingPromoter(null);
         }
@@ -493,7 +472,7 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
         const userIds = eligibleUsers.map(u => u.id!);
         try {
             await enrollAllEligibleUsers(userIds);
-            handleRefresh(); // Refresh list to show it's empty
+            handleRefresh();
         } finally {
             setIsEnrollingAll(false);
         }
@@ -507,8 +486,8 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
                         <CardTitle>Eligible Users</CardTitle>
                         <CardDescription>
                             {forTournament 
-                                ? "Showing active users with over 100 BLIT who are not enrolled in the league."
-                                : "Showing active users with over 100 BLIT who are not promoters."
+                                ? "Showing active users with over 100 HOT who are not enrolled in the league."
+                                : "Showing active users with over 100 HOT who are not promoters."
                             }
                         </CardDescription>
                     </div>
@@ -533,7 +512,7 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
                     <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>
                 ) : eligibleUsers.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
-                        <Inbox className="h-12 w-12 text-muted-foreground" />
+                        <Activity className="h-12 w-12 text-muted-foreground" />
                         <h3 className="font-semibold">No Eligible Users Found</h3>
                         <p className="text-sm text-muted-foreground">No matching users found.</p>
                     </div>
@@ -549,7 +528,7 @@ function EligibleUsersManager({ showEnrollButton = false, forTournament = false 
                                             <p className="text-sm text-muted-foreground">{user.profileCode}</p>
                                             <div className="flex items-center gap-2 font-semibold">
                                                 <Coins className="h-4 w-4 text-amber-400" />
-                                                <span className="text-xs">{user.minedCoins.toFixed(2)} BLIT</span>
+                                                <span className="text-xs">{user.minedCoins.toFixed(2)} HOT</span>
                                             </div>
                                         </div>
                                     </div>
@@ -632,7 +611,7 @@ function PromotersManager() {
 
     const handleSearchSubmit = (e: React.FormEvent) => {
       e.preventDefault();
-      fetchPromoters(null, true); // This now gets triggered on submit.
+      fetchPromoters(null, true);
     }
 
     return (
@@ -654,7 +633,7 @@ function PromotersManager() {
                     <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>
                 ) : promoters.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
-                        <Inbox className="h-12 w-12 text-muted-foreground" />
+                        <Activity className="h-12 w-12 text-muted-foreground" />
                         <h3 className="font-semibold">No Promoters Found</h3>
                     </div>
                 ) : (
@@ -671,7 +650,7 @@ function PromotersManager() {
                                     </div>
                                     <div className="flex items-center gap-2 font-semibold">
                                         <Coins className="h-5 w-5 text-amber-400" />
-                                        <span>{user.minedCoins.toFixed(4)} BLIT</span>
+                                        <span>{user.minedCoins.toFixed(4)} HOT</span>
                                     </div>
                                 </div>
                             </Card>
@@ -687,6 +666,121 @@ function PromotersManager() {
                 </CardFooter>
             )}
         </Card>
+    );
+}
+
+function WinnersManager() {
+    const { adminUpdatePayoutStatus } = useAuth();
+    const firestore = useFirestore();
+    const [concludedTournaments, setConcludedTournaments] = useState<ConcludedTournament[]>([]);
+    const [isLoadingTournaments, setIsLoadingTournaments] = useState(true);
+    const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+    const [winnerProfilesMap, setWinnerProfilesMap] = useState<Map<string, UserProfile>>(new Map());
+
+    useEffect(() => {
+        if (!firestore) return;
+        const q = query(collection(firestore, 'concludedTournaments'), orderBy('concludedAt', 'desc'));
+        const unsub = onSnapshot(q, async (snap) => {
+            const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as ConcludedTournament));
+            setConcludedTournaments(data);
+            
+            const winnerIds = new Set<string>();
+            data.forEach(t => t.winners.forEach(w => winnerIds.add(w.userId)));
+            const idArray = Array.from(winnerIds);
+            
+            if (idArray.length > 0) {
+                const profilesMap = new Map<string, UserProfile>();
+                const chunks = [];
+                for (let i = 0; i < idArray.length; i += 30) chunks.push(idArray.slice(i, i + 30));
+                
+                for (const chunk of chunks) {
+                    const pq = query(collection(firestore, 'users'), where(documentId(), 'in', chunk));
+                    const psnap = await getDocs(pq);
+                    psnap.forEach(d => profilesMap.set(d.id, { id: d.id, ...d.data() } as UserProfile));
+                }
+                setWinnerProfilesMap(profilesMap);
+            }
+            setIsLoadingTournaments(false);
+        });
+        return () => unsub();
+    }, [firestore]);
+
+    const handleStatusChange = async (tournamentId: string, userId: string, status: 'pending' | 'paid' | 'failed') => {
+        setUpdatingStatus(`${tournamentId}-${userId}`);
+        await adminUpdatePayoutStatus(tournamentId, userId, status);
+        setUpdatingStatus(null);
+    }
+
+    if (isLoadingTournaments) {
+        return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    }
+
+    if (concludedTournaments.length === 0) {
+        return <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
+            <Activity className="h-12 w-12 text-muted-foreground" />
+            <h3 className="font-semibold">No Concluded Leagues</h3>
+            <p className="text-sm text-muted-foreground">There are no past league results to display.</p>
+        </div>;
+    }
+
+    return (
+        <Accordion type="single" collapsible className="w-full space-y-4">
+            {concludedTournaments.map(tourney => (
+                <AccordionItem value={tourney.id} key={tourney.id}>
+                     <AccordionTrigger className="p-4 bg-muted/30 rounded-t-lg">
+                        <div>
+                            <p className="font-bold">{tourney.headline}</p>
+                            <p className="text-sm text-muted-foreground">Concluded: {format(tourney.concludedAt.toDate(), 'PPP')}</p>
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-2 border border-t-0 rounded-b-lg overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Rank</TableHead>
+                                    <TableHead>Winner</TableHead>
+                                    <TableHead>Score</TableHead>
+                                    <TableHead>Prize (USDC)</TableHead>
+                                    <TableHead>USDC Address</TableHead>
+                                    <TableHead>Status</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {tourney.winners.map(winner => {
+                                    const profile = winnerProfilesMap.get(winner.userId);
+                                    const status = tourney.payouts[winner.userId] || 'pending';
+                                    return (
+                                        <TableRow key={winner.userId}>
+                                            <TableCell>{winner.rank}</TableCell>
+                                            <TableCell><Link href={`/admin/find-user?profileCode=${winner.profileCode}`} className="hover:underline">{winner.fullName}</Link></TableCell>
+                                            <TableCell>{winner.score}</TableCell>
+                                            <TableCell>${winner.prize.toFixed(2)}</TableCell>
+                                            <TableCell>{profile?.usdcAddress || 'Not provided'}</TableCell>
+                                            <TableCell>
+                                                 <Select
+                                                    value={status}
+                                                    onValueChange={(value) => handleStatusChange(tourney.id, winner.userId, value as any)}
+                                                    disabled={updatingStatus === `${tourney.id}-${winner.userId}`}
+                                                >
+                                                    <SelectTrigger className="w-[120px]">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="pending">Pending</SelectItem>
+                                                        <SelectItem value="paid">Paid</SelectItem>
+                                                        <SelectItem value="failed">Failed</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </AccordionContent>
+                </AccordionItem>
+            ))}
+        </Accordion>
     );
 }
 
@@ -997,7 +1091,7 @@ function EnrolledUsersManager() {
                 </CardHeader>
                 <CardContent>
                     <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
-                        <Inbox className="h-12 w-12 text-muted-foreground" />
+                        <Activity className="h-12 w-12 text-muted-foreground" />
                         <h3 className="font-semibold">No Active League</h3>
                         <p className="text-sm text-muted-foreground">There is no league to show enrolled users for.</p>
                     </div>
@@ -1052,7 +1146,7 @@ function EnrolledUsersManager() {
                     <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>
                 ) : enrolledUsers.length === 0 ? (
                      <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
-                        <Inbox className="h-12 w-12 text-muted-foreground" />
+                        <Activity className="h-12 w-12 text-muted-foreground" />
                         <h3 className="font-semibold">{searchTerm ? "No User Found" : "No Users Enrolled"}</h3>
                     </div>
                 ) : (
@@ -1108,197 +1202,6 @@ function EnrolledUsersManager() {
         </Card>
     );
 }
-
-function WinnersManager() {
-    const { adminUpdatePayoutStatus } = useAuth();
-    const firestore = useFirestore();
-    const { data: concludedTournaments, isLoading: isLoadingTournaments } = useCollection<ConcludedTournament>(
-        useMemoFirebase(() => query(collection(firestore, 'concludedTournaments'), orderBy('concludedAt', 'desc')), [firestore])
-    );
-    const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
-
-    const allWinnerIds = useMemo(() => {
-        if (!concludedTournaments) return [];
-        const ids = new Set<string>();
-        concludedTournaments.forEach(t => t.winners.forEach(w => ids.add(w.userId)));
-        return Array.from(ids);
-    }, [concludedTournaments]);
-
-    const { data: winnerProfilesData, isLoading: isLoadingProfiles } = useCollection<UserProfile>(
-        useMemoFirebase(() => {
-            if (!firestore || allWinnerIds.length === 0) return null;
-            // You might need to chunk this if allWinnerIds can exceed 30
-            return query(collection(firestore, 'users'), where(documentId(), 'in', allWinnerIds));
-        }, [firestore, allWinnerIds])
-    );
-
-    const winnerProfilesMap = useMemo(() => {
-        const map = new Map<string, UserProfile>();
-        winnerProfilesData?.forEach(p => map.set(p.id, p));
-        return map;
-    }, [winnerProfilesData]);
-
-    const handleStatusChange = async (tournamentId: string, userId: string, status: 'pending' | 'paid' | 'failed') => {
-        setUpdatingStatus(`${tournamentId}-${userId}`);
-        await adminUpdatePayoutStatus(tournamentId, userId, status);
-        setUpdatingStatus(null);
-    }
-
-    if (isLoadingTournaments) {
-        return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-    }
-
-    if (!concludedTournaments || concludedTournaments.length === 0) {
-        return <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
-            <Inbox className="h-12 w-12 text-muted-foreground" />
-            <h3 className="font-semibold">No Concluded Leagues</h3>
-            <p className="text-sm text-muted-foreground">There are no past league results to display.</p>
-        </div>;
-    }
-
-    return (
-        <Accordion type="single" collapsible className="w-full space-y-4">
-            {concludedTournaments.map(tourney => (
-                <AccordionItem value={tourney.id} key={tourney.id}>
-                     <AccordionTrigger className="p-4 bg-muted/30 rounded-t-lg">
-                        <div>
-                            <p className="font-bold">{tourney.headline}</p>
-                            <p className="text-sm text-muted-foreground">Concluded: {format(tourney.concludedAt.toDate(), 'PPP')}</p>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="p-2 border border-t-0 rounded-b-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Rank</TableHead>
-                                    <TableHead>Winner</TableHead>
-                                    <TableHead>Score</TableHead>
-                                    <TableHead>Prize (USDC)</TableHead>
-                                    <TableHead>USDC Address</TableHead>
-                                    <TableHead>Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {tourney.winners.map(winner => {
-                                    const profile = winnerProfilesMap.get(winner.userId);
-                                    const status = tourney.payouts[winner.userId] || 'pending';
-                                    return (
-                                        <TableRow key={winner.userId}>
-                                            <TableCell>{winner.rank}</TableCell>
-                                            <TableCell><Link href={`/admin/find-user?profileCode=${winner.profileCode}`} className="hover:underline">{winner.fullName}</Link></TableCell>
-                                            <TableCell>{winner.score}</TableCell>
-                                            <TableCell>${winner.prize.toFixed(2)}</TableCell>
-                                            <TableCell>{profile?.usdcAddress || 'Not provided'}</TableCell>
-                                            <TableCell>
-                                                 <Select
-                                                    value={status}
-                                                    onValueChange={(value) => handleStatusChange(tourney.id, winner.userId, value as any)}
-                                                    disabled={updatingStatus === `${tourney.id}-${winner.userId}`}
-                                                >
-                                                    <SelectTrigger className="w-[120px]">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="pending">Pending</SelectItem>
-                                                        <SelectItem value="paid">Paid</SelectItem>
-                                                        <SelectItem value="failed">Failed</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-                    </AccordionContent>
-                </AccordionItem>
-            ))}
-        </Accordion>
-    );
-}
-
-function LeftManager() {
-    const firestore = useFirestore();
-    const { adminRejoinTournament } = useAuth();
-    const [leftUsers, setLeftUsers] = useState<UserProfile[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [processingId, setProcessingId] = useState<string | null>(null);
-
-    const fetchLeftUsers = useCallback(async () => {
-        if (!firestore) return;
-        setIsLoading(true);
-        try {
-            const q = query(collection(firestore, 'users'), where('tournamentId', '==', 'left'));
-            const snapshot = await getDocs(q);
-            const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
-            setLeftUsers(users);
-        } catch (error) {
-            console.error("Error fetching left users:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [firestore]);
-
-    useEffect(() => {
-        fetchLeftUsers();
-    }, [fetchLeftUsers]);
-    
-    const handleRejoin = async (userId: string) => {
-        setProcessingId(userId);
-        try {
-            await adminRejoinTournament(userId);
-            // Optimistically remove from list
-            setLeftUsers(prev => prev.filter(u => u.id !== userId));
-        } finally {
-            setProcessingId(null);
-        }
-    };
-
-    if (isLoading) {
-        return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-    }
-    
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Left League</CardTitle>
-                <CardDescription>
-                    Users who have voluntarily left the current referral league.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                {leftUsers.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg">
-                        <Inbox className="h-12 w-12 text-muted-foreground" />
-                        <h3 className="font-semibold">No Users Have Left</h3>
-                        <p className="text-sm text-muted-foreground">This section is empty.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {leftUsers.map(user => (
-                            <Card key={user.id} className="p-4 hover:bg-muted/50 transition-colors">
-                                <div className="flex items-center justify-between gap-4">
-                                    <div className="flex items-center gap-4">
-                                        <Avatar className="h-12 w-12"><AvatarImage src={user.profileImageUrl} alt={user.fullName} /><AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback></Avatar>
-                                        <div>
-                                            <Link href={`/admin/find-user?profileCode=${user.profileCode}`} className="font-semibold hover:underline">{user.fullName}</Link>
-                                            <p className="text-sm text-muted-foreground">{user.profileCode}</p>
-                                        </div>
-                                    </div>
-                                    <Button onClick={() => handleRejoin(user.id!)} disabled={processingId === user.id} size="sm">
-                                        {processingId === user.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserCheck className="mr-2 h-4 w-4" />}
-                                        Rejoin
-                                    </Button>
-                                </div>
-                            </Card>
-                        ))}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-    );
-}
-
 
 function AdminDashboard() {
   const { userProfile, loading } = useAuth();
@@ -1358,12 +1261,11 @@ function AdminDashboard() {
         </TabsContent>
         <TabsContent value="rt" className="mt-6">
             <Tabs defaultValue="tournament" className="w-full">
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="tournament">SL</TabsTrigger>
                     <TabsTrigger value="eligible-rt">RL Eligible</TabsTrigger>
                     <TabsTrigger value="enrolled">Enrolled</TabsTrigger>
                     <TabsTrigger value="winners">Winners</TabsTrigger>
-                    <TabsTrigger value="left">Left</TabsTrigger>
                 </TabsList>
                 <TabsContent value="tournament" className="mt-6">
                     <LeagueManager />
@@ -1377,9 +1279,6 @@ function AdminDashboard() {
                  <TabsContent value="winners" className="mt-6">
                     <WinnersManager />
                 </TabsContent>
-                <TabsContent value="left" className="mt-6">
-                    <LeftManager />
-                </TabsContent>
             </Tabs>
         </TabsContent>
       </Tabs>
@@ -1390,5 +1289,3 @@ function AdminDashboard() {
 export default function AdminDashboardPage() {
     return <AdminDashboard />;
 }
-
-    

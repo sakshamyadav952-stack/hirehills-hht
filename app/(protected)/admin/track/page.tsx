@@ -1,8 +1,7 @@
-
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
+import { useState, useEffect, useRef } from 'react';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirestore } from '@/firebase';
 import { collection, onSnapshot, query } from 'firebase/firestore';
@@ -72,7 +71,7 @@ function TopMinersCard() {
         <Card>
             <CardHeader>
                 <CardTitle>Top Miners</CardTitle>
-                <CardDescription>The top 5 users with the most Blistree tokens.</CardDescription>
+                <CardDescription>The top 5 users with the most HOT tokens.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
@@ -91,7 +90,7 @@ function TopMinersCard() {
                             </div>
                             <div className="text-right">
                                 <p className="font-bold text-lg">{user.liveCoins.toFixed(2)}</p>
-                                <p className="text-xs text-muted-foreground">BLIT</p>
+                                <p className="text-xs text-muted-foreground">HOT</p>
                             </div>
                         </div>
                     ))}
@@ -164,14 +163,14 @@ function TotalSupplyCard() {
         <Card>
             <CardHeader>
                 <CardTitle>Total Circulating Supply</CardTitle>
-                <CardDescription>The total number of Blistree tokens currently mined by all users.</CardDescription>
+                <CardDescription>The total number of HOT tokens currently mined by all users.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex flex-col items-center justify-center gap-4 py-8">
                     <Coins className="h-16 w-16 text-primary" />
                     <div className="text-4xl font-bold tracking-tighter">
                         {totalLiveCoins.toFixed(4)}
-                        <span className="text-lg font-medium text-muted-foreground ml-2">BLIT</span>
+                        <span className="text-lg font-medium text-muted-foreground ml-2">HOT</span>
                     </div>
                     <p className="text-sm text-muted-foreground">Across {userCount} users</p>
                 </div>
@@ -199,5 +198,3 @@ export default function TrackPage() {
         </div>
     );
 }
-
-    

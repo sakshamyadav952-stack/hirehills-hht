@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Clock, Coins, Zap, Gift, BarChart, Users } from 'lucide-react';
+import { Loader2, Clock, Coins, Zap, Gift, BarChart } from 'lucide-react';
 import type { ActiveBoost } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -50,9 +49,9 @@ function LiveBoostItem({ boost }: { boost: ActiveBoost }) {
   }, [boost, isComplete]);
 
   const boostColors = {
-    '2H': 'from-green-500/20 to-green-500/5 border-green-500/30 text-green-300',
-    '4H': 'from-blue-500/20 to-blue-500/5 border-blue-500/30 text-blue-300',
-    '8H': 'from-purple-500/20 to-purple-500/5 border-purple-500/30 text-purple-300',
+    '2H': 'from-green-500/20 to-green-500/5 border-green-500/30 text-green-600 dark:text-green-300',
+    '4H': 'from-blue-500/20 to-blue-500/5 border-blue-500/30 text-blue-600 dark:text-blue-300',
+    '8H': 'from-purple-500/20 to-purple-500/5 border-purple-500/30 text-purple-600 dark:text-purple-300',
   };
 
   return (
@@ -60,16 +59,16 @@ function LiveBoostItem({ boost }: { boost: ActiveBoost }) {
       <div className="flex items-center gap-4">
         <Gift className="h-7 w-7" />
         <div>
-          <p className="font-semibold">
+          <p className="font-semibold text-foreground">
             {boost.type} Mystery Box
-            {isComplete && <span className="ml-2 text-xs font-medium text-white/70">(Completed)</span>}
+            {isComplete && <span className="ml-2 text-xs font-medium text-muted-foreground">(Completed)</span>}
           </p>
-          <p className="text-xs text-white/60">Rate: +{boost.rate.toFixed(4)} BLIT/hr</p>
+          <p className="text-xs text-muted-foreground">Rate: +{boost.rate.toFixed(4)} HOT/hr</p>
         </div>
       </div>
       <div className="text-right">
-        <p className="text-lg font-semibold text-white">{earnings.toFixed(6)}</p>
-        <p className="text-xs font-mono text-white/60">{timeRemaining}</p>
+        <p className="text-lg font-bold text-foreground">{earnings.toFixed(6)}</p>
+        <p className="text-xs font-mono text-muted-foreground">{timeRemaining}</p>
       </div>
     </li>
   );
@@ -173,13 +172,13 @@ export default function LiveReportPage() {
 
   return (
     <div className="container mx-auto py-10">
-      <Card className="max-w-2xl mx-auto bg-black/50 text-white border-slate-700 shadow-2xl shadow-primary/10">
+      <Card className="max-w-2xl mx-auto bg-card text-foreground border-border shadow-2xl">
         <CardHeader>
           <div className="flex items-center gap-3">
              <BarChart className="h-6 w-6 text-primary" />
              <div>
-                <CardTitle className="text-2xl text-primary">Live Mining Report</CardTitle>
-                <CardDescription className="text-white/60">
+                <CardTitle className="text-2xl">Live Mining Report</CardTitle>
+                <CardDescription className="text-muted-foreground">
                     A real-time overview of your current mining session.
                 </CardDescription>
              </div>
@@ -188,54 +187,50 @@ export default function LiveReportPage() {
         <CardContent className="space-y-6">
             {(isSessionActive || (userProfile?.unclaimedCoins && userProfile.unclaimedCoins > 0)) ? (
                 <div className="space-y-4">
-                  {/* Base Earnings */}
-                  <div className="flex items-center justify-between p-4 border rounded-lg bg-slate-800/50 border-slate-700">
+                  <div className="flex items-center justify-between p-4 border rounded-lg bg-secondary/50 border-border">
                     <div className="flex items-center gap-4">
-                      <Zap className="h-7 w-7 text-cyan-400" />
+                      <Zap className="h-7 w-7 text-primary" />
                       <div>
-                        <p className="font-semibold text-cyan-300">Base Earnings</p>
-                         <p className="text-xs text-white/60">
-                            Rate: +{((miningRateBreakdown?.base || 0) + (miningRateBreakdown?.appliedCode || 0)).toFixed(4)} BLIT/hr
+                        <p className="font-semibold text-foreground">Base Earnings</p>
+                         <p className="text-xs text-muted-foreground">
+                            Rate: +{((miningRateBreakdown?.base || 0) + (miningRateBreakdown?.appliedCode || 0)).toFixed(4)} HOT/hr
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-semibold text-white">{baseEarnings.toFixed(6)}</p>
-                      <p className="text-xs font-mono text-white/60">{timeRemaining}</p>
+                      <p className="text-lg font-bold text-foreground">{baseEarnings.toFixed(6)}</p>
+                      <p className="text-xs font-mono text-muted-foreground">{timeRemaining}</p>
                     </div>
                   </div>
 
-                  {/* Boosts */}
                   {userProfile?.activeBoosts?.map(boost => (
                     <LiveBoostItem key={boost.id} boost={boost} />
                   ))}
 
-                  {/* Spin Winnings */}
-                  <div className="flex items-center justify-between p-4 border rounded-lg bg-slate-800/50 border-slate-700">
+                  <div className="flex items-center justify-between p-4 border rounded-lg bg-secondary/50 border-border">
                     <div className="flex items-center gap-4">
-                      <Coins className="h-7 w-7 text-amber-400" />
-                      <p className="font-semibold text-amber-300">Spin Wheel Earnings</p>
+                      <Coins className="h-7 w-7 text-amber-500" />
+                      <p className="font-semibold text-foreground">Spin Wheel Earnings</p>
                     </div>
-                    <p className="text-lg font-semibold text-white">{(userProfile?.spinWinnings || 0).toFixed(4)}</p>
+                    <p className="text-lg font-bold text-foreground">{(userProfile?.spinWinnings || 0).toFixed(4)}</p>
                   </div>
                   
-                  {/* Total */}
-                  <div className="flex flex-col items-center justify-center gap-4 py-8 mt-4 rounded-lg bg-gradient-to-tr from-primary/20 to-primary/5 border border-primary/30">
-                        <p className="text-lg font-bold tracking-wider text-primary uppercase">TOTAL LIVE EARNINGS</p>
+                  <div className="flex flex-col items-center justify-center gap-4 py-8 mt-4 rounded-3xl bg-secondary border border-border">
+                        <p className="text-sm font-black tracking-widest text-muted-foreground uppercase">TOTAL LIVE YIELD</p>
                         <div className="flex items-center gap-3">
-                            <Coins className="h-10 w-10 text-amber-400" />
-                            <p className="text-5xl font-bold text-white tracking-tighter" style={{textShadow: '0 0 15px rgba(251, 191, 36, 0.5)'}}>
+                            <Coins className="h-10 w-10 text-amber-500" />
+                            <p className="text-5xl font-black text-foreground tracking-tighter">
                                 {totalLiveEarnings.toFixed(4)}
                             </p>
                         </div>
-                        <p className="text-base font-medium text-white/70">BLIT</p>
+                        <p className="text-base font-bold text-primary">HOT</p>
                   </div>
                 </div>
             ) : (
-                 <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg border-slate-700">
+                 <div className="flex flex-col items-center justify-center gap-4 p-8 text-center border-2 border-dashed rounded-lg border-border">
                     <Clock className="h-12 w-12 text-muted-foreground" />
-                    <h3 className="font-semibold text-white">No Active Session</h3>
-                    <p className="text-sm text-muted-foreground">Start a mining session on the dashboard to see live data here.</p>
+                    <h3 className="font-semibold">No Active Session</h3>
+                    <p className="text-sm text-muted-foreground">Start a node session on the dashboard to see live data here.</p>
                 </div>
             )}
         </CardContent>

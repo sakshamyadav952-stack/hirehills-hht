@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, Suspense, useMemo, useCallback } from 'react';
@@ -9,14 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Search, User, Mail, Phone, Calendar, PlusCircle, MinusCircle, Banknote, Users, Trash2, Globe, Clapperboard, Zap, Play, Coins, Smartphone, Network, ShieldAlert, UserCheck } from 'lucide-react';
+import { Loader2, Search, User, Mail, Phone, Calendar, PlusCircle, MinusCircle, Clapperboard, Zap, Play, Coins, Smartphone, Network, ShieldAlert, UserCheck, Trash2, Globe } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { collection, getDocs, query, where, documentId, deleteDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, documentId, deleteDoc, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
-import type { UserProfile, AdWatchEvent } from '@/lib/types';
+import type { UserProfile } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { format, formatDistanceToNow, subHours } from 'date-fns';
-import { Timestamp } from 'firebase/firestore';
+import { format, subHours } from 'date-fns';
 import { useAuth } from '@/lib/auth';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -52,7 +50,7 @@ function ModifyCoinsCard({ user, onUpdate }: { user: UserProfile, onUpdate: () =
         
         try {
             await adminUpdateUserCoins(user.id, amountToUpdate);
-            onUpdate(); // Trigger a re-fetch of the user data
+            onUpdate();
             setAmount('');
         } finally {
             setIsSubmitting(false);
@@ -63,7 +61,7 @@ function ModifyCoinsCard({ user, onUpdate }: { user: UserProfile, onUpdate: () =
         <Card className="mt-6">
             <CardHeader>
                 <CardTitle>Modify Coins</CardTitle>
-                <CardDescription>Increase or decrease the user's coin balance.</CardDescription>
+                <CardDescription>Increase or decrease the user's HOT balance.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
@@ -124,7 +122,7 @@ function AdWatchHistoryCard({ user }: { user: UserProfile }) {
                                     <div>
                                         <p className="font-medium">{event.element}</p>
                                         <p className="text-xs text-muted-foreground">
-                                            {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true })}
+                                            {format(new Date(event.timestamp), 'PPpp')}
                                         </p>
                                     </div>
                                 </div>
@@ -142,7 +140,7 @@ function AdWatchHistoryCard({ user }: { user: UserProfile }) {
 type ConflictingAccount = UserProfile & { conflictType: 'IP' | 'Device' | 'Both' };
 
 function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingAccounts, onConflictingAccountDeleted, referrerProfileCode }: { user: UserProfile, onUpdate: () => void, referrals: (UserProfile & { status: 'Active' | 'Inactive' })[], referralsLoading: boolean, conflictingAccounts: ConflictingAccount[], onConflictingAccountDeleted: (deletedUserId: string) => void, referrerProfileCode?: string | null }) {
-    const { adminRemoveReferral, userProfile: adminProfile, adminSetFollowStatus, adminTerminateUserSession, adminStartUserSession, deleteAccount } = useAuth();
+    const { adminRemoveReferral, userProfile: adminProfile, adminSetFollowStatus, adminTerminateUserSession, adminStartUserSession } = useAuth();
     const firestore = useFirestore();
     const registrationDate = user.createdAt instanceof Timestamp ? user.createdAt.toDate() : new Date((user.createdAt as any).seconds * 1000);
     const [liveCoins, setLiveCoins] = useState(user.minedCoins || 0);
@@ -165,7 +163,7 @@ function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingA
         setIsRemoving(referralId);
         try {
             await adminRemoveReferral(user.id, referralId);
-            onUpdate(); // Trigger a re-fetch of the user data
+            onUpdate();
         } finally {
             setIsRemoving(null);
         }
@@ -206,7 +204,7 @@ function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingA
                 title: 'Account Deleted',
                 description: 'The conflicting account has been successfully deleted.',
             });
-            onConflictingAccountDeleted(conflictUserId); // Notify parent to update the list
+            onConflictingAccountDeleted(conflictUserId);
         } catch (error) {
             console.error("Error deleting conflicting account:", error);
             toast({
@@ -325,7 +323,7 @@ function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingA
                         <div className="flex items-center gap-3">
                             <Coins className="h-5 w-5 text-muted-foreground" />
                             <span className="font-bold text-lg">{liveCoins.toFixed(4)}</span>
-                            <span className="text-sm text-muted-foreground">BLIT</span>
+                            <span className="text-sm text-muted-foreground">HOT</span>
                         </div>
                         <div className="flex items-center gap-3">
                             <Coins className="h-5 w-5 text-muted-foreground" />
@@ -344,16 +342,16 @@ function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingA
                                             Terminate Session
                                         </Button>
                                     </AlertDialogTrigger>
-                                    <AlertDialogContent className="text-white border-amber-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
+                                    <AlertDialogContent>
                                         <AlertDialogHeader>
-                                            <AlertDialogTitle className="text-amber-300">Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription className="text-amber-200/80">
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
                                                 This will end the user's current mining session and calculate their earnings. This action cannot be undone.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
-                                            <AlertDialogCancel className="bg-transparent text-amber-300 border-amber-400/50 hover:bg-amber-400/10 hover:text-white">Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={handleTerminateSession} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleTerminateSession}>
                                                 Confirm Termination
                                             </AlertDialogAction>
                                         </AlertDialogFooter>
@@ -377,7 +375,6 @@ function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingA
                         <CardDescription>Manage user's social media follow verification.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {/* Facebook Status */}
                         <div className="flex items-center justify-between p-3 bg-muted rounded-md">
                             <div className="flex items-center gap-3">
                                 <FacebookIcon />
@@ -397,7 +394,6 @@ function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingA
                                 </SelectContent>
                             </Select>
                         </div>
-                        {/* X/Twitter Status */}
                         <div className="flex items-center justify-between p-3 bg-muted rounded-md">
                             <div className="flex items-center gap-3">
                                 <XIcon />
@@ -453,16 +449,16 @@ function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingA
                                                     {isDeletingConflict === conflictUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                                                 </Button>
                                             </AlertDialogTrigger>
-                                            <AlertDialogContent className="text-white border-amber-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
+                                            <AlertDialogContent>
                                                 <AlertDialogHeader>
-                                                    <AlertDialogTitle className="text-amber-300">Delete Conflicting Account?</AlertDialogTitle>
-                                                    <AlertDialogDescription className="text-amber-200/80">
+                                                    <AlertDialogTitle>Delete Conflicting Account?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
                                                         This will permanently delete <strong>{conflictUser.fullName}</strong>. This action cannot be undone.
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
-                                                    <AlertDialogCancel className="bg-transparent text-amber-300 border-amber-400/50 hover:bg-amber-400/10 hover:text-white">Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeleteConflictingAccount(conflictUser.id!)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteConflictingAccount(conflictUser.id!)}>
                                                         Confirm Delete
                                                     </AlertDialogAction>
                                                 </AlertDialogFooter>
@@ -516,16 +512,16 @@ function UserDetails({ user, onUpdate, referrals, referralsLoading, conflictingA
                                                     {isRemoving === ref.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                                                 </Button>
                                             </AlertDialogTrigger>
-                                            <AlertDialogContent className="text-white border-amber-400/50" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)' }}>
+                                            <AlertDialogContent>
                                                 <AlertDialogHeader>
-                                                    <AlertDialogTitle className="text-amber-300">Are you sure?</AlertDialogTitle>
-                                                    <AlertDialogDescription className="text-amber-200/80">
-                                                        This will remove <strong>{ref.fullName}</strong> from s referral list. This action cannot be undone.
+                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This will remove <strong>{ref.fullName}</strong> from's referral list. This action cannot be undone.
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
-                                                    <AlertDialogCancel className="bg-transparent text-amber-300 border-amber-400/50 hover:bg-amber-400/10 hover:text-white">Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleRemoveReferral(ref.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleRemoveReferral(ref.id)}>
                                                         Confirm Remove
                                                     </AlertDialogAction>
                                                 </AlertDialogFooter>
@@ -619,7 +615,6 @@ function FindUserComponent() {
             const { searchQuery } = data;
             
             let q;
-            // The email field is in a private subcollection, so we can only query by profileCode
             if (searchQuery.includes('@')) {
                  toast({ title: 'Search by Profile Code', description: 'Please search for users by their 6-digit profile code.', variant: 'destructive' });
                  setIsLoading(false);
@@ -636,7 +631,6 @@ function FindUserComponent() {
                 const userDoc = querySnapshot.docs[0];
                 const userData = { id: userDoc.id, ...userDoc.data() } as UserProfile;
 
-                // Fetch private contact info
                 const privateContactRef = doc(firestore, 'users', userDoc.id, 'private', 'contact');
                 const privateContactSnap = await getDoc(privateContactRef);
                 if (privateContactSnap.exists()) {
@@ -759,10 +753,3 @@ export default function FindUserPage() {
         </Suspense>
     );
 }
-    
-
-    
-
-
-
-
