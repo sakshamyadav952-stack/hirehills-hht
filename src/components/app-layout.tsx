@@ -42,48 +42,47 @@ function SidebarLayoutContent() {
         <>
           <SidebarMenuItem onClick={handleLinkClick}>
             <SidebarMenuButton asChild isActive={pathname === '/'} tooltip="Dashboard">
-              <Link href="/"><LayoutGrid className="text-primary" /><span>Dashboard</span></Link>
+              <Link href="/"><LayoutGrid className="text-primary" /><span className="text-foreground">Dashboard</span></Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem onClick={handleLinkClick}>
             <SidebarMenuButton asChild isActive={pathname === '/profile'} tooltip="Profile">
-              <Link href="/profile"><User className="text-blue-400" /><span>Profile</span></Link>
+              <Link href="/profile"><User className="text-blue-400" /><span className="text-foreground">Profile</span></Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem onClick={handleLinkClick}>
             <SidebarMenuButton asChild isActive={pathname === '/wallet'} tooltip="Wallet">
-              <Link href="/wallet"><Wallet className="text-cyan-400" /><span>Wallet</span></Link>
+              <Link href="/wallet"><Wallet className="text-cyan-400" /><span className="text-foreground">Wallet</span></Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem onClick={handleLinkClick}>
             <SidebarMenuButton asChild isActive={pathname === '/leaderboard'} tooltip="Leaderboard">
-              <Link href="/leaderboard"><Trophy className="text-amber-400" /><span>Leaderboard</span></Link>
+              <Link href="/leaderboard"><Trophy className="text-amber-400" /><span className="text-foreground">Leaderboard</span></Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem onClick={handleLinkClick}>
             <SidebarMenuButton asChild isActive={pathname === '/referrals'} tooltip="Security Circle">
-              <Link href="/referrals"><ShieldCheck className="text-green-400" /><span>Security Circle</span></Link>
+              <Link href="/referrals"><ShieldCheck className="text-green-400" /><span className="text-foreground">Security Circle</span></Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem onClick={handleLinkClick}>
             <SidebarMenuButton asChild isActive={pathname === '/apply-code'} tooltip="Apply Code">
-              <Link href="/apply-code"><Ticket className="text-yellow-400" /><span>Apply Code</span></Link>
+              <Link href="/apply-code"><Ticket className="text-yellow-400" /><span className="text-foreground">Apply Code</span></Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem onClick={handleLinkClick}>
             <SidebarMenuButton asChild isActive={pathname === '/invite'} tooltip="Invite">
-              <Link href="/invite"><UserPlus className="text-pink-400" /><span>Invite Friends</span></Link>
+              <Link href="/invite"><UserPlus className="text-pink-400" /><span className="text-foreground">Invite Friends</span></Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem onClick={handleLinkClick}>
             <SidebarMenuButton asChild isActive={pathname === '/privacy-policy'} tooltip="Privacy">
-              <Link href="/privacy-policy"><FileText className="text-muted-foreground" /><span>Privacy Policy</span></Link>
+              <Link href="/privacy-policy"><FileText className="text-muted-foreground" /><span className="text-foreground">Privacy Policy</span></Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem onClick={() => { logout(); handleLinkClick(); }}>
             <SidebarMenuButton tooltip="Logout">
-              <LogOut className="text-destructive" /><span>Log Out</span>
-            </SidebarMenuButton>
+              <LogOut className="text-destructive" /><span className="text-foreground">Log Out</span></SidebarMenuButton>
           </SidebarMenuItem>
         </>
       )
@@ -92,7 +91,7 @@ function SidebarLayoutContent() {
     return (
       <SidebarMenuItem onClick={handleLinkClick}>
         <SidebarMenuButton asChild isActive={pathname === '/auth/login'}>
-          <Link href="/auth/login"><LogIn /><span>Login</span></Link>
+          <Link href="/auth/login"><LogIn /><span className="text-foreground">Login</span></Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
     )
