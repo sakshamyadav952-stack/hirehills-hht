@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { ReactNode } from 'react';
@@ -282,6 +281,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setThemeState('dark');
     }
   }, [userProfile]);
+
+  // Apply theme class to document element
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  }, [theme]);
 
   useEffect(() => {
     if (!userProfile) {

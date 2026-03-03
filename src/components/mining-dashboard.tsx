@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -76,26 +75,26 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
     return (
         <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="text-white border-white/10 max-w-md w-[95%] rounded-3xl" style={{ background: 'linear-gradient(145deg, #0d0d1a, #1a1a2e)' }}>
+            <DialogContent className="text-foreground border-border max-w-md w-[95%] rounded-3xl" style={{ background: 'var(--background)' }}>
                 <DialogHeader>
                     <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
                         <Coins className="text-amber-400 h-6 w-6" />
                         CLAIM COINS
                     </DialogTitle>
-                    <DialogDescription className="text-white/40 text-xs font-bold uppercase tracking-widest">
+                    <DialogDescription className="text-muted-foreground text-xs font-bold uppercase tracking-widest">
                         Last 8 Node Sync Tasks
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto pr-2">
                     {dailyAdCoins.length === 0 ? (
-                        <div className="text-center py-8 text-white/20">
+                        <div className="text-center py-8 text-muted-foreground/40">
                             <Check className="mx-auto h-12 w-12 mb-2 opacity-20" />
                             <p className="text-sm font-bold uppercase tracking-widest">All current tasks completed</p>
                         </div>
                     ) : (
                         dailyAdCoins.map((coin) => (
-                            <div key={coin.id} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 group hover:border-white/10 transition-all">
+                            <div key={coin.id} className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border group hover:border-primary/30 transition-all">
                                 <div className="flex items-center gap-3">
                                     <div className={cn(
                                         "w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md",
@@ -104,10 +103,10 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
                                         {coin.status === 'available' ? <Zap className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
                                     </div>
                                     <div>
-                                        <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">
+                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                                             Slot: {coin.id.split('-').pop()}
                                         </p>
-                                        <p className="text-sm font-bold text-white uppercase">
+                                        <p className="text-sm font-bold text-foreground uppercase">
                                             {coin.status === 'available' ? 'Live Node' : 'Missed Node'}
                                         </p>
                                     </div>
@@ -120,7 +119,7 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
                                         "h-9 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
                                         coin.status === 'available' 
                                             ? "bg-green-500 hover:bg-green-400 text-black shadow-[0_0_15px_rgba(34,211,238,0.3)]" 
-                                            : "bg-white/10 hover:bg-white/20 text-white border border-white/10"
+                                            : "bg-muted hover:bg-accent text-foreground border border-border"
                                     )}
                                 >
                                     {isClaiming === coin.id ? (
@@ -136,7 +135,7 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
 
                 <DialogFooter>
                     <DialogClose asChild>
-                        <Button variant="ghost" className="w-full text-white/40 font-bold uppercase tracking-widest text-[10px]">
+                        <Button variant="ghost" className="w-full text-muted-foreground font-bold uppercase tracking-widest text-[10px]">
                             Close Terminal
                         </Button>
                     </DialogClose>
@@ -145,13 +144,13 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
         </Dialog>
 
         <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-            <AlertDialogContent className="text-white border-green-400/50" style={{ background: 'linear-gradient(145deg, #0d1a0d, #162e16)' }}>
+            <AlertDialogContent className="text-foreground border-green-400/50" style={{ background: 'var(--background)' }}>
                 <AlertDialogHeader className="text-center">
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20 mb-4 border-2 border-green-500/50">
                         <Check className="h-8 w-8 text-green-400" />
                     </div>
-                    <AlertDialogTitle className="text-xl font-bold text-green-300 uppercase tracking-tighter">Sync Successful!</AlertDialogTitle>
-                    <AlertDialogDescription className="text-green-200/80">
+                    <AlertDialogTitle className="text-xl font-bold text-green-600 dark:text-green-300 uppercase tracking-tighter">Sync Successful!</AlertDialogTitle>
+                    <AlertDialogDescription className="text-muted-foreground">
                         The HOT token from your node slot has been successfully synchronized and credited to your wallet.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -290,56 +289,56 @@ export function MiningDashboard() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen bg-black"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>;
+    return <div className="flex items-center justify-center h-screen bg-background"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>;
   }
 
   return (
-    <div className="min-h-screen bg-black p-4 sm:p-6 space-y-6 pb-24">
-      <div className="relative min-h-[480px] w-full rounded-[2.5rem] overflow-hidden glass-card border-white/5 bg-zinc-900/40">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-cyan-600/5" />
+    <div className="min-h-screen bg-background p-4 sm:p-6 space-y-6 pb-24">
+      <div className="relative min-h-[480px] w-full rounded-[2.5rem] overflow-hidden glass-card border-border bg-card/40">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5" />
         
         <div className="absolute top-8 left-8 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md">
-            <LayoutGrid className="text-white h-6 w-6" />
+          <div className="w-12 h-12 rounded-2xl bg-secondary border border-border flex items-center justify-center backdrop-blur-md">
+            <LayoutGrid className="text-primary h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-white font-black text-xl leading-none tracking-tight uppercase">HIREHILLS</h1>
-            <p className="text-purple-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">NODE CLUSTER v4.0</p>
+            <h1 className="text-foreground font-black text-xl leading-none tracking-tight uppercase">HIREHILLS</h1>
+            <p className="text-primary text-[10px] font-bold uppercase tracking-[0.2em] mt-1">NODE CLUSTER v4.0</p>
           </div>
         </div>
 
         <Link href="/wallet" className="absolute top-8 right-8 transition-transform hover:scale-110 active:scale-95 z-10">
-          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md hover:bg-white/10">
-            <Wallet className="text-white h-6 w-6" />
+          <div className="w-12 h-12 rounded-2xl bg-secondary border border-border flex items-center justify-center backdrop-blur-md hover:bg-accent">
+            <Wallet className="text-primary h-6 w-6" />
           </div>
         </Link>
 
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full px-6 flex flex-col items-center">
           {isSessionActive ? (
             <div className="flex flex-col items-center animate-in zoom-in-95 duration-500 w-full max-w-md">
-              <span className="text-cyan-400/40 text-[10px] font-black uppercase tracking-[0.5em] mb-3">Live Session Counter</span>
+              <span className="text-primary/40 text-[10px] font-black uppercase tracking-[0.5em] mb-3">Live Session Counter</span>
               <div className="relative mb-4">
-                <h2 className="text-white text-6xl md:text-8xl font-black tracking-tighter tabular-nums drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                <h2 className="text-foreground text-6xl md:text-8xl font-black tracking-tighter tabular-nums drop-shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
                   {liveCoins.toFixed(4)}
                 </h2>
-                <div className="absolute inset-0 border-y border-white/5 animate-scan-line pointer-events-none" />
+                <div className="absolute inset-0 border-y border-border animate-scan-line pointer-events-none" />
               </div>
               
-              <div className="flex items-center gap-3 bg-cyan-500/10 px-4 py-1.5 rounded-full border border-cyan-500/20 backdrop-blur-md">
-                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_#22d3ee]" />
-                <span className="text-cyan-400 text-[10px] font-black tracking-[0.3em] uppercase italic">Processing HOT Protocol</span>
+              <div className="flex items-center gap-3 bg-primary/10 px-4 py-1.5 rounded-full border border-primary/20 backdrop-blur-md">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_10px_currentColor]" />
+                <span className="text-primary text-[10px] font-black tracking-[0.3em] uppercase italic">Processing HOT Protocol</span>
               </div>
 
               <div className="mt-8 w-full max-w-[320px] space-y-4">
                 <div className="space-y-2">
                     <div className="relative">
-                        <Progress value={sessionProgress} className="h-2.5 bg-white/10 overflow-hidden rounded-full" />
+                        <Progress value={sessionProgress} className="h-2.5 bg-muted overflow-hidden rounded-full" />
                         <div 
-                            className="absolute inset-0 h-2.5 bg-gradient-to-r from-purple-600 to-cyan-400 blur-sm opacity-50 transition-all duration-1000" 
+                            className="absolute inset-0 h-2.5 bg-gradient-to-r from-primary to-accent blur-sm opacity-50 transition-all duration-1000" 
                             style={{ width: `${sessionProgress}%` }}
                         />
                     </div>
-                    <div className="flex items-center justify-center gap-2 text-white/60 text-[10px] font-black uppercase tracking-[0.2em]">
+                    <div className="flex items-center justify-center gap-2 text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em]">
                         <Clock className="h-3 w-3" />
                         <span>{timeRemaining} Cycle Remaining</span>
                     </div>
@@ -348,7 +347,7 @@ export function MiningDashboard() {
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <button 
                     onClick={() => setIsClaimDialogOpen(true)}
-                    className="h-16 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group transition-all"
+                    className="h-16 rounded-2xl bg-secondary border border-border hover:bg-accent text-foreground flex flex-col items-center justify-center gap-1 group transition-all"
                   >
                     <Coins className="h-5 w-5 text-amber-400 group-hover:scale-110 transition-transform" />
                     <span className="text-[10px] font-black uppercase tracking-widest">Claim Coins</span>
@@ -357,13 +356,13 @@ export function MiningDashboard() {
                   <button 
                     onClick={handleTurboBoost}
                     disabled={!!isProcessing}
-                    className="h-16 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group disabled:opacity-50 transition-all"
+                    className="h-16 rounded-2xl bg-secondary border border-border hover:bg-accent text-foreground flex flex-col items-center justify-center gap-1 group disabled:opacity-50 transition-all"
                   >
                     {isProcessing === 'turbo' ? (
                         <Loader2 className="animate-spin h-5 w-5" />
                     ) : (
                         <>
-                            <Zap className="h-5 w-5 text-purple-400 group-hover:animate-pulse" />
+                            <Zap className="h-5 w-5 text-primary group-hover:animate-pulse" />
                             <span className="text-[10px] font-black uppercase tracking-widest">Turbo Boost</span>
                         </>
                     )}
@@ -376,18 +375,18 @@ export function MiningDashboard() {
               <div className="relative mb-12">
                 <span className="hot-logo-text text-9xl md:text-[10rem] opacity-20 select-none">HOT</span>
                 <div className="absolute inset-0 flex items-center justify-center">
-                    <Database className="h-12 w-12 text-white/5" />
+                    <Database className="h-12 w-12 text-foreground/5" />
                 </div>
               </div>
               <Button 
                 onClick={handleStartMining}
                 disabled={isStarting}
-                className="w-full h-20 rounded-[2rem] bg-purple-600 hover:bg-purple-500 text-white font-black text-xl uppercase tracking-tighter shadow-[0_15px_40px_rgba(168,85,247,0.4)] active:scale-95 transition-all border-b-4 border-purple-800 active:border-b-0"
+                className="w-full h-20 rounded-[2rem] bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xl uppercase tracking-tighter shadow-xl active:scale-95 transition-all border-b-4 border-primary/80 active:border-b-0"
               >
                 {isStarting ? <Loader2 className="animate-spin mr-3 h-6 w-6" /> : <Play className="mr-3 h-6 w-6 fill-current" />}
                 Initialize Node
               </Button>
-              <p className="text-white/20 text-[9px] font-black tracking-[0.4em] mt-8 uppercase text-center max-w-[200px] leading-relaxed">
+              <p className="text-muted-foreground text-[9px] font-black tracking-[0.4em] mt-8 uppercase text-center max-w-[200px] leading-relaxed">
                 Terminal standby: authenticate encryption to begin cycle
               </p>
             </div>
@@ -398,35 +397,35 @@ export function MiningDashboard() {
       <DailyClaimDialog open={isClaimDialogOpen} onOpenChange={setIsClaimDialogOpen} />
 
       <AlertDialog open={showBoostSuccess} onOpenChange={setShowBoostSuccess}>
-        <AlertDialogContent className="text-white border-purple-400/50" style={{ background: 'linear-gradient(145deg, #0d0d1a, #1a1a2e)' }}>
+        <AlertDialogContent className="text-foreground border-primary/50" style={{ background: 'var(--background)' }}>
             <AlertDialogHeader className="text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-purple-500/20 mb-4 border-2 border-purple-500/50">
-                    <Rocket className="h-8 w-8 text-purple-400" />
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/20 mb-4 border-2 border-primary/50">
+                    <Rocket className="h-8 w-8 text-primary" />
                 </div>
-                <AlertDialogTitle className="text-xl font-black text-purple-300 uppercase italic">TURBO_ACTIVE</AlertDialogTitle>
-                <AlertDialogDescription className="text-purple-200/80">
-                    Neural link established. Node efficiency increased by <span className="text-white font-bold">+0.10 HOT/hr</span> for the current sequence.
+                <AlertDialogTitle className="text-xl font-black text-primary uppercase italic">TURBO_ACTIVE</AlertDialogTitle>
+                <AlertDialogDescription className="text-muted-foreground">
+                    Neural link established. Node efficiency increased by <span className="text-foreground font-bold">+0.10 HOT/hr</span> for the current sequence.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="mt-4">
-                <AlertDialogAction onClick={() => setShowBoostSuccess(false)} className="w-full bg-purple-600 text-white hover:bg-purple-500 font-black uppercase tracking-widest text-xs h-12 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.3)]">
+                <AlertDialogAction onClick={() => setShowBoostSuccess(false)} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-black uppercase tracking-widest text-xs h-12 rounded-2xl shadow-lg">
                     Acknowledge
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="glass-card rounded-[3rem] p-8 glow-border relative overflow-hidden bg-zinc-900/20">
+      <div className="glass-card rounded-[3rem] p-8 glow-border relative overflow-hidden bg-card/20">
         <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://picsum.photos/seed/cyber/800/800')] mix-blend-overlay" />
 
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-3">
-            <div className={`w-2 h-2 rounded-full ${isSessionActive ? 'bg-cyan-400 animate-pulse' : 'bg-red-500'}`} />
-            <span className="text-white font-black text-lg uppercase tracking-tighter italic">Computation_Core</span>
-            <ChevronDown className="h-5 w-5 text-white/20" />
+            <div className={`w-2 h-2 rounded-full ${isSessionActive ? 'bg-primary animate-pulse' : 'bg-destructive'}`} />
+            <span className="text-foreground font-black text-lg uppercase tracking-tighter italic">Computation_Core</span>
+            <ChevronDown className="h-5 w-5 text-muted-foreground/20" />
           </div>
-          <div className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10">
-            <span className="text-white/80 font-mono text-[10px] font-bold tracking-widest uppercase">
+          <div className="px-4 py-1.5 rounded-full bg-secondary border border-border">
+            <span className="text-foreground/80 font-mono text-[10px] font-bold tracking-widest uppercase">
               {isSessionActive ? 'RUNNING' : 'OFFLINE'}
             </span>
           </div>
@@ -434,19 +433,19 @@ export function MiningDashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
           <div className="space-y-2">
-            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Protocol Efficiency</p>
+            <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Protocol Efficiency</p>
             <div className="flex items-baseline gap-4">
-              <h2 className="text-white text-5xl font-black tracking-tighter italic tabular-nums">
+              <h2 className="text-foreground text-5xl font-black tracking-tighter italic tabular-nums">
                 {isSessionActive ? totalMiningRate.toFixed(2) : "0.00"}
               </h2>
-              <span className="text-cyan-400 font-black text-xl italic tracking-tighter">HOT/HR</span>
+              <span className="text-primary font-black text-xl italic tracking-tighter">HOT/HR</span>
             </div>
             {isSessionActive && (
-              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/5">
-                <Activity className="h-4 w-4 text-cyan-400" />
+              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
+                <Activity className="h-4 w-4 text-primary" />
                 <div className="flex flex-col">
-                  <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Protocol Gain</span>
-                  <span className="text-lg font-mono font-bold text-white tracking-tight">{liveCoins.toFixed(6)}</span>
+                  <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Protocol Gain</span>
+                  <span className="text-lg font-mono font-bold text-foreground tracking-tight">{liveCoins.toFixed(6)}</span>
                 </div>
               </div>
             )}
@@ -470,7 +469,7 @@ export function MiningDashboard() {
         </div>
       </div>
 
-      <div className="px-4 py-6 border-t border-white/5 flex justify-between items-center text-white/20">
+      <div className="px-4 py-6 border-t border-border flex justify-between items-center text-muted-foreground/40">
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
                 <Cpu className="h-3 w-3" />
