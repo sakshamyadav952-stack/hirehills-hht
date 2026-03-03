@@ -5,15 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ArrowLeft, Wallet, Info } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 
 export default function WalletPage() {
     const { userProfile } = useAuth();
     const router = useRouter();
-    const [address, setAddress] = useState('');
 
     return (
         <div className="flex flex-col h-screen app-background">
@@ -40,33 +36,9 @@ export default function WalletPage() {
                     <CardHeader>
                         <CardTitle className="text-amber-200">Withdraw Coins</CardTitle>
                         <CardDescription className="text-amber-300/70">
-                            Enter your Solana (SOL) wallet address to prepare for future withdrawals.
+                            Withdrawal functionality is currently under development. This feature will be enabled soon.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="wallet-address" className="text-amber-200/90">Wallet Address</Label>
-                            <Input 
-                                id="wallet-address" 
-                                placeholder="Enter your SOL wallet address" 
-                                className="bg-slate-900/50 border-amber-400/30 text-white"
-                                value={address}
-                                onChange={(e) => setAddress(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="p-4 rounded-lg bg-black/30 border border-cyan-400/20 flex gap-3">
-                            <Info className="h-5 w-5 text-cyan-400 shrink-0" />
-                            <p className="text-xs text-cyan-100/80 leading-relaxed">
-                                Withdrawal functionality is currently under development. This feature will be enabled soon. Your entered address will be validated during the withdrawal phase.
-                            </p>
-                        </div>
-
-                        <Button disabled className="w-full h-14 bg-slate-800 text-slate-400 border border-slate-700 opacity-50 cursor-not-allowed">
-                            <Wallet className="mr-2 h-5 w-5" />
-                            Withdraw Coins (Coming Soon)
-                        </Button>
-                    </CardContent>
                 </Card>
             </main>
         </div>

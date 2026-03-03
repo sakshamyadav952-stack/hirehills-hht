@@ -5,10 +5,10 @@ import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Copy, UserPlus, ArrowLeft, Share2 } from 'lucide-react';
+import { Copy, UserPlus, ArrowLeft, Share2, Zap, Shield, Users, Rocket } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 const WhatsAppIcon = () => (
     <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -50,7 +50,8 @@ export default function InvitePage() {
   const handleCopy = (textToCopy: string) => {
     navigator.clipboard.writeText(textToCopy);
     toast({
-      title: 'Copied to clipboard!',
+      title: 'Transmission Copied',
+      description: 'The protocol data is ready to share.',
     });
   };
 
@@ -60,70 +61,127 @@ export default function InvitePage() {
   const encodedShareText = encodeURIComponent(shareText);
 
   const shareOptions = [
-    { name: 'WhatsApp', icon: <WhatsAppIcon />, url: `https://wa.me/?text=${encodedShareText}` },
-    { name: 'Telegram', icon: <TelegramIcon />, url: `https://t.me/share/url?url=${webLink}&text=${encodedShareText}` },
-    { name: 'Facebook', icon: <FacebookIcon />, url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(webLink)}&quote=${encodedShareText}` },
+    { name: 'WhatsApp', icon: <WhatsAppIcon />, url: `https://wa.me/?text=${encodedShareText}`, color: 'bg-green-500/10 border-green-500/20' },
+    { name: 'Telegram', icon: <TelegramIcon />, url: `https://t.me/share/url?url=${webLink}&text=${encodedShareText}`, color: 'bg-blue-500/10 border-blue-500/20' },
+    { name: 'Facebook', icon: <FacebookIcon />, url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(webLink)}&quote=${encodedShareText}`, color: 'bg-indigo-500/10 border-indigo-500/20' },
   ];
 
   return (
-    <div className="flex flex-col h-screen app-background">
-      <header className="sticky top-0 z-30 flex items-center justify-between p-4 bg-slate-900/50 backdrop-blur-md border-b border-amber-400/20">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-6 w-6" />
-        </Button>
-        <h1 className="text-xl font-bold">Invite Friends</h1>
-        <div className="w-9"></div>
+    <div className="flex flex-col min-h-screen bg-black text-white">
+      {/* Dynamic Header */}
+      <header className="sticky top-0 z-30 flex items-center justify-between p-6 bg-black/50 backdrop-blur-2xl border-b border-white/5">
+        <button 
+          onClick={() => router.back()}
+          className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all"
+        >
+          <ArrowLeft className="h-5 w-5 text-white/60" />
+        </button>
+        <h1 className="text-sm font-black uppercase tracking-[0.3em] text-white/40">Network Expansion</h1>
+        <div className="w-10" />
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6 space-y-8">
-        <div className="text-center">
-            <div className="inline-block p-4 mb-4 bg-cyan-400/10 border-2 border-cyan-400/20 rounded-full shadow-[0_0_20px_rgba(0,255,255,0.2)]">
-                <UserPlus className="h-10 w-10 text-cyan-300" />
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">Invite & Earn Together</h1>
-            <p className="mt-2 text-cyan-200/70 max-w-sm mx-auto">When a friend uses your code, they get 10 HOT + a 0.25/hr boost, and you get a 0.25/hr boost.</p>
-        </div>
-        
-        <div className="space-y-4">
-            <Label htmlFor="referral-code" className="text-lg font-semibold text-amber-300">Your Referral Code</Label>
-            <div className="flex items-center gap-2 p-4 rounded-lg bg-black/30 border border-amber-400/30">
-                <p id="referral-code" className="text-2xl font-mono tracking-widest flex-1 text-center">{referralCode}</p>
-                <Button size="icon" variant="ghost" onClick={() => handleCopy(referralCode)} className="text-amber-300 hover:bg-amber-400/20 hover:text-white">
-                    <Copy className="h-6 w-6" />
-                </Button>
-            </div>
-        </div>
-
-        <div className="space-y-4">
-          <Label className="text-lg font-semibold text-amber-300">Share via</Label>
-          <div className="space-y-3">
-            {shareOptions.map((option) => (
-              <Button
-                key={option.name}
-                variant="outline"
-                className="w-full h-16 justify-start p-4 bg-black/20 border-cyan-400/20 text-white hover:bg-cyan-500/10 hover:border-cyan-400/40"
-                onClick={() => window.open(option.url, '_blank', 'noopener,noreferrer')}
-              >
-                <div className="flex items-center gap-4">
-                  {option.icon}
-                  <span className="text-base font-semibold">{option.name}</span>
+      <main className="flex-1 p-6 space-y-8 pb-32">
+        {/* Hero Section */}
+        <section className="text-center space-y-4">
+            <div className="relative inline-block">
+                <div className="absolute inset-0 bg-purple-600 blur-3xl opacity-20 animate-pulse" />
+                <div className="relative w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto shadow-2xl">
+                    <UserPlus className="h-10 w-10 text-purple-400" />
                 </div>
-                <Share2 className="ml-auto h-5 w-5 text-cyan-400/70" />
-              </Button>
-            ))}
-          </div>
-        </div>
+            </div>
+            <div className="space-y-2">
+                <h2 className="text-3xl font-black tracking-tighter uppercase italic">Sync New Nodes</h2>
+                <p className="text-white/40 text-xs font-bold uppercase tracking-widest max-w-[250px] mx-auto">
+                    Expand the Hirehills mesh network and increase shared compute efficiency.
+                </p>
+            </div>
+        </section>
 
-        <div className="space-y-4">
-            <Button onClick={() => handleCopy(shareText)} variant="outline" size="lg" className="w-full bg-transparent text-cyan-300 border-cyan-400/50 hover:bg-cyan-400/10 hover:text-white">
-                <Copy className="mr-2 h-5 w-5" />
-                Copy Invite Text
-            </Button>
-            <p className="text-center text-xs text-muted-foreground">Tap to copy the full invitation message and share it with your friends.</p>
-        </div>
-        
-        <div className="h-20 md:hidden" />
+        {/* Referral Code Card */}
+        <section className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-cyan-400/20 blur-xl opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="relative glass-card rounded-[2.5rem] p-8 border-white/10 text-center space-y-6">
+                <p className="text-[10px] font-black text-purple-400 uppercase tracking-[0.4em]">Your Activation Hash</p>
+                <div className="flex flex-col items-center gap-4">
+                    <span className="text-5xl font-black tracking-[0.2em] tabular-nums text-white">
+                        {referralCode}
+                    </span>
+                    <Button 
+                        onClick={() => handleCopy(referralCode)}
+                        className="rounded-full px-8 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold uppercase tracking-widest text-[10px]"
+                    >
+                        <Copy className="mr-2 h-3 w-3" /> Copy Hash
+                    </Button>
+                </div>
+            </div>
+        </section>
+
+        {/* Protocol Benefits */}
+        <section className="space-y-4">
+            <h3 className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] px-2">Protocol Benefits</h3>
+            <div className="grid grid-cols-1 gap-3">
+                <BenefitItem 
+                    icon={<Zap className="text-cyan-400" />}
+                    title="Node Overclock"
+                    desc="+0.25 HOT/HR for you and your peer"
+                />
+                <BenefitItem 
+                    icon={<Shield className="text-green-400" />}
+                    title="Security Layer"
+                    desc="Increase network integrity score"
+                />
+                <BenefitItem 
+                    icon={<Rocket className="text-purple-400" />}
+                    title="Instant Credit"
+                    desc="10 HOT tokens added upon first sync"
+                />
+            </div>
+        </section>
+
+        {/* Transmission Channels */}
+        <section className="space-y-4">
+            <h3 className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] px-2">Transmission Channels</h3>
+            <div className="grid grid-cols-3 gap-3">
+                {shareOptions.map((option) => (
+                    <button
+                        key={option.name}
+                        onClick={() => window.open(option.url, '_blank')}
+                        className={cn(
+                            "flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border transition-all hover:scale-105 active:scale-95",
+                            option.color
+                        )}
+                    >
+                        {option.icon}
+                        <span className="text-[8px] font-black uppercase tracking-widest text-white/60">{option.name}</span>
+                    </button>
+                ))}
+            </div>
+        </section>
+
+        {/* Full Transmission Button */}
+        <Button 
+            onClick={() => handleCopy(shareText)} 
+            variant="outline" 
+            className="w-full h-16 rounded-3xl bg-white/5 border-white/10 hover:bg-white/10 text-white/60 font-black uppercase tracking-widest text-xs"
+        >
+            <Share2 className="mr-3 h-5 w-5" />
+            Copy Full Transmission Data
+        </Button>
       </main>
     </div>
   );
+}
+
+function BenefitItem({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
+    return (
+        <div className="flex items-center gap-4 p-4 rounded-3xl bg-white/5 border border-white/5">
+            <div className="w-10 h-10 rounded-2xl bg-black/40 flex items-center justify-center">
+                {icon}
+            </div>
+            <div>
+                <p className="text-xs font-black uppercase tracking-widest text-white">{title}</p>
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-tight">{desc}</p>
+            </div>
+        </div>
+    );
 }
