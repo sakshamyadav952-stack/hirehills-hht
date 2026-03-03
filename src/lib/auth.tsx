@@ -2360,15 +2360,18 @@ const claimMissedAdCoin = useCallback(async (coinId: string, adElement: string):
         const functions = getFunctions();
         const claimFunction = httpsCallable(functions, 'claimDailyCoin');
         
+        // Command to show the ad on Android immediately
         if (window.Android && typeof window.Android.showRewardedAd === 'function') {
             window.Android.showRewardedAd();
         }
+
+        // Wait 10 seconds before crediting
+        await new Promise(resolve => setTimeout(resolve, 10000));
         
         const result = await claimFunction({ coinId, isMissed: true, adElement });
         const data = result.data as { success: boolean, claimedAmount: number };
         
         if (data.success) {
-            toast({ title: 'Recovery Success', description: '1.00 HOT recovered via node optimization.' });
             startAdCooldown();
             return data.claimedAmount;
         }

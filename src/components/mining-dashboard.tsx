@@ -24,6 +24,16 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 
 // Simulated Graph Data for visual flair
 const generateChartData = () => {
@@ -36,14 +46,19 @@ const generateChartData = () => {
 function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
     const { dailyAdCoins, collectDailyAdCoin, claimMissedAdCoin } = useAuth();
     const [isClaiming, setIsClaiming] = useState<string | null>(null);
+    const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
     const handleClaim = async (coinId: string, status: 'available' | 'missed') => {
         setIsClaiming(coinId);
         try {
             if (status === 'available') {
                 await collectDailyAdCoin(coinId);
+                setShowSuccessDialog(true);
             } else {
-                await claimMissedAdCoin(coinId, `Recovery: ${coinId}`);
+                const result = await claimMissedAdCoin(coinId, `Recovery: ${coinId}`);
+                if (result) {
+                    setShowSuccessDialog(true);
+                }
             }
         } finally {
             setIsClaiming(null);
@@ -51,6 +66,7 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
     };
 
     return (
+        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="text-white border-white/10 max-w-md w-[95%] rounded-3xl" style={{ background: 'linear-gradient(145deg, #0d0d1a, #1a1a2e)' }}>
                 <DialogHeader>
@@ -119,6 +135,26 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+            <AlertDialogContent className="text-white border-green-400/50" style={{ background: 'linear-gradient(145deg, #0d1a0d, #162e16)' }}>
+                <AlertDialogHeader className="text-center">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20 mb-4 border-2 border-green-500/50">
+                        <Check className="h-8 w-8 text-green-400" />
+                    </div>
+                    <AlertDialogTitle className="text-xl font-bold text-green-300">Synchronization Complete!</AlertDialogTitle>
+                    <AlertDialogDescription className="text-green-200/80">
+                        The HOT token from your node slot has been successfully synchronized and credited to your wallet.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="mt-4">
+                    <AlertDialogAction onClick={() => setShowSuccessDialog(false)} className="w-full bg-green-500 text-white hover:bg-green-600 font-bold">
+                        Continue Mining
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        </>
     );
 }
 
@@ -447,8 +483,4 @@ export function MiningDashboard() {
       </div>
     </div>
   );
-}
-
-function cn(...inputs: any[]) {
-    return inputs.filter(Boolean).join(' ');
 }
