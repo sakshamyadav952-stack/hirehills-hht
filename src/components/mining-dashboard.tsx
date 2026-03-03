@@ -331,213 +331,214 @@ export function MiningDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-3 sm:p-6 space-y-4 sm:space-y-6 pb-24">
-      <div className="relative min-h-[380px] xs:min-h-[440px] sm:min-h-[480px] w-full rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border border-border bg-card shadow-xl">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5" />
-        
-        {/* Header Branding */}
-        <div className="absolute top-4 left-4 xs:top-6 xs:left-6 sm:top-8 sm:left-8 flex items-center gap-2 xs:gap-3 sm:gap-4">
-          <div className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 rounded-lg xs:rounded-xl bg-secondary border border-border flex items-center justify-center shadow-inner">
-            <LayoutGrid className="text-primary h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6" />
-          </div>
-          <div>
-            <h1 className="text-foreground font-black text-sm xs:text-base sm:text-xl leading-none tracking-tight uppercase">HIREHILLS</h1>
-            <p className="text-primary text-[6px] xs:text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.2em] mt-0.5 sm:mt-1">NODE CLUSTER v4.0</p>
-          </div>
-        </div>
-
-        {/* Right Side header actions (Rate + Wallet) */}
-        <div className="absolute top-4 xs:top-6 sm:top-8 right-4 xs:right-6 sm:right-8 flex flex-col items-end gap-2 z-10">
-            {/* Rate Pill */}
-            <button 
+    <div className="min-h-screen bg-background pb-24">
+      {/* Persistent Dashboard Header */}
+      <header className="px-4 py-3 sm:px-6 flex items-center justify-between border-b border-border/50 sticky top-0 z-30 bg-background/80 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+           <button 
                 onClick={() => setIsRateBreakdownOpen(true)}
-                className="transition-all hover:scale-105 active:scale-95 flex items-center gap-1 sm:gap-2 px-2 py-1 xs:px-3 xs:py-1.5 sm:px-4 sm:py-2 rounded-xl xs:rounded-2xl bg-secondary border border-border shadow-sm hover:border-primary/50"
+                className="transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-secondary border border-border shadow-sm hover:border-primary/50"
             >
-                <Zap className="text-primary h-2.5 w-2.5 xs:h-3 xs:w-3 sm:h-4 sm:w-4" />
-                <span className="text-[7px] xs:text-[8px] sm:text-[10px] font-black text-foreground uppercase tracking-widest">
+                <Zap className="text-primary h-3 w-3" />
+                <span className="text-[9px] font-black text-foreground uppercase tracking-widest">
                     {isSessionActive ? totalMiningRate.toFixed(2) : "0.00"} HOT/HR
                 </span>
             </button>
+        </div>
+        
+        <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                <LayoutGrid className="text-primary h-4 w-4" />
+            </div>
+            <span className="text-foreground font-black text-[10px] uppercase tracking-widest">HIREHILLS</span>
+        </div>
 
-            {/* Wallet Link */}
+        <div className="flex items-center gap-3">
             <Link href="/wallet" className="transition-transform hover:scale-110 active:scale-95">
-                <div className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 rounded-lg xs:rounded-xl bg-secondary border border-border flex items-center justify-center shadow-inner hover:bg-accent">
-                    <Wallet className="text-primary h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6" />
+                <div className="w-8 h-8 rounded-lg bg-secondary border border-border flex items-center justify-center shadow-inner hover:bg-accent">
+                    <Wallet className="text-primary h-4 w-4" />
                 </div>
             </Link>
         </div>
+      </header>
 
-        {/* Main Content Area */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full px-4 xs:px-6 flex flex-col items-center mt-6 xs:mt-4 sm:mt-0">
-          {isSessionActive ? (
-            <div className="flex flex-col items-center animate-in zoom-in-95 duration-500 w-full max-w-md">
-              <span className="text-primary/40 text-[7px] xs:text-[8px] sm:text-[10px] font-black uppercase tracking-[0.5em] mb-1 xs:mb-2 sm:mb-3">Live Session Counter</span>
-              <div className="relative mb-4 xs:mb-6 sm:mb-8">
-                <h2 className="text-foreground text-4xl xs:text-5xl sm:text-7xl md:text-8xl font-black tracking-tighter tabular-nums drop-shadow-sm text-center">
-                  {liveCoins.toFixed(4)}
-                </h2>
-                <div className="absolute inset-0 border-y border-border/20 animate-scan-line pointer-events-none" />
-              </div>
-              
-              <div className="flex items-center gap-2 xs:gap-3 sm:gap-4 bg-primary/10 px-5 py-2 xs:px-6 xs:py-2.5 sm:px-8 sm:py-3 rounded-full border border-primary/20 shadow-lg mb-4 xs:mb-6 sm:mb-8">
-                <div className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 rounded-full bg-primary animate-pulse shadow-[0_0_15px_currentColor]" />
-                <span className="text-primary text-xs xs:text-sm sm:text-lg font-black tracking-[0.3em] uppercase italic tabular-nums">{timeRemaining}</span>
-              </div>
-
-              <div className="w-full max-w-[240px] xs:max-w-[280px] sm:max-w-[320px] space-y-2.5 xs:space-y-3 sm:space-y-4">
-                <div className="space-y-1 xs:space-y-1.5 sm:space-y-2">
-                    <div className="relative">
-                        <Progress value={sessionProgress} className="h-1.5 xs:h-2 sm:h-2.5 bg-muted overflow-hidden rounded-full" />
-                        <div 
-                            className="absolute inset-0 h-1.5 xs:h-2 sm:h-2.5 bg-gradient-to-r from-primary to-accent blur-sm opacity-50 transition-all duration-1000" 
-                            style={{ width: `${sessionProgress}%` }}
-                        />
-                    </div>
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+        {/* Hero Terminal Card */}
+        <div className="relative min-h-[340px] xs:min-h-[380px] sm:min-h-[420px] w-full rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border border-border bg-card shadow-xl">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5" />
+          
+          {/* Main Content Area - Reduced vertical space */}
+          <div className="absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-full px-4 xs:px-6 flex flex-col items-center">
+            {isSessionActive ? (
+              <div className="flex flex-col items-center animate-in zoom-in-95 duration-500 w-full max-w-md">
+                <span className="text-primary/40 text-[7px] xs:text-[8px] sm:text-[10px] font-black uppercase tracking-[0.5em] mb-1 xs:mb-2 sm:mb-3">Live Session Counter</span>
+                <div className="relative mb-4 xs:mb-6 sm:mb-8">
+                  <h2 className="text-foreground text-4xl xs:text-5xl sm:text-7xl md:text-8xl font-black tracking-tighter tabular-nums drop-shadow-sm text-center">
+                    {liveCoins.toFixed(4)}
+                  </h2>
+                  <div className="absolute inset-0 border-y border-border/20 animate-scan-line pointer-events-none" />
+                </div>
+                
+                <div className="flex items-center gap-2 xs:gap-3 sm:gap-4 bg-primary/10 px-5 py-2 xs:px-6 xs:py-2.5 sm:px-8 sm:py-3 rounded-full border border-primary/20 shadow-lg mb-4 xs:mb-6 sm:mb-8">
+                  <div className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 rounded-full bg-primary animate-pulse shadow-[0_0_15px_currentColor]" />
+                  <span className="text-primary text-xs xs:text-sm sm:text-lg font-black tracking-[0.3em] uppercase italic tabular-nums">{timeRemaining}</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-1">
-                  <button 
-                    onClick={() => setIsClaimDialogOpen(true)}
-                    className="h-12 xs:h-14 sm:h-16 rounded-xl xs:rounded-2xl bg-secondary border border-border hover:bg-accent text-foreground flex flex-col items-center justify-center gap-0.5 xs:gap-1 group transition-all shadow-sm"
-                  >
-                    <Coins className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 text-amber-500 group-hover:scale-110 transition-transform" />
-                    <span className="text-[7px] xs:text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Claim Coins</span>
-                  </button>
+                <div className="w-full max-w-[240px] xs:max-w-[280px] sm:max-w-[320px] space-y-2.5 xs:space-y-3 sm:space-y-4">
+                  <div className="space-y-1 xs:space-y-1.5 sm:space-y-2">
+                      <div className="relative">
+                          <Progress value={sessionProgress} className="h-1.5 xs:h-2 sm:h-2.5 bg-muted overflow-hidden rounded-full" />
+                          <div 
+                              className="absolute inset-0 h-1.5 xs:h-2 sm:h-2.5 bg-gradient-to-r from-primary to-accent blur-sm opacity-50 transition-all duration-1000" 
+                              style={{ width: `${sessionProgress}%` }}
+                          />
+                      </div>
+                  </div>
 
-                  <button 
-                    onClick={handleTurboBoost}
-                    disabled={!!isProcessing}
-                    className="h-12 xs:h-14 sm:h-16 rounded-xl xs:rounded-2xl bg-secondary border border-border hover:bg-accent text-foreground flex flex-col items-center justify-center gap-0.5 xs:gap-1 group disabled:opacity-50 transition-all shadow-sm"
-                  >
-                    {isProcessing === 'turbo' ? (
-                        <Loader2 className="animate-spin h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
-                    ) : (
-                        <>
-                            <Zap className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 text-primary group-hover:animate-pulse" />
-                            <span className="text-[7px] xs:text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Turbo Boost</span>
-                        </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center animate-in fade-in duration-700 w-full max-w-sm">
-              <div className="relative mb-6 xs:mb-8 sm:mb-12">
-                <span className="hot-logo-text text-7xl xs:text-8xl sm:text-9xl md:text-[10rem] opacity-10 select-none leading-none">HOT</span>
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <Database className="h-8 w-8 xs:h-10 xs:w-10 sm:h-12 sm:w-12 text-foreground/5" />
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-1">
+                    <button 
+                      onClick={() => setIsClaimDialogOpen(true)}
+                      className="h-12 xs:h-14 sm:h-16 rounded-xl xs:rounded-2xl bg-secondary border border-border hover:bg-accent text-foreground flex flex-col items-center justify-center gap-0.5 xs:gap-1 group transition-all shadow-sm"
+                    >
+                      <Coins className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 text-amber-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-[7px] xs:text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Claim Coins</span>
+                    </button>
+
+                    <button 
+                      onClick={handleTurboBoost}
+                      disabled={!!isProcessing}
+                      className="h-12 xs:h-14 sm:h-16 rounded-xl xs:rounded-2xl bg-secondary border border-border hover:bg-accent text-foreground flex flex-col items-center justify-center gap-0.5 xs:gap-1 group disabled:opacity-50 transition-all shadow-sm"
+                    >
+                      {isProcessing === 'turbo' ? (
+                          <Loader2 className="animate-spin h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
+                      ) : (
+                          <>
+                              <Zap className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 text-primary group-hover:animate-pulse" />
+                              <span className="text-[7px] xs:text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Turbo Boost</span>
+                          </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
-              <Button 
-                onClick={handleStartMining}
-                disabled={isStarting}
-                className="w-full h-14 xs:h-16 sm:h-20 rounded-2xl xs:rounded-[1.5rem] sm:rounded-[2rem] bg-primary hover:bg-primary/90 text-primary-foreground font-black text-base xs:text-lg sm:text-xl uppercase tracking-tighter shadow-xl active:scale-95 transition-all border-b-4 border-primary/80 active:border-b-0"
-              >
-                {isStarting ? <Loader2 className="animate-spin mr-2 h-4 w-4 xs:h-5 xs:w-5" /> : <Play className="mr-2 h-4 w-4 xs:h-5 xs:w-5 fill-current" />}
-                Initialize Node
-              </Button>
-              <p className="text-muted-foreground text-[7px] xs:text-[8px] sm:text-[9px] font-black tracking-[0.2em] sm:tracking-[0.4em] mt-4 xs:mt-6 sm:mt-8 uppercase text-center max-w-[160px] xs:max-w-[180px] sm:max-w-[200px] leading-relaxed">
-                Terminal standby: authenticate encryption to begin cycle
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <DailyClaimDialog open={isClaimDialogOpen} onOpenChange={setIsClaimDialogOpen} />
-      <RateBreakdownDialog open={isRateBreakdownOpen} onOpenChange={setIsRateBreakdownOpen} />
-
-      <AlertDialog open={showBoostSuccess} onOpenChange={setShowBoostSuccess}>
-        <AlertDialogContent className="bg-background border-primary/50 w-[90%] max-w-[320px] rounded-3xl">
-            <AlertDialogHeader className="text-center">
-                <div className="mx-auto flex h-10 w-10 xs:h-12 xs:w-12 items-center justify-center rounded-full bg-primary/20 mb-4 border-2 border-primary/50">
-                    <Rocket className="h-5 w-5 xs:h-6 xs:w-6 text-primary" />
+            ) : (
+              <div className="flex flex-col items-center animate-in fade-in duration-700 w-full max-w-sm">
+                <div className="relative mb-6 xs:mb-8 sm:mb-12">
+                  <span className="hot-logo-text text-7xl xs:text-8xl sm:text-9xl md:text-[10rem] opacity-10 select-none leading-none">HOT</span>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                      <Database className="h-8 w-8 xs:h-10 xs:w-10 sm:h-12 sm:w-12 text-foreground/5" />
+                  </div>
                 </div>
-                <AlertDialogTitle className="text-base xs:text-lg sm:text-xl font-black text-primary uppercase italic leading-none">TURBO_ACTIVE</AlertDialogTitle>
-                <AlertDialogDescription className="text-muted-foreground text-[10px] xs:text-xs sm:text-sm">
-                    Neural link established. Node efficiency increased by <span className="text-foreground font-bold">+0.10 HOT/hr</span> for the current sequence.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="mt-4">
-                <AlertDialogAction onClick={() => setShowBoostSuccess(false)} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-black uppercase tracking-widest text-[10px] h-10 sm:h-12 rounded-2xl shadow-lg">
-                    Acknowledge
-                </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Efficiency Panel */}
-      <div 
-        onClick={() => setIsRateBreakdownOpen(true)}
-        className="rounded-2xl xs:rounded-[2rem] sm:rounded-[3rem] p-4 xs:p-6 sm:p-8 relative overflow-hidden bg-card border border-border cursor-pointer transition-all hover:bg-secondary/20 active:scale-[0.99] shadow-md"
-      >
-        <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://picsum.photos/seed/cyber/800/800')] mix-blend-overlay" />
-
-        <div className="flex justify-between items-center mb-4 xs:mb-6 sm:mb-8">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className={`w-1 h-1 xs:w-1.5 xs:h-1.5 sm:w-2 sm:h-2 rounded-full ${isSessionActive ? 'bg-primary animate-pulse shadow-[0_0_8px_currentColor]' : 'bg-destructive'}`} />
-            <span className="text-foreground font-black text-sm xs:text-base sm:text-lg uppercase tracking-tighter italic">Computation_Core</span>
-            <ChevronDown className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground/20" />
-          </div>
-          <div className="px-2 py-0.5 xs:px-3 xs:py-1 rounded-full bg-secondary border border-border">
-            <span className="text-foreground/80 font-mono text-[6px] xs:text-[8px] sm:text-[10px] font-bold tracking-widest uppercase">
-              {isSessionActive ? 'RUNNING' : 'OFFLINE'}
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 xs:gap-6 sm:gap-8 items-end">
-          <div className="space-y-1">
-            <p className="text-muted-foreground text-[8px] xs:text-[10px] sm:text-xs font-bold uppercase tracking-widest leading-none">Protocol Efficiency</p>
-            <div className="flex items-baseline gap-2 sm:gap-4">
-              <h2 className="text-foreground text-3xl xs:text-4xl sm:text-5xl font-black tracking-tighter italic tabular-nums leading-none">
-                {isSessionActive ? totalMiningRate.toFixed(2) : "0.00"}
-              </h2>
-              <span className="text-primary font-black text-base xs:text-lg sm:text-xl italic tracking-tighter leading-none">HOT/HR</span>
-            </div>
-            {isSessionActive && (
-              <div className="flex items-center gap-2 mt-2 xs:mt-3 sm:mt-4 pt-2 xs:pt-3 sm:pt-4 border-t border-border">
-                <Activity className="h-2.5 w-2.5 xs:h-3 w-3 xs:h-4 xs:w-4 text-primary" />
-                <div className="flex flex-col">
-                  <span className="text-[7px] xs:text-[8px] sm:text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-0.5 xs:mb-1">Current_Yield</span>
-                  <span className="text-sm xs:text-base sm:text-lg font-mono font-bold text-foreground tracking-tight leading-none">{liveCoins.toFixed(6)}</span>
-                </div>
+                <Button 
+                  onClick={handleStartMining}
+                  disabled={isStarting}
+                  className="w-full h-14 xs:h-16 sm:h-20 rounded-2xl xs:rounded-[1.5rem] sm:rounded-[2rem] bg-primary hover:bg-primary/90 text-primary-foreground font-black text-base xs:text-lg sm:text-xl uppercase tracking-tighter shadow-xl active:scale-95 transition-all border-b-4 border-primary/80 active:border-b-0"
+                >
+                  {isStarting ? <Loader2 className="animate-spin mr-2 h-4 w-4 xs:h-5 xs:w-5" /> : <Play className="mr-2 h-4 w-4 xs:h-5 xs:w-5 fill-current" />}
+                  Initialize Node
+                </Button>
+                <p className="text-muted-foreground text-[7px] xs:text-[8px] sm:text-[9px] font-black tracking-[0.2em] sm:tracking-[0.4em] mt-4 xs:mt-6 sm:mt-8 uppercase text-center max-w-[160px] xs:max-w-[180px] sm:max-w-[200px] leading-relaxed">
+                  Terminal standby: authenticate encryption to begin cycle
+                </p>
               </div>
             )}
           </div>
-          
-          <div className="h-12 xs:h-16 sm:h-24 w-full opacity-80 md:block hidden">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke={isSessionActive ? "#a855f7" : "#333"} 
-                  strokeWidth={3} 
-                  dot={false}
-                  isAnimationActive={false}
-                />
-                <Tooltip content={() => null} />
-              </LineChart>
-            </ResponsiveContainer>
+        </div>
+
+        <DailyClaimDialog open={isClaimDialogOpen} onOpenChange={setIsClaimDialogOpen} />
+        <RateBreakdownDialog open={isRateBreakdownOpen} onOpenChange={setIsRateBreakdownOpen} />
+
+        <AlertDialog open={showBoostSuccess} onOpenChange={setShowBoostSuccess}>
+          <AlertDialogContent className="bg-background border-primary/50 w-[90%] max-w-[320px] rounded-3xl">
+              <AlertDialogHeader className="text-center">
+                  <div className="mx-auto flex h-10 w-10 xs:h-12 xs:w-12 items-center justify-center rounded-full bg-primary/20 mb-4 border-2 border-primary/50">
+                      <Rocket className="h-5 w-5 xs:h-6 xs:w-6 text-primary" />
+                  </div>
+                  <AlertDialogTitle className="text-base xs:text-lg sm:text-xl font-black text-primary uppercase italic leading-none">TURBO_ACTIVE</AlertDialogTitle>
+                  <AlertDialogDescription className="text-muted-foreground text-[10px] xs:text-xs sm:text-sm">
+                      Neural link established. Node efficiency increased by <span className="text-foreground font-bold">+0.10 HOT/hr</span> for the current sequence.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="mt-4">
+                  <AlertDialogAction onClick={() => setShowBoostSuccess(false)} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-black uppercase tracking-widest text-[10px] h-10 sm:h-12 rounded-2xl shadow-lg">
+                      Acknowledge
+                  </AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Efficiency Panel */}
+        <div 
+          onClick={() => setIsRateBreakdownOpen(true)}
+          className="rounded-2xl xs:rounded-[2rem] sm:rounded-[3rem] p-4 xs:p-6 sm:p-8 relative overflow-hidden bg-card border border-border cursor-pointer transition-all hover:bg-secondary/20 active:scale-[0.99] shadow-md"
+        >
+          <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://picsum.photos/seed/cyber/800/800')] mix-blend-overlay" />
+
+          <div className="flex justify-between items-center mb-4 xs:mb-6 sm:mb-8">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className={`w-1 h-1 xs:w-1.5 xs:h-1.5 sm:w-2 sm:h-2 rounded-full ${isSessionActive ? 'bg-primary animate-pulse shadow-[0_0_8px_currentColor]' : 'bg-destructive'}`} />
+              <span className="text-foreground font-black text-sm xs:text-base sm:text-lg uppercase tracking-tighter italic">Computation_Core</span>
+              <ChevronDown className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground/20" />
+            </div>
+            <div className="px-2 py-0.5 xs:px-3 xs:py-1 rounded-full bg-secondary border border-border">
+              <span className="text-foreground/80 font-mono text-[6px] xs:text-[8px] sm:text-[10px] font-bold tracking-widest uppercase">
+                {isSessionActive ? 'RUNNING' : 'OFFLINE'}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 xs:gap-6 sm:gap-8 items-end">
+            <div className="space-y-1">
+              <p className="text-muted-foreground text-[8px] xs:text-[10px] sm:text-xs font-bold uppercase tracking-widest leading-none">Protocol Efficiency</p>
+              <div className="flex items-baseline gap-2 sm:gap-4">
+                <h2 className="text-foreground text-3xl xs:text-4xl sm:text-5xl font-black tracking-tighter italic tabular-nums leading-none">
+                  {isSessionActive ? totalMiningRate.toFixed(2) : "0.00"}
+                </h2>
+                <span className="text-primary font-black text-base xs:text-lg sm:text-xl italic tracking-tighter leading-none">HOT/HR</span>
+              </div>
+              {isSessionActive && (
+                <div className="flex items-center gap-2 mt-2 xs:mt-3 sm:mt-4 pt-2 xs:pt-3 sm:pt-4 border-t border-border">
+                  <Activity className="h-2.5 w-2.5 xs:h-3 w-3 xs:h-4 xs:w-4 text-primary" />
+                  <div className="flex flex-col">
+                    <span className="text-[7px] xs:text-[8px] sm:text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-0.5 xs:mb-1">Current_Yield</span>
+                    <span className="text-sm xs:text-base sm:text-lg font-mono font-bold text-foreground tracking-tight leading-none">{liveCoins.toFixed(6)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="h-12 xs:h-16 sm:h-24 w-full opacity-80 md:block hidden">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <Line 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke={isSessionActive ? "#a855f7" : "#333"} 
+                    strokeWidth={3} 
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                  <Tooltip content={() => null} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Footer Meta */}
-      <div className="px-2 xs:px-4 py-3 xs:py-4 sm:py-6 border-t border-border flex justify-between items-center text-muted-foreground/40">
-        <div className="flex items-center gap-2 xs:gap-3 sm:gap-4">
-            <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2">
-                <Cpu className="h-2 w-2 xs:h-2.5 xs:w-2.5 sm:h-3 sm:w-3" />
-                <span className="text-[6px] xs:text-[7px] sm:text-[9px] font-bold uppercase tracking-widest">Optimized_CPU</span>
-            </div>
-            <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2">
-                <Network className="h-2 w-2 xs:h-2.5 xs:w-2.5 sm:h-3 sm:w-3" />
-                <span className="text-[6px] xs:text-[7px] sm:text-[9px] font-bold uppercase tracking-widest">Hills_Net</span>
-            </div>
+        {/* Footer Meta */}
+        <div className="px-2 xs:px-4 py-3 xs:py-4 sm:py-6 border-t border-border flex justify-between items-center text-muted-foreground/40">
+          <div className="flex items-center gap-2 xs:gap-3 sm:gap-4">
+              <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2">
+                  <Cpu className="h-2 w-2 xs:h-2.5 xs:w-2.5 sm:h-3 sm:w-3" />
+                  <span className="text-[6px] xs:text-[7px] sm:text-[9px] font-bold uppercase tracking-widest">Optimized_CPU</span>
+              </div>
+              <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2">
+                  <Network className="h-2 w-2 xs:h-2.5 xs:w-2.5 sm:h-3 sm:w-3" />
+                  <span className="text-[6px] xs:text-[7px] sm:text-[9px] font-bold uppercase tracking-widest">Hills_Net</span>
+              </div>
+          </div>
+          <span className="text-[6px] xs:text-[7px] sm:text-[9px] font-mono tracking-tighter opacity-50 uppercase text-responsive-base">v4.0.12_STABLE</span>
         </div>
-        <span className="text-[6px] xs:text-[7px] sm:text-[9px] font-mono tracking-tighter opacity-50 uppercase text-responsive-base">v4.0.12_STABLE</span>
       </div>
     </div>
   );
