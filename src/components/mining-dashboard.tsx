@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -41,6 +42,79 @@ const generateChartData = () => {
   }));
 };
 
+function RateBreakdownDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+    const { miningRateBreakdown, totalMiningRate, activeReferralsCount, userProfile } = useAuth();
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="text-foreground border-border max-w-md w-[95%] rounded-3xl" style={{ background: 'var(--background)' }}>
+                <DialogHeader>
+                    <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                        <Zap className="text-primary h-6 w-6" />
+                        NODE EFFICIENCY
+                    </DialogTitle>
+                    <DialogDescription className="text-muted-foreground text-xs font-bold uppercase tracking-widest">
+                        Protocol Yield Breakdown
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="py-6 space-y-4">
+                    <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border">
+                        <div className="flex items-center gap-3">
+                            <Cpu className="h-5 w-5 text-muted-foreground" />
+                            <span className="text-sm font-bold uppercase">Base Core Rate</span>
+                        </div>
+                        <span className="font-mono font-bold text-primary">+{miningRateBreakdown?.base.toFixed(2) || "0.25"}</span>
+                    </div>
+
+                    {miningRateBreakdown?.appliedCode && miningRateBreakdown.appliedCode > 0 && (
+                        <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border">
+                            <div className="flex items-center gap-3">
+                                <Check className="h-5 w-5 text-green-400" />
+                                <span className="text-sm font-bold uppercase">Activation Bonus</span>
+                            </div>
+                            <span className="font-mono font-bold text-green-400">+{miningRateBreakdown.appliedCode.toFixed(2)}</span>
+                        </div>
+                    )}
+
+                    <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border">
+                        <div className="flex items-center gap-3">
+                            <Network className="h-5 w-5 text-cyan-400" />
+                            <span className="text-sm font-bold uppercase">Network Boost ({activeReferralsCount})</span>
+                        </div>
+                        <span className="font-mono font-bold text-cyan-400">+{miningRateBreakdown?.referral.toFixed(2) || "0.00"}</span>
+                    </div>
+
+                    {miningRateBreakdown?.boost && miningRateBreakdown.boost > 0 && (
+                        <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border animate-pulse">
+                            <div className="flex items-center gap-3">
+                                <Rocket className="h-5 w-5 text-purple-400" />
+                                <span className="text-sm font-bold uppercase">Active Overclocks</span>
+                            </div>
+                            <span className="font-mono font-bold text-purple-400">+{miningRateBreakdown.boost.toFixed(2)}</span>
+                        </div>
+                    )}
+
+                    <div className="pt-4 border-t border-border mt-2">
+                        <div className="flex items-center justify-between px-2">
+                            <span className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">Total Throughput</span>
+                            <span className="text-2xl font-black text-foreground italic">{(userProfile?.sessionEndTime && Date.now() < userProfile.sessionEndTime) ? totalMiningRate.toFixed(2) : "0.00"} HOT/HR</span>
+                        </div>
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="ghost" className="w-full text-muted-foreground font-bold uppercase tracking-widest text-[10px]">
+                            Minimize Breakdown
+                        </Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
     const { dailyAdCoins, collectDailyAdCoin, claimMissedAdCoin } = useAuth();
     const [isClaiming, setIsClaiming] = useState<string | null>(null);
@@ -49,12 +123,10 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
     const handleClaim = async (coinId: string, status: 'available' | 'missed') => {
         setIsClaiming(coinId);
         
-        // Immediate native ad call
         if (status === 'missed' && typeof window !== 'undefined' && window.Android?.showRewardedAd) {
             window.Android.showRewardedAd();
         }
 
-        // Wait for 10 seconds sync sequence as requested
         await new Promise(resolve => setTimeout(resolve, 10000));
 
         try {
@@ -174,6 +246,7 @@ export function MiningDashboard() {
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [nextSlotCountdown, setNextSlotCountdown] = useState<string | null>(null);
   const [isClaimDialogOpen, setIsClaimDialogOpen] = useState(false);
+  const [isRateBreakdownOpen, setIsRateBreakdownOpen] = useState(false);
   const [showBoostSuccess, setShowBoostSuccess] = useState(false);
 
   const isSessionActive = useMemo(() => {
@@ -278,7 +351,6 @@ export function MiningDashboard() {
         window.Android.showRewardedAd();
       }
       
-      // Wait for 5 seconds "Overclocking" delay
       await new Promise(resolve => setTimeout(resolve, 5000));
       
       await updateMiningRate('8H', 0.10, true);
@@ -306,6 +378,17 @@ export function MiningDashboard() {
             <p className="text-primary text-[10px] font-bold uppercase tracking-[0.2em] mt-1">NODE CLUSTER v4.0</p>
           </div>
         </div>
+
+        {/* Header Mining Rate Pill */}
+        <button 
+            onClick={() => setIsRateBreakdownOpen(true)}
+            className="absolute top-8 left-1/2 -translate-x-1/2 transition-all hover:scale-105 active:scale-95 z-10 hidden sm:flex items-center gap-2 px-4 py-2 rounded-2xl bg-secondary/80 border border-border backdrop-blur-md hover:border-primary/50"
+        >
+            <Zap className="text-primary h-4 w-4" />
+            <span className="text-[10px] font-black text-foreground uppercase tracking-widest">
+                {isSessionActive ? totalMiningRate.toFixed(2) : "0.00"} HOT/HR
+            </span>
+        </button>
 
         <Link href="/wallet" className="absolute top-8 right-8 transition-transform hover:scale-110 active:scale-95 z-10">
           <div className="w-12 h-12 rounded-2xl bg-secondary border border-border flex items-center justify-center backdrop-blur-md hover:bg-accent">
@@ -395,6 +478,7 @@ export function MiningDashboard() {
       </div>
 
       <DailyClaimDialog open={isClaimDialogOpen} onOpenChange={setIsClaimDialogOpen} />
+      <RateBreakdownDialog open={isRateBreakdownOpen} onOpenChange={setIsRateBreakdownOpen} />
 
       <AlertDialog open={showBoostSuccess} onOpenChange={setShowBoostSuccess}>
         <AlertDialogContent className="text-foreground border-primary/50" style={{ background: 'var(--background)' }}>
@@ -415,7 +499,10 @@ export function MiningDashboard() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="glass-card rounded-[3rem] p-8 glow-border relative overflow-hidden bg-card/20">
+      <div 
+        onClick={() => setIsRateBreakdownOpen(true)}
+        className="glass-card rounded-[3rem] p-8 glow-border relative overflow-hidden bg-card/20 cursor-pointer transition-all hover:bg-card/30 active:scale-[0.99]"
+      >
         <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://picsum.photos/seed/cyber/800/800')] mix-blend-overlay" />
 
         <div className="flex justify-between items-center mb-8">
