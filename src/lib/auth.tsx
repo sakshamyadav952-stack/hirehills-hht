@@ -14,22 +14,20 @@ import {
   signOut,
   deleteUser,
   User,
-  getAdditionalUserInfo,
   RecaptchaVerifier,
   linkWithPhoneNumber,
   ConfirmationResult,
   signInWithPhoneNumber as firebaseSignInWithPhoneNumber,
   GoogleAuthProvider,
-  signInWithPopup,
   signInWithCredential,
 } from 'firebase/auth';
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { doc, serverTimestamp, onSnapshot, updateDoc, runTransaction, arrayUnion, query, collection, where, documentId, getDocs, writeBatch, deleteDoc, setDoc, getDoc, increment, addDoc, orderBy, Timestamp, arrayRemove, Firestore } from 'firebase/firestore';
-import type { UserProfile, Transaction, PendingTransfer, WithdrawalRequest, Note, Comment, ActiveBoost, DailyAdCoin, SessionConfig, AdWatchEvent, AirdropConfig, ChatMessage, KuberBlock, KuberRequest, KuberId } from '@/lib/types';
+import type { UserProfile, WithdrawalRequest, ActiveBoost, DailyAdCoin, SessionConfig, AdWatchEvent, AirdropConfig, ChatMessage, KuberBlock, KuberRequest, KuberId } from '@/lib/types';
 import { useToast, toast as toastFn } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { differenceInHours } from 'date-fns';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import { translateText } from '@/ai/flows/translate-flow';
@@ -76,8 +74,6 @@ interface AuthContextType {
   updateMiningRate: (type: CooldownType, rateIncrease: number, adWatched: boolean) => void;
   applyReferralCode: (profileCode: string) => Promise<void>;
   adminApplyReferralCode: (referrerCode: string, refereeCode: string) => Promise<void>;
-  transferCoins: (recipientId: string, recipientName: string, amount: number) => Promise<void>;
-  respondToTransferByAdmin: (transferId: string, senderId: string, receiverId: string, amount: number, action: 'approve' | 'reject', comment?: string, transactionId?: string) => Promise<void>;
   sendNotificationToUser: (profileCode: string, message: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
   adminDeleteChatMessage: (userId: string, messageId: string) => Promise<void>;
@@ -109,8 +105,6 @@ interface AuthContextType {
   respondToRateProposal: (requestId: string, accepted: boolean) => Promise<void>;
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  pendingTransfers: PendingTransfer[];
-  respondToTransfer: (transferId: string, approve: boolean) => Promise<void>;
   adCooldownEndTime: number | null;
   startAdCooldown: () => void;
   requestFollow: (platform: 'facebook' | 'x', profileName: string) => Promise<void>;
@@ -180,7 +174,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [totalUserSupportCount, setTotalUserSupportCount] = useState(0);
   const [theme, setThemeState] = useState<Theme>('dark');
-  const [pendingTransfers, setPendingTransfers] = useState<PendingTransfer[]>([]);
   const [adCooldownEndTime, setAdCooldownEndTime] = useState<number | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [canWatchAd, setCanWatchAd] = useState(true);
@@ -218,7 +211,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setLanguage = useCallback((lang: string) => {
     if (userProfile?.language !== lang) {
-      // Clear cache when language changes
       localStorage.removeItem(`translations_${userProfile?.language}`);
       updateUserProfile({ language: lang });
     }
@@ -239,7 +231,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     'Total Balance:',
     'Start',
     'Claim Coins',
-    // Add any other static text from your components here
   ], []);
 
   const fetchAllTranslations = useCallback(async (lang: string) => {
@@ -248,7 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const cached = localStorage.getItem(`translations_${lang}`);
       if (cached) {
           setTranslations(JSON.parse(cached));
-          return; // Already have cached translations for this language
+          return;
       }
 
       try {
@@ -273,7 +264,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
   }, [userProfile, masterTranslationList, toast]);
 
-  // Handle language change
   useEffect(() => {
     if (!userProfile) return;
     const targetLanguage = userProfile.language || 'en';
@@ -289,19 +279,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (userProfile?.theme) {
       setThemeState(userProfile.theme);
     } else {
-      setThemeState('dark'); // Default to dark theme
+      setThemeState('dark');
     }
   }, [userProfile]);
 
   useEffect(() => {
     if (!userProfile) {
-        setCanWatchAd(true); // Default to true if no profile
+        setCanWatchAd(true);
         return;
     }
     const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
     const recentAds = (userProfile.adWatchHistory || []).filter(ad => ad.timestamp > twentyFourHoursAgo);
-    
-    // Ads are available if the user has unlocked them AND has watched fewer than 5 ads in the last 24 hours.
     setCanWatchAd(!!userProfile.adsUnlocked && recentAds.length < 5);
 }, [userProfile]);
 
@@ -328,7 +316,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     const docSnap = await getDoc(userDocRef);
     if (docSnap.exists()) {
-        console.log("User profile already exists, skipping creation.");
         const existingData = docSnap.data();
         const privateSnap = await getDoc(privateContactDocRef);
         const privateData = privateSnap.exists() ? privateSnap.data() : {};
@@ -435,7 +422,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setReferralsLoading(false);
       setShowOnboarding(false);
       setTotalUserSupportCount(0);
-      setPendingTransfers([]);
       setDailyAdCoins([]);
       return;
     }
@@ -447,8 +433,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribeProfile = onSnapshot(userDocRef, async (snap) => {
       if (snap.exists()) {
         const profileData = { id: snap.id, ...snap.data() } as Omit<UserProfile, 'email' | 'mobileNumber'>;
-        
-        // Fetch private data
         const privateContactSnap = await getDoc(privateContactDocRef);
         const privateData = privateContactSnap.exists() ? privateContactSnap.data() : { email: '', mobileNumber: '' };
 
@@ -493,9 +477,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             updateDocumentNonBlocking(userDocRef, updates);
         }
 
-      } else {
-        // This case is primarily for new users. After creation, this listener will pick up the new doc.
-        // We add a failsafe in signInWith... methods to handle immediate profile setting.
       }
       setProfileLoading(false);
     }, (err) => {
@@ -508,7 +489,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfileLoading(false);
     });
 
-    // This calculates the total unread count for the admin.
     if (userProfile?.isAdmin) {
         const allUsersQuery = query(collection(firestore, 'users'));
         const unsubscribeAllNotes = onSnapshot(allUsersQuery, (usersSnapshot) => {
@@ -535,28 +515,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setTotalUserSupportCount(totalAdminUnread);
             });
         });
-        
     }
-
-    const transfersQuery = query(collection(firestore, 'pendingTransfers'), where('receiverId', '==', user.uid));
-    const unsubscribeTransfers = onSnapshot(transfersQuery, (snapshot) => {
-      const transfers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingTransfer));
-      setPendingTransfers(transfers);
-    }, (err) => {
-      console.error("Error fetching pending transfers:", err);
-    });
 
     return () => {
       unsubscribeProfile();
-      unsubscribeTransfers();
     };
   }, [user, firestore, userProfile?.isAdmin]);
 
   useEffect(() => {
-    // Only fetch referrals on specific pages to improve initial load time
     const pagesThatNeedReferrals = ['/', '/referrals', '/profile', '/admin/find-user', '/admin/apply-code-user', '/live-report', '/kuber'];
     if (!pagesThatNeedReferrals.some(p => pathname.startsWith(p))) {
-        setAllReferrals([]); // Clear referrals when not on a relevant page
+        setAllReferrals([]);
         setReferralsLoading(false);
         return;
     }
@@ -612,7 +581,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   }, [userProfile?.id, JSON.stringify(userProfile?.referrals), firestore, pathname]);
   
-  // New useEffect to fetch the referrer's profile if one exists
   useEffect(() => {
     if (userProfile?.referredBy) {
       const referrerDocRef = doc(firestore, 'users', userProfile.referredBy);
@@ -646,7 +614,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const now = Date.now();
         const baseRate = userProfile.baseMiningRate || 0.25;
-        
         const appliedCodeBonus = userProfile.appliedCodeBoost || 0;
 
         let currentBoostRate = 0;
@@ -657,7 +624,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         
         const referralBonusRate = activeReferralsCount * 0.25;
-        
         const currentTotalMiningRate = baseRate + referralBonusRate + currentBoostRate + appliedCodeBonus;
 
         setMiningRateBreakdown({ base: baseRate, boost: currentBoostRate, referral: referralBonusRate, appliedCode: appliedCodeBonus });
@@ -691,7 +657,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     calculateLiveValues();
-    interval = setInterval(calculateLiveValues, 100); // 100ms for continuous increase feel
+    interval = setInterval(calculateLiveValues, 100);
 
     return () => {
         if (interval) clearInterval(interval);
@@ -846,7 +812,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 description: 'Please try signing in again. If the problem persists, try restarting the app.',
                 variant: 'destructive',
             });
-        }, 20000); // 20 seconds timeout
+        }, 20000);
     } else {
         console.log("Native Google login not available. Please use the mobile app.");
         router.push('/app-only');
@@ -978,7 +944,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
         console.error("Error updating phone number:", error);
         if (error.message.includes('already in use') || error.message.includes('not valid')) {
-            // Toast already shown
         } else {
              toast({ title: 'Update Failed', description: 'Could not update your mobile number.', variant: 'destructive' });
         }
@@ -1012,7 +977,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         dataToUpdate.appliedCodeBoost = 0;
       }
 
-      // Create Kuber Request for the user's referrer
       if (userProfile.referredBy && referrerProfile?.sessionEndTime && referrerProfile.sessionEndTime > startTime) {
           const newRequestId = doc(collection(firestore, 'temp')).id;
           const newRequest: KuberRequest = {
@@ -1102,7 +1066,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             unclaimedCoins: claimedAmount,
             kuberBlocks: userProfile.kuberBlocks
         } : null);
-        toast({ title: 'Claim Failed', description: 'Could not claim your coins. Please try again.', variant: 'destructive' });
+        toast({ title: 'Claim Failed', description: 'Could not claim your tokens. Please try again.', variant: 'destructive' });
         return undefined;
     }
   }, [user, userProfile, toast]);
@@ -1113,9 +1077,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const docSnap = await getDoc(configDocRef);
         if (docSnap.exists()) {
             const config = docSnap.data() as SessionConfig;
-            return config.durationMinutes || 480; // Default to 480 mins (8 hours)
+            return config.durationMinutes || 480;
         }
-        return 480; // Default if config doesn't exist
+        return 480;
     } catch (error) {
         console.error("Error fetching session duration, using default:", error);
         return 480;
@@ -1135,19 +1099,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const profile = userDoc.data() as UserProfile;
         
         if (!profile.miningStartTime || !profile.sessionEndTime) {
-            // No active session to finalize.
             return;
         }
 
         const now = Date.now();
-        // For a normal user, the session must be over. Admin can terminate anytime.
         if (!isAdminTermination && now < profile.sessionEndTime) {
-            // Session not over yet for a regular user, do nothing.
             return;
         }
 
         const sessionStartTime = profile.miningStartTime;
-        // If admin terminates, end time is now. Otherwise, it's the scheduled end time.
         const effectiveEndTime = isAdminTermination ? now : profile.sessionEndTime;
         
         const elapsedTimeHours = (effectiveEndTime - sessionStartTime) / (1000 * 60 * 60);
@@ -1160,7 +1120,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         (profile.activeBoosts || []).forEach((boost) => {
           const boostStart = boost.startTime;
-          // Ensure the boost's end time doesn't exceed the session's effective end time
           const boostEnd = Math.min(boost.endTime, effectiveEndTime);
           if (boostEnd > boostStart) {
             const elapsedBoostTimeHours = (boostEnd - boostStart) / (1000 * 60 * 60);
@@ -1247,7 +1206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const adminTerminateUserSession = useCallback(async (userId: string) => {
     const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
     if (!isAdmin) {
-        toast({ title: 'Unauthorized', description: 'You are not an admin.', variant: 'destructive' });
+        toast({ title: 'Unauthorized', description: 'You do not have permission.', variant: 'destructive' });
         throw new Error('Not an admin');
     }
 
@@ -1318,7 +1277,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             transaction.update(userDocRef, updatePayload);
         });
         
-        // Optimistic UI update
         setUserProfile(prev => {
             if (!prev) return null;
             const newSpinCount = (prev.spinCount || 0) + 1;
@@ -1331,7 +1289,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 updates.adWatchHistory = [...(prev.adWatchHistory || []), { id: '', element: 'Spin Wheel', timestamp: Date.now() }];
             }
             if (newSpinCount >= 2) {
-                updates.spinCooldownEnd = Date.now() + 480 * 60 * 1000; // Assume 8 hours for optimistic update
+                updates.spinCooldownEnd = Date.now() + 480 * 60 * 1000;
             }
             return { ...prev, ...updates };
         });
@@ -1393,7 +1351,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Code Already Applied");
     }
 
-    // Quick frontend check to prevent unnecessary backend calls
     const usersRef = collection(firestore, 'users');
     const q = query(usersRef, where('profileCode', '==', profileCode.toUpperCase()));
     const querySnapshot = await getDocs(q);
@@ -1420,7 +1377,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.success) {
             toast({ title: 'Referral Success!', description: data.message });
         } else {
-            // This case might not be reached if the cloud function throws HttpsError
             throw new Error(data.message || 'An unknown error occurred.');
         }
 
@@ -1463,7 +1419,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
             const batch = writeBatch(firestore);
 
-            // If the referee already has a referrer, undo the old relationship
             if (refereeData.referredBy) {
                 const oldReferrerDocRef = doc(firestore, 'users', refereeData.referredBy);
                  const oldReferrerDoc = await getDoc(oldReferrerDocRef);
@@ -1474,14 +1429,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
             }
 
-            // Set the new relationship for the referee
             batch.update(refereeDoc.ref, {
                 referredBy: referrerDoc.id,
                 referredByName: referrerDoc.data().fullName,
                 referralAppliedAt: serverTimestamp(),
             });
 
-            // Add referee to the new referrer's security circle
             batch.update(referrerDoc.ref, {
                 referrals: arrayUnion(refereeDoc.id)
             });
@@ -1496,210 +1449,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
     }, [userProfile, firestore, toast]);
-
-  const transferCoins = useCallback(async (recipientId: string, recipientName: string, amount: number) => {
-    if (!user || !userProfile) {
-      toast({ title: 'Not signed in', variant: 'destructive' });
-      throw new Error("Not signed in");
-    }
-
-    if ((userProfile.lastTransactionTimestamp || 0) > Date.now() - 24 * 60 * 60 * 1000) {
-      toast({ title: 'Cooldown Active', description: 'You can only send tokens once every 24 hours.', variant: 'destructive' });
-      throw new Error("24-hour cooldown is active.");
-    }
-
-    try {
-        const usersRef = collection(firestore, 'users');
-        const recipientDocRef = doc(usersRef, recipientId);
-        const recipientDoc = await getDoc(recipientDocRef);
-
-        if (!recipientDoc.exists()) {
-            throw new Error("Recipient account not found.");
-        }
-        const recipientProfile = recipientDoc.data() as UserProfile;
-        
-        // Rule 1: Direct device conflict
-        const senderDevices = userProfile.deviceNames || [];
-        const receiverDevices = recipientProfile.deviceNames || [];
-        const hasCommonDevice = senderDevices.some(device => receiverDevices.includes(device));
-        
-        if (hasCommonDevice) {
-            throw new Error("Transfer blocked: Sender and receiver have used the same device.");
-        }
-        
-        // Rule 2: Indirect device conflict
-        if (senderDevices.length > 0) {
-            const conflictQuery = query(
-                usersRef,
-                where('deviceNames', 'array-contains-any', senderDevices)
-            );
-            const conflictSnapshot = await getDocs(conflictQuery);
-            if (conflictSnapshot.size > 1) { // More than just the sender
-                const otherAccountIds = conflictSnapshot.docs.map(d => d.id).filter(id => id !== user.uid);
-                
-                const transactionsFromOtherAccounts = await getDocs(query(
-                    collection(firestore, 'transactions'),
-                    where('senderId', 'in', otherAccountIds),
-                    where('receiverId', '==', recipientId)
-                ));
-
-                if (!transactionsFromOtherAccounts.empty) {
-                    throw new Error("Transfer blocked: Another account on this device has already sent tokens to this recipient.");
-                }
-            }
-        }
-        
-        const newTransactionRef = doc(collection(firestore, 'transactions'));
-        const newPendingTransferRef = doc(collection(firestore, 'pendingTransfers'));
-        
-        const transactionId = newTransactionRef.id;
-
-        await runTransaction(firestore, async (transaction) => {
-            const senderDocRef = doc(firestore, 'users', user.uid);
-            
-            const newTransaction: Omit<Transaction, 'id' | 'completedAt'> = {
-                senderId: user.uid,
-                senderName: userProfile.fullName,
-                receiverId: recipientId,
-                receiverName: recipientName,
-                amount: amount,
-                status: 'pending',
-                createdAt: serverTimestamp() as any,
-            };
-            transaction.set(newTransactionRef, newTransaction);
-            
-            transaction.update(senderDocRef, { 
-                minedCoins: increment(-amount),
-                lastTransactionTimestamp: serverTimestamp()
-            });
-
-            const pendingTransferData: PendingTransfer = {
-                id: newPendingTransferRef.id,
-                transactionId: transactionId,
-                senderId: user.uid,
-                senderName: userProfile.fullName,
-                receiverId: recipientId,
-                receiverName: recipientName,
-                amount,
-                status: 'pending',
-                createdAt: newTransaction.createdAt
-            };
-            transaction.set(newPendingTransferRef, pendingTransferData);
-        });
-
-        toast({ title: 'Transfer Request Sent', description: `Your request to send ${amount} HOT will be authenticated by the Hirehills team.` });
-    } catch (error: any) {
-        if (error.message.includes('flagged this request') || error.message.includes('blocked')) {
-             toast({ title: 'Transfer Blocked', description: error.message, variant: 'destructive' });
-        } else {
-            console.error("Transfer error:", error);
-            toast({ title: 'Transfer Failed', description: error.message, variant: 'destructive' });
-        }
-        throw error;
-    }
-  }, [user, userProfile, firestore, toast]);
-
-
-  const respondToTransfer = useCallback(async (transferId: string, approve: boolean) => {
-    if (!user || !userProfile) {
-      toast({ title: 'Authentication Error', description: 'You must be logged in.', variant: 'destructive' });
-      return;
-    }
-
-    const transferDocRef = doc(firestore, 'pendingTransfers', transferId);
-    
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            const transferDoc = await transaction.get(transferDocRef);
-            if (!transferDoc.exists()) {
-                throw new Error("This transfer request no longer exists.");
-            }
-            
-            const transferData = transferDoc.data() as PendingTransfer;
-            const senderRef = doc(firestore, 'users', transferData.senderId);
-            const receiverRef = doc(firestore, 'users', user.uid);
-
-            const senderDoc = await transaction.get(senderRef);
-            if (!senderDoc.exists()) {
-                throw new Error("Sender's account not found.");
-            }
-            
-            const senderProfile = senderDoc.data() as UserProfile;
-            const newTransactionDocRef = doc(collection(firestore, 'transactions'));
-            
-            const baseTransaction: Partial<Transaction> = {
-                senderId: transferData.senderId,
-                senderName: transferData.senderName,
-                receiverId: transferData.receiverId,
-                receiverName: transferData.receiverName,
-                amount: transferData.amount,
-                createdAt: transferData.createdAt,
-                completedAt: serverTimestamp() as any,
-            };
-
-            if (approve) {
-                if (senderProfile.minedCoins < transferData.amount) {
-                    throw new Error("Sender has insufficient funds for this transfer.");
-                }
-                
-                transaction.update(senderRef, { minedCoins: increment(-transferData.amount) });
-                transaction.update(receiverRef, { minedCoins: increment(transferData.amount) });
-                
-                transaction.set(newTransactionDocRef, { ...baseTransaction, status: 'completed' });
-                
-            } else {
-                transaction.set(newTransactionDocRef, { ...baseTransaction, status: 'rejected' });
-            }
-            
-            transaction.delete(transferDocRef);
-        });
-
-        toast({ title: 'Transfer Responded', description: `You have ${approve ? 'approved' : 'rejected'} the transfer.` });
-
-    } catch (error: any) {
-        console.error('Error responding to transfer:', error);
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        throw error;
-    }
-}, [user, userProfile, firestore, toast]);
-
-const respondToTransferByAdmin = useCallback(async (transferId: string, senderId: string, receiverId: string, amount: number, action: 'approve' | 'reject', comment?: string, transactionId?: string): Promise<void> => {
-    const isAdmin = userProfile?.isAdmin || userProfile?.id === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
-    if (!isAdmin) {
-        toast({ title: 'Unauthorized', description: 'Only admins can perform this action.', variant: 'destructive' });
-        return;
-    }
-
-    if (!transactionId) {
-        toast({ title: 'Error', description: 'Transaction ID is missing.', variant: 'destructive' });
-        return;
-    }
-
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            const transactionDocRef = doc(firestore, 'transactions', transactionId);
-            const senderDocRef = doc(firestore, 'users', senderId);
-
-            if (action === 'approve') {
-                const receiverDocRef = doc(firestore, 'users', receiverId);
-                transaction.update(receiverDocRef, { minedCoins: increment(amount) });
-                transaction.update(transactionDocRef, { status: 'completed', adminComment: comment || null, completedAt: serverTimestamp() });
-            } else { // Reject
-                transaction.update(senderDocRef, { minedCoins: increment(amount) });
-                transaction.update(transactionDocRef, { status: 'rejected', adminComment: comment || null, completedAt: serverTimestamp() });
-            }
-
-            const pendingTransferDocRef = doc(firestore, 'pendingTransfers', transferId);
-            transaction.delete(pendingTransferDocRef);
-        });
-
-        toast({ title: `Transfer ${action === 'approve' ? 'Approved' : 'Rejected'}`, description: 'The transfer has been processed.' });
-    } catch (error: any) {
-        console.error("Error responding to transfer:", error);
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        throw error;
-    }
-}, [firestore, userProfile, toast]);
 
 
     const sendNotificationToUser = useCallback(async (profileCode: string, message: string) => {
@@ -1819,10 +1568,10 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
       await updateDoc(targetUserDocRef, {
         minedCoins: increment(amount)
       });
-      toast({ title: 'Success', description: `Successfully updated user's coin balance by ${amount}.` });
+      toast({ title: 'Success', description: `Successfully updated user's balance by ${amount}.` });
     } catch (error: any) {
       console.error("Error updating user coins:", error);
-      toast({ title: 'Error', description: "Failed to update user's coins.", variant: 'destructive' });
+      toast({ title: 'Error', description: "Failed to update user's tokens.", variant: 'destructive' });
       throw error;
     }
   }, [userProfile, firestore, toast]);
@@ -1875,7 +1624,7 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
                 batch.update(userRef, { baseMiningRate: newRate });
             });
             await batch.commit();
-            toast({ title: 'Success', description: `Global base mining rate has been updated to ${newRate} tokens/hour.` });
+            toast({ title: 'Success', description: `Global base mining rate updated to ${newRate} HOT/hr.` });
         } catch (error: any) {
             console.error("Error setting global mining rate:", error);
             toast({ title: 'Error', description: 'Failed to update the global mining rate.', variant: 'destructive' });
@@ -1892,7 +1641,7 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
         const configDocRef = doc(firestore, 'config', 'session');
         try {
             await setDoc(configDocRef, { durationMinutes: minutes }, { merge: true });
-            toast({ title: 'Success', description: `Global session duration has been updated to ${minutes} minutes.` });
+            toast({ title: 'Success', description: `Global session duration updated to ${minutes} minutes.` });
         } catch (error: any) {
              toast({ title: 'Error', description: 'Failed to update the session duration.', variant: 'destructive' });
              throw error;
@@ -2061,8 +1810,8 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
     }
 
     try {
-        await user.reload(); // Refresh the user's token
-        const idToken = await user.getIdToken(true); // Force refresh
+        await user.reload();
+        const idToken = await user.getIdToken(true);
 
         if (!idToken) {
             throw new Error("Could not retrieve a valid ID token.");
@@ -2070,9 +1819,6 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
         
         const userDocRef = doc(firestore, 'users', user.uid);
         await deleteDoc(userDocRef);
-
-        // This is the critical step for Firebase Auth. It requires a recent login.
-        // By refreshing the token, we minimize the chance of 'auth/requires-recent-login'.
         await deleteUser(user);
 
         toast({
@@ -2081,8 +1827,6 @@ const respondToTransferByAdmin = useCallback(async (transferId: string, senderId
         });
     } catch (error: any) {
         console.error('Error deleting account:', error);
-        
-        // Handle the specific case where a recent login is still required.
         if (error.code === 'auth/requires-recent-login') {
             toast({
                 title: 'Action Required',
@@ -2189,13 +1933,12 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
             const existingBlock = userData.kuberBlocks?.find(b => b.id === request.id);
 
             if (existingBlock) {
-                // Silently ignore if already processed
                 return;
             }
 
             const newBlock: KuberBlock = {
                 id: request.id,
-                referralId: request.userName, // Note: This should ideally be a referral ID
+                referralId: request.userName,
                 referralName: request.userName,
                 userSessionStartTime: request.userSessionStartTime,
                 referralSessionEndTime: request.referrerSessionEndTime,
@@ -2206,7 +1949,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
             );
             
             const updatedKuberIds: KuberId[] = [...(userData.kuberIds || [])];
-            const existingIdIndex = updatedKuberIds.findIndex(k => k.referralId === request.id); // Assuming request.id is referralId
+            const existingIdIndex = updatedKuberIds.findIndex(k => k.referralId === request.id);
              if (existingIdIndex > -1) {
                 updatedKuberIds[existingIdIndex].lastRequestId = request.id;
             } else {
@@ -2239,14 +1982,12 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
     }
   }, [user, userProfile, clientSideFinalizeSession]);
   
-  // This effect will turn off the finalizing state once unclaimedCoins > 0
   useEffect(() => {
     if (userProfile && userProfile.unclaimedCoins && userProfile.unclaimedCoins > 0) {
       setIsFinalizing(false);
     }
   }, [userProfile?.unclaimedCoins]);
   
-    // Effect to generate and synchronize last 8 slots for daily coins
     useEffect(() => {
         if (!user || !userProfile) return;
 
@@ -2254,7 +1995,6 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
             const now = new Date();
             const schedule = ['22:00', '16:00', '12:00', '08:00'];
             
-            // 1. Calculate the last 8 valid slots from current time backwards
             const last8Slots: { id: string, availableAt: Date }[] = [];
             let tempDate = new Date(now);
 
@@ -2277,14 +2017,12 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
                 tempDate.setDate(tempDate.getDate() - 1);
             }
 
-            // 2. Filter claimed history to keep only the last 8 most recent entries
             const validSlotIds = new Set(last8Slots.map(s => s.id));
             const userClaimedIds = userProfile.dailyClaimedCoins || [];
             
-            // Ensure we keep only IDs that are part of the current "active" window logic
             const prunedClaimedIds = userClaimedIds
                 .filter(id => validSlotIds.has(id))
-                .sort((a, b) => b.localeCompare(a)) // Sort newest first
+                .sort((a, b) => b.localeCompare(a))
                 .slice(0, 8);
 
             if (JSON.stringify(prunedClaimedIds) !== JSON.stringify(userClaimedIds)) {
@@ -2292,15 +2030,14 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
                 updateDocumentNonBlocking(userDocRef, { dailyClaimedCoins: prunedClaimedIds });
             }
 
-            // 3. Construct the list of coins visible to the user (available now or missed recently)
             const newGeneratedCoins: DailyAdCoin[] = [];
             const claimedIdSet = new Set(prunedClaimedIds);
 
             for (const slot of last8Slots) {
                 if (!claimedIdSet.has(slot.id)) {
                     const availableAtTime = slot.availableAt.getTime();
-                    const expiresAt = availableAtTime + 30 * 60 * 1000; // 30m window
-                    const finalExpiryAt = availableAtTime + 48 * 60 * 60 * 1000; // 48h recovery limit
+                    const expiresAt = availableAtTime + 30 * 60 * 1000;
+                    const finalExpiryAt = availableAtTime + 48 * 60 * 60 * 1000;
 
                     if (now.getTime() > finalExpiryAt) continue;
 
@@ -2323,7 +2060,7 @@ const respondToKuberRequest = useCallback(async (request: KuberRequest) => {
         };
 
         generateAndFilterDailyCoins();
-        const interval = setInterval(generateAndFilterDailyCoins, 60000); // Check every minute
+        const interval = setInterval(generateAndFilterDailyCoins, 60000);
         return () => clearInterval(interval);
     }, [user, userProfile, firestore]);
 
@@ -2360,12 +2097,10 @@ const claimMissedAdCoin = useCallback(async (coinId: string, adElement: string):
         const functions = getFunctions();
         const claimFunction = httpsCallable(functions, 'claimDailyCoin');
         
-        // Command to show the ad on Android immediately
         if (window.Android && typeof window.Android.showRewardedAd === 'function') {
             window.Android.showRewardedAd();
         }
 
-        // Wait 10 seconds before crediting
         await new Promise(resolve => setTimeout(resolve, 10000));
         
         const result = await claimFunction({ coinId, isMissed: true, adElement });
@@ -2399,7 +2134,7 @@ const requestFollow = useCallback(async (platform: 'facebook' | 'x', profileName
             
             const currentStatus = userDoc.data()?.[fieldToUpdate];
             if (currentStatus === 'followed') {
-                return; // Do nothing if already followed
+                return;
             }
 
             transaction.update(userDocRef, {
@@ -2431,13 +2166,12 @@ const requestFollow = useCallback(async (platform: 'facebook' | 'x', profileName
 
             const currentStatus = userDoc.data()?.[fieldToUpdate];
             if (currentStatus === 'followed') {
-                // Already followed, do nothing
                 return;
             }
 
             transaction.update(userDocRef, {
                 [fieldToUpdate]: 'followed',
-                minedCoins: increment(10) // Reward the user with 10 coins
+                minedCoins: increment(10)
             });
         });
 
@@ -2490,7 +2224,6 @@ const adminSetFollowStatus = useCallback(async (userId: string, platform: 'faceb
             const currentStatus = userDoc.data()?.[fieldToUpdate];
             const updatePayload: { [key: string]: any } = { [fieldToUpdate]: status };
 
-            // Logic to grant coins, but not revoke
             if (status === 'followed' && currentStatus !== 'followed') {
                 updatePayload.minedCoins = increment(10);
             }
@@ -2614,12 +2347,10 @@ const creditCrushOracleInstall = useCallback(async () => {
         return;
     }
 
-    // If user is not logged in and not on a public page, redirect to login
     if (!user && !isPublicPage) {
       router.push('/auth/login');
     }
 
-    // If user is logged in and on the login page, redirect to home
     if (user && userProfile && (pathname === '/auth/login' || pathname === '/auth/mobile-login')) {
       router.push('/');
     }
@@ -2651,8 +2382,6 @@ const creditCrushOracleInstall = useCallback(async () => {
     updateMiningRate,
     applyReferralCode,
     adminApplyReferralCode,
-    transferCoins,
-    respondToTransferByAdmin,
     sendNotificationToUser,
     deleteAccount,
     adminDeleteChatMessage,
@@ -2684,8 +2413,6 @@ const creditCrushOracleInstall = useCallback(async () => {
     setShowOnboarding,
     theme,
     setTheme,
-    pendingTransfers,
-    respondToTransfer,
     adCooldownEndTime,
     startAdCooldown,
     requestFollow,
