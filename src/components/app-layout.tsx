@@ -47,6 +47,11 @@ function SidebarLayoutContent() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem onClick={handleLinkClick}>
+            <SidebarMenuButton asChild isActive={pathname === '/profile'} tooltip="Profile">
+              <Link href="/profile"><User className="text-blue-400" /><span>Profile</span></Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem onClick={handleLinkClick}>
             <SidebarMenuButton asChild isActive={pathname === '/wallet'} tooltip="Wallet">
               <Link href="/wallet"><Wallet className="text-cyan-400" /><span>Wallet</span></Link>
             </SidebarMenuButton>
