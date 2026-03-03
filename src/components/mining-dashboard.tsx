@@ -44,7 +44,7 @@ function RateBreakdownDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     const { miningRateBreakdown, totalMiningRate, userProfile } = useAuth();
 
     return (
-        <Dialog open={open} onOpenChange={setIsRateBreakdownOpen}>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="bg-background border-border max-w-[280px] sm:max-w-xs w-[90%] rounded-3xl shadow-2xl p-4 sm:p-6" style={{ opacity: 1 }}>
                 <DialogHeader className="space-y-1">
                     <DialogTitle className="text-lg sm:text-xl font-black tracking-tight flex items-center gap-2">
