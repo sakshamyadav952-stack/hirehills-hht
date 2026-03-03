@@ -5,7 +5,7 @@ import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Copy, UserPlus, ArrowLeft, Share2, Zap, Shield, Users, Rocket } from 'lucide-react';
+import { Copy, UserPlus, ArrowLeft, Share2, Zap, Shield, Users, Rocket, Globe, Cpu } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -50,14 +50,14 @@ export default function InvitePage() {
   const handleCopy = (textToCopy: string) => {
     navigator.clipboard.writeText(textToCopy);
     toast({
-      title: 'Transmission Copied',
-      description: 'The protocol data is ready to share.',
+      title: 'Protocol Link Copied',
+      description: 'The secure transmission link is ready for broadcast.',
     });
   };
 
   const referralCode = userProfile.profileCode;
   const webLink = "https://play.google.com/store/apps/details?id=com.hirehills.app";
-  const shareText = `Join me on Hirehills! When you use my code, you'll get 10 HOT tokens instantly + a 0.25/hr mining boost. I'll get a 0.25/hr boost too. It's a win-win! 🚀\n\n1. Download the app: ${webLink}\n\n2. Sign up and go to the "Apply Code" section in the menu.\n\n3. Enter my code: ${referralCode}\n\nHappy Mining!`;
+  const shareText = `Join the Hirehills Network! Use my node activation code: ${referralCode} to receive 10 HOT tokens + a 0.25/hr mining efficiency boost. Secure your stake in the future of compute. 🚀\n\n1. Download App: ${webLink}\n\n2. Use Code: ${referralCode}\n\nHappy Mining!`;
   const encodedShareText = encodeURIComponent(shareText);
 
   const shareOptions = [
@@ -67,120 +67,149 @@ export default function InvitePage() {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-black text-white">
-      {/* Dynamic Header */}
-      <header className="sticky top-0 z-30 flex items-center justify-between p-6 bg-black/50 backdrop-blur-2xl border-b border-white/5">
+    <div className="flex flex-col min-h-screen bg-black text-white selection:bg-purple-500/30">
+      {/* Tactical Header */}
+      <header className="sticky top-0 z-30 flex items-center justify-between p-6 bg-black/80 backdrop-blur-2xl border-b border-white/5">
         <button 
           onClick={() => router.back()}
-          className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all"
+          className="group w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90"
         >
-          <ArrowLeft className="h-5 w-5 text-white/60" />
+          <ArrowLeft className="h-5 w-5 text-white/60 group-hover:text-white" />
         </button>
-        <h1 className="text-sm font-black uppercase tracking-[0.3em] text-white/40">Network Expansion</h1>
+        <div className="flex flex-col items-center">
+            <h1 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">Expansion Protocol</h1>
+            <div className="h-0.5 w-8 bg-purple-600 mt-1 rounded-full animate-pulse" />
+        </div>
         <div className="w-10" />
       </header>
 
-      <main className="flex-1 p-6 space-y-8 pb-32">
-        {/* Hero Section */}
-        <section className="text-center space-y-4">
-            <div className="relative inline-block">
-                <div className="absolute inset-0 bg-purple-600 blur-3xl opacity-20 animate-pulse" />
-                <div className="relative w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto shadow-2xl">
-                    <UserPlus className="h-10 w-10 text-purple-400" />
+      <main className="flex-1 p-6 space-y-10 pb-32">
+        {/* Holographic Hero */}
+        <section className="relative py-4">
+            <div className="absolute inset-0 bg-purple-600/20 blur-[100px] rounded-full opacity-20 animate-pulse" />
+            <div className="relative z-10 text-center space-y-4">
+                <div className="inline-flex p-5 rounded-[2rem] bg-white/5 border border-white/10 shadow-2xl backdrop-blur-sm">
+                    <UserPlus className="h-12 w-12 text-purple-400" />
                 </div>
-            </div>
-            <div className="space-y-2">
-                <h2 className="text-3xl font-black tracking-tighter uppercase italic">Sync New Nodes</h2>
-                <p className="text-white/40 text-xs font-bold uppercase tracking-widest max-w-[250px] mx-auto">
-                    Expand the Hirehills mesh network and increase shared compute efficiency.
-                </p>
+                <div className="space-y-1">
+                    <h2 className="text-4xl font-black tracking-tighter uppercase italic skew-x-[-6deg]">Node Sync</h2>
+                    <p className="text-white/30 text-[10px] font-black uppercase tracking-[0.3em]">Mesh Network Expansion v4.0</p>
+                </div>
             </div>
         </section>
 
-        {/* Referral Code Card */}
-        <section className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-cyan-400/20 blur-xl opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="relative glass-card rounded-[2.5rem] p-8 border-white/10 text-center space-y-6">
-                <p className="text-[10px] font-black text-purple-400 uppercase tracking-[0.4em]">Your Activation Hash</p>
-                <div className="flex flex-col items-center gap-4">
-                    <span className="text-5xl font-black tracking-[0.2em] tabular-nums text-white">
-                        {referralCode}
-                    </span>
-                    <Button 
+        {/* Activation Code Terminal */}
+        <section className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-cyan-400 rounded-[3rem] blur opacity-20" />
+            <div className="relative glass-card rounded-[2.5rem] p-1 border-white/10 overflow-hidden">
+                <div className="bg-black/40 p-8 rounded-[2.4rem] text-center space-y-6">
+                    <div className="flex justify-between items-center px-4">
+                        <span className="text-[8px] font-black text-purple-400 uppercase tracking-widest">Protocol ID</span>
+                        <div className="flex gap-1">
+                            <div className="w-1 h-1 rounded-full bg-purple-600 animate-ping" />
+                            <div className="w-1 h-1 rounded-full bg-white/20" />
+                        </div>
+                    </div>
+                    
+                    <div className="py-4">
+                        <span className="text-6xl font-black tracking-[0.25em] tabular-nums text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                            {referralCode}
+                        </span>
+                    </div>
+
+                    <button 
                         onClick={() => handleCopy(referralCode)}
-                        className="rounded-full px-8 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold uppercase tracking-widest text-[10px]"
+                        className="w-full h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex items-center justify-center gap-3 group"
                     >
-                        <Copy className="mr-2 h-3 w-3" /> Copy Hash
-                    </Button>
+                        <Copy className="h-4 w-4 text-purple-400 group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/80">Copy Activation Key</span>
+                    </button>
                 </div>
             </div>
         </section>
 
-        {/* Protocol Benefits */}
-        <section className="space-y-4">
-            <h3 className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] px-2">Protocol Benefits</h3>
-            <div className="grid grid-cols-1 gap-3">
-                <BenefitItem 
-                    icon={<Zap className="text-cyan-400" />}
-                    title="Node Overclock"
-                    desc="+0.25 HOT/HR for you and your peer"
+        {/* Network Rewards Matrix */}
+        <section className="space-y-6">
+            <div className="flex items-center gap-4 px-2">
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/10" />
+                <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Node Uplink Rewards</h3>
+                <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/10" />
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4">
+                <RewardNode 
+                    icon={<Zap className="h-5 w-5 text-cyan-400" />}
+                    title="Compute Overclock"
+                    value="+0.25 HOT/hr"
+                    desc="Mining efficiency boost for both peers"
                 />
-                <BenefitItem 
-                    icon={<Shield className="text-green-400" />}
-                    title="Security Layer"
-                    desc="Increase network integrity score"
+                <RewardNode 
+                    icon={<Rocket className="h-5 w-5 text-purple-400" />}
+                    title="Instant Protocol Credit"
+                    value="10.00 HOT"
+                    desc="Initial stake added upon successful sync"
                 />
-                <BenefitItem 
-                    icon={<Rocket className="text-purple-400" />}
-                    title="Instant Credit"
-                    desc="10 HOT tokens added upon first sync"
+                <RewardNode 
+                    icon={<Shield className="h-5 w-5 text-green-400" />}
+                    title="Security Integrity"
+                    value="Layer 2 Verified"
+                    desc="Higher priority for future KYC slots"
                 />
             </div>
         </section>
 
-        {/* Transmission Channels */}
-        <section className="space-y-4">
-            <h3 className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] px-2">Transmission Channels</h3>
-            <div className="grid grid-cols-3 gap-3">
+        {/* Transmission Array */}
+        <section className="space-y-6">
+            <h3 className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] px-2 text-center">Transmission Channels</h3>
+            <div className="grid grid-cols-3 gap-4">
                 {shareOptions.map((option) => (
                     <button
                         key={option.name}
                         onClick={() => window.open(option.url, '_blank')}
                         className={cn(
-                            "flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border transition-all hover:scale-105 active:scale-95",
+                            "flex flex-col items-center justify-center gap-4 p-6 rounded-[2rem] border transition-all hover:translate-y-[-4px] active:scale-95 group relative overflow-hidden",
                             option.color
                         )}
                     >
-                        {option.icon}
-                        <span className="text-[8px] font-black uppercase tracking-widest text-white/60">{option.name}</span>
+                        <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="relative z-10">{option.icon}</div>
+                        <span className="relative z-10 text-[8px] font-black uppercase tracking-widest text-white/40 group-hover:text-white/80 transition-colors">{option.name}</span>
                     </button>
                 ))}
             </div>
         </section>
 
-        {/* Full Transmission Button */}
-        <Button 
-            onClick={() => handleCopy(shareText)} 
-            variant="outline" 
-            className="w-full h-16 rounded-3xl bg-white/5 border-white/10 hover:bg-white/10 text-white/60 font-black uppercase tracking-widest text-xs"
-        >
-            <Share2 className="mr-3 h-5 w-5" />
-            Copy Full Transmission Data
-        </Button>
+        {/* Primary Broadcast Button */}
+        <div className="px-2">
+            <button 
+                onClick={() => handleCopy(shareText)} 
+                className="w-full h-20 rounded-[2rem] bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black uppercase tracking-[0.2em] text-xs shadow-[0_10px_30px_rgba(168,85,247,0.3)] transition-all active:scale-95 flex items-center justify-center gap-4 border-b-4 border-black/20"
+            >
+                <Share2 className="h-5 w-5" />
+                Broadcast Protocol Data
+            </button>
+            <p className="text-[8px] text-center text-white/20 mt-4 uppercase tracking-widest font-bold">Secure point-to-point encryption active</p>
+        </div>
       </main>
     </div>
   );
 }
 
-function BenefitItem({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
+function RewardNode({ icon, title, value, desc }: { icon: React.ReactNode, title: string, value: string, desc: string }) {
     return (
-        <div className="flex items-center gap-4 p-4 rounded-3xl bg-white/5 border border-white/5">
-            <div className="w-10 h-10 rounded-2xl bg-black/40 flex items-center justify-center">
-                {icon}
-            </div>
-            <div>
-                <p className="text-xs font-black uppercase tracking-widest text-white">{title}</p>
-                <p className="text-[10px] font-bold text-white/40 uppercase tracking-tight">{desc}</p>
+        <div className="group relative">
+            <div className="absolute inset-0 bg-white/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative flex items-center gap-5 p-5 rounded-3xl bg-white/[0.02] border border-white/5 transition-all group-hover:border-white/10">
+                <div className="w-14 h-14 rounded-2xl bg-black flex items-center justify-center border border-white/10 shadow-inner group-hover:border-purple-500/30 transition-colors">
+                    {icon}
+                </div>
+                <div className="flex-1 space-y-1">
+                    <div className="flex justify-between items-baseline">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-white/80">{title}</p>
+                        <span className="text-xs font-black text-white italic">{value}</span>
+                    </div>
+                    <p className="text-[9px] font-bold text-white/30 uppercase tracking-tight leading-tight">{desc}</p>
+                </div>
             </div>
         </div>
     );
