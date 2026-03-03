@@ -44,7 +44,7 @@ function RateBreakdownDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     const { miningRateBreakdown, totalMiningRate, userProfile } = useAuth();
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={setIsRateBreakdownOpen}>
             <DialogContent className="bg-background border-border max-w-[280px] sm:max-w-xs w-[90%] rounded-3xl shadow-2xl p-4 sm:p-6" style={{ opacity: 1 }}>
                 <DialogHeader className="space-y-1">
                     <DialogTitle className="text-lg sm:text-xl font-black tracking-tight flex items-center gap-2">
@@ -334,6 +334,12 @@ export function MiningDashboard() {
     <div className="min-h-screen bg-background pb-24">
       {/* Persistent Dashboard Header */}
       <header className="px-4 py-3 sm:px-6 flex items-center justify-between border-b border-border/50 sticky top-0 z-30 bg-background/80 backdrop-blur-md">
+        {/* Left: Branding */}
+        <div className="flex items-center gap-2">
+            <span className="text-foreground font-black text-[10px] uppercase tracking-widest">HIREHILLS</span>
+        </div>
+        
+        {/* Right Cluster: Rate + Wallet */}
         <div className="flex items-center gap-3">
            <button 
                 onClick={() => setIsRateBreakdownOpen(true)}
@@ -344,13 +350,7 @@ export function MiningDashboard() {
                     {isSessionActive ? totalMiningRate.toFixed(2) : "0.00"} HOT/HR
                 </span>
             </button>
-        </div>
-        
-        <div className="flex items-center gap-2">
-            <span className="text-foreground font-black text-[10px] uppercase tracking-widest">HIREHILLS</span>
-        </div>
 
-        <div className="flex items-center gap-3">
             <Link href="/wallet" className="transition-transform hover:scale-110 active:scale-95">
                 <div className="w-8 h-8 rounded-lg bg-secondary border border-border flex items-center justify-center shadow-inner hover:bg-accent">
                     <Wallet className="text-primary h-4 w-4" />
@@ -364,7 +364,7 @@ export function MiningDashboard() {
         <div className="relative min-h-[340px] xs:min-h-[380px] sm:min-h-[420px] w-full rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border border-border bg-card shadow-xl">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5" />
           
-          {/* Main Content Area - Reduced vertical space */}
+          {/* Main Content Area */}
           <div className="absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-full px-4 xs:px-6 flex flex-col items-center">
             {isSessionActive ? (
               <div className="flex flex-col items-center animate-in zoom-in-95 duration-500 w-full max-w-md">
