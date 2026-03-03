@@ -347,9 +347,6 @@ export function MiningDashboard() {
         </div>
         
         <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                <LayoutGrid className="text-primary h-4 w-4" />
-            </div>
             <span className="text-foreground font-black text-[10px] uppercase tracking-widest">HIREHILLS</span>
         </div>
 
