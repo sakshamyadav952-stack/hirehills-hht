@@ -77,7 +77,7 @@ function RateBreakdownDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 
                     <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-secondary border border-border">
                         <div className="flex items-center gap-2">
-                            <Network className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-cyan-500" />
+                            <Network className="h-3.5 w-3.5 sm:h-4 w-4 text-cyan-500" />
                             <span className="text-[10px] sm:text-[11px] font-bold uppercase">Network</span>
                         </div>
                         <span className="font-mono text-xs sm:text-sm font-bold text-cyan-500">+{miningRateBreakdown?.referral.toFixed(2) || "0.00"}</span>
@@ -378,7 +378,7 @@ export function MiningDashboard() {
               
               <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 bg-primary/10 px-2.5 py-1 xs:px-3 xs:py-1 sm:px-4 sm:py-1.5 rounded-full border border-primary/20">
                 <div className="w-1 h-1 xs:w-1.5 xs:h-1.5 sm:w-2 sm:h-2 rounded-full bg-primary animate-pulse shadow-[0_0_10px_currentColor]" />
-                <span className="text-primary text-[7px] xs:text-[8px] sm:text-[10px] font-black tracking-[0.2em] sm:tracking-[0.3em] uppercase italic">Node_Sync_Active</span>
+                <span className="text-primary text-[7px] xs:text-[8px] sm:text-[10px] font-black tracking-[0.2em] sm:tracking-[0.3em] uppercase italic">{timeRemaining}</span>
               </div>
 
               <div className="mt-4 xs:mt-6 sm:mt-8 w-full max-w-[240px] xs:max-w-[280px] sm:max-w-[320px] space-y-2.5 xs:space-y-3 sm:space-y-4">
@@ -389,10 +389,6 @@ export function MiningDashboard() {
                             className="absolute inset-0 h-1.5 xs:h-2 sm:h-2.5 bg-gradient-to-r from-primary to-accent blur-sm opacity-50 transition-all duration-1000" 
                             style={{ width: `${sessionProgress}%` }}
                         />
-                    </div>
-                    <div className="flex items-center justify-center gap-1 xs:gap-1.5 sm:gap-2 text-muted-foreground text-[7px] xs:text-[8px] sm:text-[10px] font-black uppercase tracking-[0.1em]">
-                        <Clock className="h-2 w-2 xs:h-2.5 xs:w-2.5 sm:h-3 sm:w-3" />
-                        <span>{timeRemaining} CYCLE REMAINING</span>
                     </div>
                 </div>
 
