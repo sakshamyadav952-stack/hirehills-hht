@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { 
   Play, Loader2, Coins, ChevronDown, 
   Wallet, Zap, LayoutGrid, Clock, Cpu, 
-  Database, Network, Activity, Clapperboard, X, Check
+  Database, Network, Activity, Clapperboard, X, Check, Rocket
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -167,13 +167,13 @@ export function MiningDashboard() {
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [nextSlotCountdown, setNextSlotCountdown] = useState<string | null>(null);
   const [isClaimDialogOpen, setIsClaimDialogOpen] = useState(false);
+  const [showBoostSuccess, setShowBoostSuccess] = useState(false);
 
   const isSessionActive = useMemo(() => {
     if (!userProfile?.sessionEndTime) return false;
     return Date.now() < userProfile.sessionEndTime;
   }, [userProfile?.sessionEndTime]);
 
-  // Calculate the next available slot for the countdown display
   useEffect(() => {
     const updateNextSlot = () => {
         const now = new Date();
@@ -207,7 +207,6 @@ export function MiningDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Dynamic Chart Update
   useEffect(() => {
     if (isSessionActive) {
       const interval = setInterval(() => {
@@ -220,7 +219,6 @@ export function MiningDashboard() {
     }
   }, [isSessionActive]);
 
-  // Timer & Progress Update
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isSessionActive && userProfile?.sessionEndTime && userProfile?.miningStartTime) {
@@ -271,7 +269,7 @@ export function MiningDashboard() {
         b => b.startTime >= userProfile.miningStartTime!
     ).length;
 
-    if (boostCount >= 10) return; // Limit 10 boosts per session
+    if (boostCount >= 10) return; 
 
     setIsProcessing('turbo');
     try {
@@ -279,8 +277,11 @@ export function MiningDashboard() {
         window.Android.showRewardedAd();
       }
       
-      // Apply an 8-hour 0.10 HOT/hr boost
       await updateMiningRate('8H', 0.10, true);
+      
+      // Wait for 5 seconds as requested before showing confirmation
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      setShowBoostSuccess(true);
     } finally {
       setIsProcessing(null);
     }
@@ -298,11 +299,9 @@ export function MiningDashboard() {
 
   return (
     <div className="min-h-screen bg-black p-4 sm:p-6 space-y-6 pb-20">
-      {/* High-Fidelity Branding Header */}
       <div className="relative min-h-[450px] w-full rounded-[2.5rem] overflow-hidden glass-card border-white/5 bg-zinc-900/40 transition-all duration-500">
         <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-cyan-600/5" />
         
-        {/* Header Icons */}
         <div className="absolute top-8 left-8 flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md">
             <LayoutGrid className="text-white h-6 w-6" />
@@ -319,7 +318,6 @@ export function MiningDashboard() {
           </div>
         </Link>
 
-        {/* HERO CONTENT: ACCUMULATION OR START BUTTON */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full px-6 flex flex-col items-center">
           {isSessionActive ? (
             <div className="flex flex-col items-center animate-in zoom-in-95 duration-500 w-full">
@@ -336,7 +334,6 @@ export function MiningDashboard() {
                 <span className="text-cyan-400 text-[10px] font-black tracking-[0.3em] uppercase italic">Processing HOT</span>
               </div>
 
-              {/* Progress & Time */}
               <div className="mt-8 w-full max-w-[280px] space-y-4">
                 <div className="relative">
                   <Progress value={sessionProgress} className="h-2 bg-white/10 overflow-hidden" />
@@ -350,7 +347,6 @@ export function MiningDashboard() {
                   <span>{timeRemaining} Remaining</span>
                 </div>
 
-                {/* Integrated Task Buttons */}
                 <div className="grid grid-cols-2 gap-3 pt-4">
                   <button 
                     onClick={() => setIsClaimDialogOpen(true)}
@@ -405,7 +401,25 @@ export function MiningDashboard() {
 
       <DailyClaimDialog open={isClaimDialogOpen} onOpenChange={setIsClaimDialogOpen} />
 
-      {/* Secondary technical readouts */}
+      <AlertDialog open={showBoostSuccess} onOpenChange={setShowBoostSuccess}>
+        <AlertDialogContent className="text-white border-purple-400/50" style={{ background: 'linear-gradient(145deg, #0d0d1a, #1a1a2e)' }}>
+            <AlertDialogHeader className="text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-500/20 mb-4 border-2 border-purple-500/50">
+                    <Rocket className="h-8 w-8 text-purple-400" />
+                </div>
+                <AlertDialogTitle className="text-xl font-bold text-purple-300">CORE TURBO ACTIVATED</AlertDialogTitle>
+                <AlertDialogDescription className="text-purple-200/80">
+                    Neural link established. Your node efficiency has been increased by <span className="text-white font-bold">+0.10 HOT/hr</span> for the remainder of this cycle.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-4">
+                <AlertDialogAction onClick={() => setShowBoostSuccess(false)} className="w-full bg-purple-600 text-white hover:bg-purple-500 font-bold uppercase tracking-widest text-xs h-12 rounded-2xl">
+                    Acknowledge
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="glass-card rounded-[3rem] p-8 glow-border relative overflow-hidden bg-zinc-900/20">
         <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://picsum.photos/seed/tech/800/800')] mix-blend-overlay" />
 
@@ -467,7 +481,6 @@ export function MiningDashboard() {
         </div>
       </div>
 
-      {/* Hardware Stats Footer */}
       <div className="px-4 py-6 border-t border-white/5 flex justify-between items-center text-white/20">
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
