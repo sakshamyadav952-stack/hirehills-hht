@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -97,43 +96,43 @@ function SidebarLayoutContent() {
   return (
     <SidebarBody className="bg-black h-full">
       <SidebarHeader>
-        <div className="flex items-center justify-between p-6">
+        <div className="flex items-center justify-between p-4 sm:p-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center shadow-[0_0_20px_rgba(168,85,247,0.4)]">
-              <LayoutGrid className="h-6 w-6 text-white" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-600 flex items-center justify-center shadow-[0_0_20px_rgba(168,85,247,0.4)]">
+              <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
             <div>
-              <h2 className="text-white font-black leading-none tracking-tight">HIREHILLS</h2>
-              <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">HOT NETWORK</p>
+              <h2 className="text-white font-black leading-none tracking-tight text-sm sm:text-base">HIREHILLS</h2>
+              <p className="text-white/40 text-[8px] sm:text-[10px] font-bold uppercase tracking-widest mt-1">HOT NETWORK</p>
             </div>
           </div>
           <button 
             onClick={() => setOpenMobile(false)}
-            className="md:hidden w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60 hover:text-white"
+            className="md:hidden w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60 hover:text-white"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarMenu className="px-4 py-2">{renderMenuItems()}</SidebarMenu>
+        <SidebarMenu className="px-3 sm:px-4 py-2">{renderMenuItems()}</SidebarMenu>
       </SidebarContent>
-      <SidebarFooter className="pb-10">
+      <SidebarFooter className="pb-8 sm:pb-10">
         {userProfile && (
           <Link 
             href="/profile" 
             onClick={handleLinkClick}
-            className="flex items-center gap-3 p-4 glass-card rounded-3xl m-4 border-white/5 hover:bg-white/10 transition-colors group"
+            className="flex items-center gap-3 p-3 sm:p-4 glass-card rounded-[1.5rem] sm:rounded-3xl m-2 sm:m-4 border-white/5 hover:bg-white/10 transition-colors group"
           >
-            <Avatar className="h-10 w-10 border border-white/10">
+            <Avatar className="h-8 w-8 sm:h-10 sm:w-10 border border-white/10">
               <AvatarImage src={userProfile.profileImageUrl} />
               <AvatarFallback><User /></AvatarFallback>
             </Avatar>
             <div className="flex flex-col truncate flex-1">
-              <span className="text-white text-sm font-bold truncate">{userProfile.fullName}</span>
-              <span className="text-purple-400 text-[10px] uppercase font-bold tracking-wider">View Profile</span>
+              <span className="text-white text-xs sm:text-sm font-bold truncate">{userProfile.fullName}</span>
+              <span className="text-purple-400 text-[8px] sm:text-[10px] uppercase font-bold tracking-wider leading-none mt-0.5">View Profile</span>
             </div>
-            <ChevronRight className="h-4 w-4 text-white/20 group-hover:text-white transition-colors" />
+            <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 text-white/20 group-hover:text-white transition-colors" />
           </Link>
         )}
       </SidebarFooter>
@@ -156,31 +155,31 @@ function BottomNav() {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden pb-safe px-6 py-4">
-      <nav className="glass-card rounded-[2.5rem] h-20 flex items-center justify-around px-2 border-white/10 shadow-2xl shadow-black bg-zinc-900/90 backdrop-blur-xl">
+    <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden pb-safe px-4 sm:px-6 py-3 sm:py-4">
+      <nav className="glass-card rounded-[2rem] xs:rounded-[2.5rem] h-16 xs:h-20 flex items-center justify-around px-1 xs:px-2 border-white/10 shadow-2xl shadow-black bg-zinc-900/95 backdrop-blur-xl">
         {navItems.map((item) => (
           <Link 
             key={item.href} 
             href={item.href} 
             className={cn(
-              "flex flex-col items-center justify-center gap-1.5 transition-all duration-300 w-14 h-14 rounded-2xl",
+              "flex flex-col items-center justify-center gap-1 transition-all duration-300 w-12 xs:w-14 h-12 xs:h-14 rounded-xl xs:rounded-2xl",
               pathname === item.href ? "bg-white/5 text-purple-400" : "text-white/30 hover:text-white/60"
             )}
           >
-            <item.icon className={cn("h-5 w-5", pathname === item.href && "animate-pulse")} />
-            <span className="text-[8px] font-black uppercase tracking-[0.1em]">{item.label}</span>
+            <item.icon className={cn("h-4 w-4 xs:h-5 xs:w-5", pathname === item.href && "animate-pulse")} />
+            <span className="text-[7px] xs:text-[8px] font-black uppercase tracking-wider">{item.label}</span>
           </Link>
         ))}
         {/* Profile Trigger */}
         <button 
           onClick={() => setOpenMobile(true)}
           className={cn(
-            "flex flex-col items-center justify-center gap-1.5 transition-all duration-300 w-14 h-14 rounded-2xl",
+            "flex flex-col items-center justify-center gap-1 transition-all duration-300 w-12 xs:w-14 h-12 xs:h-14 rounded-xl xs:rounded-2xl",
             pathname === '/profile' ? "text-purple-400" : "text-white/30 hover:text-white/60"
           )}
         >
-          <User className="h-5 w-5" />
-          <span className="text-[8px] font-black uppercase tracking-[0.1em]">Profile</span>
+          <User className="h-4 w-4 xs:h-5 xs:w-5" />
+          <span className="text-[7px] xs:text-[8px] font-black uppercase tracking-wider">Profile</span>
         </button>
       </nav>
     </div>
@@ -206,7 +205,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </main>
           </div>
         </SidebarInset>
-        {/* Mobile Full-Page Sidebar via Sheet */}
+        {/* Mobile Sidebar via Sheet */}
         <div className="md:hidden">
           <Sidebar>
             <SidebarLayoutContent />
