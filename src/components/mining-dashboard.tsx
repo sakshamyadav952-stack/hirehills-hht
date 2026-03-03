@@ -164,7 +164,7 @@ export function MiningDashboard() {
   return (
     <div className="min-h-screen bg-black p-4 sm:p-6 space-y-6 pb-20">
       {/* High-Fidelity Branding Header */}
-      <div className="relative h-80 w-full rounded-[2.5rem] overflow-hidden glass-card border-white/5 bg-zinc-900/40">
+      <div className="relative min-h-[450px] w-full rounded-[2.5rem] overflow-hidden glass-card border-white/5 bg-zinc-900/40 transition-all duration-500">
         <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-cyan-600/5" />
         
         {/* Header Icons */}
@@ -178,29 +178,35 @@ export function MiningDashboard() {
           </div>
         </div>
 
-        {/* PROMINENT LIVE COUNTER - HERO ELEMENT */}
-        <div className="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 select-none pointer-events-none text-center w-full px-4">
+        <Link href="/wallet" className="absolute top-8 right-8 transition-transform hover:scale-110 active:scale-95 z-10">
+          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md hover:bg-white/10">
+            <Wallet className="text-white h-6 w-6" />
+          </div>
+        </Link>
+
+        {/* HERO CONTENT: ACCUMULATION OR START BUTTON */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full px-6 flex flex-col items-center">
           {isSessionActive ? (
-            <div className="flex flex-col items-center animate-in zoom-in-95 duration-500">
+            <div className="flex flex-col items-center animate-in zoom-in-95 duration-500 w-full">
               <span className="text-cyan-400/40 text-[10px] font-black uppercase tracking-[0.5em] mb-3">Live Accumulation</span>
-              <div className="relative group">
+              <div className="relative">
                 <h2 className="text-white text-5xl md:text-7xl font-black tracking-tighter tabular-nums drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
                   {liveCoins.toFixed(4)}
                 </h2>
-                {/* Visual Flair: Pulsing scanning line */}
                 <div className="absolute inset-0 border-y border-white/5 animate-scan-line pointer-events-none" />
               </div>
+              
               <div className="flex items-center gap-3 mt-4 bg-cyan-500/10 px-4 py-1.5 rounded-full border border-cyan-500/20 backdrop-blur-md">
                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_#22d3ee]" />
                 <span className="text-cyan-400 text-[10px] font-black tracking-[0.3em] uppercase italic">Processing HOT</span>
               </div>
 
-              {/* INTEGRATED PROGRESS SECTION */}
-              <div className="mt-6 w-full max-w-[200px] space-y-3">
+              {/* Progress & Time */}
+              <div className="mt-8 w-full max-w-[280px] space-y-4">
                 <div className="relative">
-                  <Progress value={sessionProgress} className="h-1.5 bg-white/10 overflow-hidden" />
+                  <Progress value={sessionProgress} className="h-2 bg-white/10 overflow-hidden" />
                   <div 
-                    className="absolute inset-0 h-1.5 bg-gradient-to-r from-purple-600 to-cyan-400 blur-sm opacity-50 transition-all duration-1000" 
+                    className="absolute inset-0 h-2 bg-gradient-to-r from-purple-600 to-cyan-400 blur-sm opacity-50 transition-all duration-1000" 
                     style={{ width: `${sessionProgress}%` }}
                   />
                 </div>
@@ -208,24 +214,55 @@ export function MiningDashboard() {
                   <Clock className="h-3 w-3" />
                   <span>{timeRemaining} Remaining</span>
                 </div>
+
+                {/* Integrated Task Buttons */}
+                <div className="grid grid-cols-2 gap-3 pt-4">
+                  <button 
+                    onClick={handleClaimMissedCoin}
+                    disabled={isProcessing === 'daily'}
+                    className="h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group disabled:opacity-50"
+                  >
+                    {isProcessing === 'daily' ? <Loader2 className="animate-spin h-4 w-4" /> : (
+                      <>
+                        <Coins className="h-4 w-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+                        <span className="text-[9px] font-black uppercase">Daily Claim</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button 
+                    onClick={handleOpenMysteryBox}
+                    disabled={isProcessing === 'mystery'}
+                    className="h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group disabled:opacity-50"
+                  >
+                    {isProcessing === 'mystery' ? <Loader2 className="animate-spin h-4 w-4" /> : (
+                      <>
+                        <Zap className="h-4 w-4 text-purple-400 group-hover:animate-pulse" />
+                        <span className="text-[9px] font-black uppercase">Turbo Boost</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center">
-              <span className="hot-logo-text text-8xl md:text-9xl opacity-20">HOT</span>
-              <span className="text-white/30 text-[10px] font-bold tracking-[0.3em] -mt-2">SYSTEM STANDBY</span>
+            <div className="flex flex-col items-center animate-in fade-in duration-700 w-full max-w-sm">
+              <span className="hot-logo-text text-8xl md:text-9xl opacity-20 mb-8">HOT</span>
+              <Button 
+                onClick={handleStartMining}
+                disabled={isStarting}
+                className="w-full h-20 rounded-3xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xl uppercase tracking-tighter shadow-[0_15px_40px_rgba(168,85,247,0.4)] active:scale-95 transition-all border-b-4 border-purple-800 active:border-b-0"
+              >
+                {isStarting ? <Loader2 className="animate-spin mr-3 h-6 w-6" /> : <Play className="mr-3 h-6 w-6 fill-current" />}
+                Initialize Mining
+              </Button>
+              <span className="text-white/30 text-[10px] font-bold tracking-[0.3em] mt-6 uppercase">System Standby: Click to Start</span>
             </div>
           )}
         </div>
-
-        <Link href="/wallet" className="absolute top-8 right-8 transition-transform hover:scale-110 active:scale-95 z-10">
-          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md hover:bg-white/10">
-            <Wallet className="text-white h-6 w-6" />
-          </div>
-        </Link>
       </div>
 
-      {/* Primary Technical Dashboard */}
+      {/* Secondary technical readouts */}
       <div className="glass-card rounded-[3rem] p-8 glow-border relative overflow-hidden bg-zinc-900/20">
         <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://picsum.photos/seed/tech/800/800')] mix-blend-overlay" />
 
@@ -262,7 +299,7 @@ export function MiningDashboard() {
               <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/5">
                 <Activity className="h-4 w-4 text-cyan-400" />
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Total Active</span>
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Session Gain</span>
                   <span className="text-lg font-mono font-bold text-white tracking-tight">{liveCoins.toFixed(6)}</span>
                 </div>
               </div>
@@ -285,54 +322,6 @@ export function MiningDashboard() {
             </ResponsiveContainer>
           </div>
         </div>
-
-        {/* Start Mining Toggle */}
-        {!isSessionActive && (
-          <div className="mt-10 pt-10 border-t border-white/5">
-            <Button 
-              onClick={handleStartMining}
-              disabled={isStarting}
-              className="w-full h-16 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-lg uppercase tracking-tighter shadow-[0_10px_30px_rgba(168,85,247,0.3)] active:scale-95 transition-all"
-            >
-              {isStarting ? <Loader2 className="animate-spin mr-3 h-5 w-5" /> : <Play className="mr-3 h-5 w-5 fill-current" />}
-              Initialize Mining Sequence
-            </Button>
-          </div>
-        )}
-
-        <div className="mt-10 pt-10 border-t border-white/5 grid grid-cols-2 gap-4">
-          <button 
-            onClick={handleClaimMissedCoin}
-            disabled={!isSessionActive || isProcessing === 'daily'}
-            className="h-16 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group disabled:opacity-50"
-          >
-            {isProcessing === 'daily' ? <Loader2 className="animate-spin h-5 w-5" /> : (
-              <>
-                <div className="flex items-center gap-2">
-                  <Coins className="h-4 w-4 text-cyan-400 group-hover:scale-110 transition-transform" />
-                  <span className="text-xs font-black uppercase">Daily Claim</span>
-                </div>
-                <span className="text-[10px] text-white/40 font-bold tracking-wider">1.00 HOT Bonus</span>
-              </>
-            )}
-          </button>
-
-          <button 
-            onClick={handleOpenMysteryBox}
-            disabled={!isSessionActive || isProcessing === 'mystery'}
-            className="h-16 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white flex flex-col items-center justify-center gap-1 group disabled:opacity-50"
-          >
-            {isProcessing === 'mystery' ? <Loader2 className="animate-spin h-5 w-5" /> : (
-              <>
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-purple-400 group-hover:animate-pulse" />
-                  <span className="text-xs font-black uppercase">Turbo Boost</span>
-                </div>
-                <span className="text-[10px] text-white/40 font-bold tracking-wider">+0.10 HOT/HR</span>
-              </>
-            )}
-          </button>
-        </div>
       </div>
 
       {/* Hardware Stats Footer */}
@@ -347,7 +336,7 @@ export function MiningDashboard() {
                 <span className="text-[9px] font-bold uppercase tracking-widest">Hot_Net_Node</span>
             </div>
         </div>
-        <span className="text-[9px] font-mono">v4.0.2-release</span>
+        <span className="text-[9px] font-mono">v4.0.5-release</span>
       </div>
     </div>
   );
