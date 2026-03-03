@@ -86,7 +86,7 @@ function RateBreakdownDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                     {miningRateBreakdown?.boost && miningRateBreakdown.boost > 0 && (
                         <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-secondary border border-border animate-pulse">
                             <div className="flex items-center gap-2">
-                                <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
+                                <Rocket className="h-3.5 w-3.5 sm:h-4 w-4 text-purple-500" />
                                 <span className="text-[10px] sm:text-[11px] font-bold uppercase">Overclock</span>
                             </div>
                             <span className="font-mono text-xs sm:text-sm font-bold text-purple-500">+{miningRateBreakdown.boost.toFixed(2)}</span>
@@ -369,19 +369,19 @@ export function MiningDashboard() {
           {isSessionActive ? (
             <div className="flex flex-col items-center animate-in zoom-in-95 duration-500 w-full max-w-md">
               <span className="text-primary/40 text-[7px] xs:text-[8px] sm:text-[10px] font-black uppercase tracking-[0.5em] mb-1 xs:mb-2 sm:mb-3">Live Session Counter</span>
-              <div className="relative mb-2 xs:mb-3 sm:mb-4">
+              <div className="relative mb-4 xs:mb-6 sm:mb-8">
                 <h2 className="text-foreground text-4xl xs:text-5xl sm:text-7xl md:text-8xl font-black tracking-tighter tabular-nums drop-shadow-sm text-center">
                   {liveCoins.toFixed(4)}
                 </h2>
                 <div className="absolute inset-0 border-y border-border/20 animate-scan-line pointer-events-none" />
               </div>
               
-              <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 bg-primary/10 px-2.5 py-1 xs:px-3 xs:py-1 sm:px-4 sm:py-1.5 rounded-full border border-primary/20">
-                <div className="w-1 h-1 xs:w-1.5 xs:h-1.5 sm:w-2 sm:h-2 rounded-full bg-primary animate-pulse shadow-[0_0_10px_currentColor]" />
-                <span className="text-primary text-[7px] xs:text-[8px] sm:text-[10px] font-black tracking-[0.2em] sm:tracking-[0.3em] uppercase italic">{timeRemaining}</span>
+              <div className="flex items-center gap-2 xs:gap-3 sm:gap-4 bg-primary/10 px-5 py-2 xs:px-6 xs:py-2.5 sm:px-8 sm:py-3 rounded-full border border-primary/20 shadow-lg mb-4 xs:mb-6 sm:mb-8">
+                <div className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 rounded-full bg-primary animate-pulse shadow-[0_0_15px_currentColor]" />
+                <span className="text-primary text-xs xs:text-sm sm:text-lg font-black tracking-[0.3em] uppercase italic tabular-nums">{timeRemaining}</span>
               </div>
 
-              <div className="mt-4 xs:mt-6 sm:mt-8 w-full max-w-[240px] xs:max-w-[280px] sm:max-w-[320px] space-y-2.5 xs:space-y-3 sm:space-y-4">
+              <div className="w-full max-w-[240px] xs:max-w-[280px] sm:max-w-[320px] space-y-2.5 xs:space-y-3 sm:space-y-4">
                 <div className="space-y-1 xs:space-y-1.5 sm:space-y-2">
                     <div className="relative">
                         <Progress value={sessionProgress} className="h-1.5 xs:h-2 sm:h-2.5 bg-muted overflow-hidden rounded-full" />
