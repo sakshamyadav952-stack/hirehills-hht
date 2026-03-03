@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -161,7 +160,7 @@ function BottomNav() {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden pb-safe bg-background/95 backdrop-blur-xl border-t border-border shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden pb-safe bg-background border-t border-border shadow-lg">
       <nav className="h-16 xs:h-20 flex items-center justify-around px-2">
         {navItems.map((item) => (
           <Link 
@@ -176,7 +175,6 @@ function BottomNav() {
             <span className="text-[8px] font-black uppercase tracking-wider">{item.label}</span>
           </Link>
         ))}
-        {/* Profile Trigger */}
         <button 
           onClick={() => setOpenMobile(true)}
           className={cn(
@@ -211,7 +209,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </main>
           </div>
         </SidebarInset>
-        {/* Mobile Sidebar via Sheet */}
         <div className="md:hidden">
           <Sidebar>
             <SidebarLayoutContent />

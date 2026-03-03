@@ -76,7 +76,7 @@ export function ReferralList() {
                             "w-2.5 h-2.5 rounded-full",
                             isActive ? "bg-emerald-400 shadow-[0_0_10px_currentColor]" : "bg-rose-400 shadow-[0_0_10px_currentColor]"
                         )} />
-                        <span className="text-sm sm:text-base font-black uppercase tracking-tighter italic text-responsive-base">
+                        <span className="text-sm sm:text-base font-black uppercase tracking-tighter italic">
                             {isActive ? 'Active' : 'Inactive'}
                         </span>
                     </div>
