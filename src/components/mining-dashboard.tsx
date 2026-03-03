@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -47,66 +46,68 @@ function RateBreakdownDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="text-foreground border-border max-w-md w-[95%] rounded-3xl" style={{ background: 'var(--background)' }}>
-                <DialogHeader>
-                    <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
-                        <Zap className="text-primary h-6 w-6" />
-                        NODE EFFICIENCY
+            <DialogContent className="bg-background border-border max-w-xs w-[90%] rounded-3xl shadow-2xl" style={{ opacity: 1 }}>
+                <DialogHeader className="space-y-1">
+                    <DialogTitle className="text-xl font-black tracking-tight flex items-center gap-2">
+                        <Zap className="text-primary h-5 w-5" />
+                        EFFICIENCY
                     </DialogTitle>
-                    <DialogDescription className="text-muted-foreground text-xs font-bold uppercase tracking-widest">
-                        Protocol Yield Breakdown
+                    <DialogDescription className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
+                        Node Throughput
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="py-6 space-y-4">
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border">
-                        <div className="flex items-center gap-3">
-                            <Cpu className="h-5 w-5 text-muted-foreground" />
-                            <span className="text-sm font-bold uppercase">Base Core Rate</span>
+                <div className="py-4 space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-secondary border border-border">
+                        <div className="flex items-center gap-2">
+                            <Cpu className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-[11px] font-bold uppercase">Core Base</span>
                         </div>
-                        <span className="font-mono font-bold text-primary">+{miningRateBreakdown?.base.toFixed(2) || "0.25"}</span>
+                        <span className="font-mono text-sm font-bold text-primary">+{miningRateBreakdown?.base.toFixed(2) || "0.25"}</span>
                     </div>
 
                     {miningRateBreakdown?.appliedCode && miningRateBreakdown.appliedCode > 0 && (
-                        <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border">
-                            <div className="flex items-center gap-3">
-                                <Check className="h-5 w-5 text-green-400" />
-                                <span className="text-sm font-bold uppercase">Activation Bonus</span>
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-secondary border border-border">
+                            <div className="flex items-center gap-2">
+                                <Check className="h-4 w-4 text-green-500" />
+                                <span className="text-[11px] font-bold uppercase">Activation</span>
                             </div>
-                            <span className="font-mono font-bold text-green-400">+{miningRateBreakdown.appliedCode.toFixed(2)}</span>
+                            <span className="font-mono text-sm font-bold text-green-500">+{miningRateBreakdown.appliedCode.toFixed(2)}</span>
                         </div>
                     )}
 
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border">
-                        <div className="flex items-center gap-3">
-                            <Network className="h-5 w-5 text-cyan-400" />
-                            <span className="text-sm font-bold uppercase">Network Boost ({activeReferralsCount})</span>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-secondary border border-border">
+                        <div className="flex items-center gap-2">
+                            <Network className="h-4 w-4 text-cyan-500" />
+                            <span className="text-[11px] font-bold uppercase">Network</span>
                         </div>
-                        <span className="font-mono font-bold text-cyan-400">+{miningRateBreakdown?.referral.toFixed(2) || "0.00"}</span>
+                        <span className="font-mono text-sm font-bold text-cyan-500">+{miningRateBreakdown?.referral.toFixed(2) || "0.00"}</span>
                     </div>
 
                     {miningRateBreakdown?.boost && miningRateBreakdown.boost > 0 && (
-                        <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border animate-pulse">
-                            <div className="flex items-center gap-3">
-                                <Rocket className="h-5 w-5 text-purple-400" />
-                                <span className="text-sm font-bold uppercase">Active Overclocks</span>
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-secondary border border-border animate-pulse">
+                            <div className="flex items-center gap-2">
+                                <Rocket className="h-4 w-4 text-purple-500" />
+                                <span className="text-[11px] font-bold uppercase">Overclock</span>
                             </div>
-                            <span className="font-mono font-bold text-purple-400">+{miningRateBreakdown.boost.toFixed(2)}</span>
+                            <span className="font-mono text-sm font-bold text-purple-500">+{miningRateBreakdown.boost.toFixed(2)}</span>
                         </div>
                     )}
 
-                    <div className="pt-4 border-t border-border mt-2">
-                        <div className="flex items-center justify-between px-2">
-                            <span className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">Total Throughput</span>
-                            <span className="text-2xl font-black text-foreground italic">{(userProfile?.sessionEndTime && Date.now() < userProfile.sessionEndTime) ? totalMiningRate.toFixed(2) : "0.00"} HOT/HR</span>
+                    <div className="pt-3 border-t border-border mt-1">
+                        <div className="flex items-center justify-between px-1">
+                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Yield</span>
+                            <span className="text-xl font-black text-foreground italic">
+                                {(userProfile?.sessionEndTime && Date.now() < userProfile.sessionEndTime) ? totalMiningRate.toFixed(2) : "0.00"} HOT/H
+                            </span>
                         </div>
                     </div>
                 </div>
 
                 <DialogFooter>
                     <DialogClose asChild>
-                        <Button variant="ghost" className="w-full text-muted-foreground font-bold uppercase tracking-widest text-[10px]">
-                            Minimize Breakdown
+                        <Button variant="ghost" className="w-full text-muted-foreground font-bold uppercase tracking-widest text-[9px] h-8">
+                            Minimize
                         </Button>
                     </DialogClose>
                 </DialogFooter>
@@ -147,9 +148,9 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
     return (
         <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="text-foreground border-border max-w-md w-[95%] rounded-3xl" style={{ background: 'var(--background)' }}>
+            <DialogContent className="bg-background border-border max-w-md w-[95%] rounded-3xl shadow-2xl">
                 <DialogHeader>
-                    <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                    <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2 text-foreground">
                         <Coins className="text-amber-400 h-6 w-6" />
                         CLAIM COINS
                     </DialogTitle>
@@ -162,15 +163,15 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
                     {dailyAdCoins.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground/40">
                             <Check className="mx-auto h-12 w-12 mb-2 opacity-20" />
-                            <p className="text-sm font-bold uppercase tracking-widest">All current tasks completed</p>
+                            <p className="text-sm font-bold uppercase tracking-widest">All tasks completed</p>
                         </div>
                     ) : (
                         dailyAdCoins.map((coin) => (
-                            <div key={coin.id} className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border group hover:border-primary/30 transition-all">
+                            <div key={coin.id} className="flex items-center justify-between p-4 rounded-2xl bg-secondary border border-border group hover:border-primary/30 transition-all">
                                 <div className="flex items-center gap-3">
                                     <div className={cn(
-                                        "w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md",
-                                        coin.status === 'available' ? "bg-green-500/10 text-green-400" : "bg-amber-500/10 text-amber-400"
+                                        "w-10 h-10 rounded-xl flex items-center justify-center",
+                                        coin.status === 'available' ? "bg-green-500/10 text-green-500" : "bg-amber-500/10 text-amber-500"
                                     )}>
                                         {coin.status === 'available' ? <Zap className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
                                     </div>
@@ -190,7 +191,7 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
                                     className={cn(
                                         "h-9 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
                                         coin.status === 'available' 
-                                            ? "bg-green-500 hover:bg-green-400 text-black shadow-[0_0_15px_rgba(34,211,238,0.3)]" 
+                                            ? "bg-green-500 hover:bg-green-400 text-black shadow-lg" 
                                             : "bg-muted hover:bg-accent text-foreground border border-border"
                                     )}
                                 >
@@ -216,18 +217,18 @@ function DailyClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
         </Dialog>
 
         <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-            <AlertDialogContent className="text-foreground border-green-400/50" style={{ background: 'var(--background)' }}>
+            <AlertDialogContent className="bg-background border-green-500/50">
                 <AlertDialogHeader className="text-center">
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20 mb-4 border-2 border-green-500/50">
-                        <Check className="h-8 w-8 text-green-400" />
+                        <Check className="h-8 w-8 text-green-500" />
                     </div>
-                    <AlertDialogTitle className="text-xl font-bold text-green-600 dark:text-green-300 uppercase tracking-tighter">Sync Successful!</AlertDialogTitle>
+                    <AlertDialogTitle className="text-xl font-bold text-foreground uppercase tracking-tighter">Sync Successful!</AlertDialogTitle>
                     <AlertDialogDescription className="text-muted-foreground">
                         The HOT token from your node slot has been successfully synchronized and credited to your wallet.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="mt-4">
-                    <AlertDialogAction onClick={() => setShowSuccessDialog(false)} className="w-full bg-green-500 text-white hover:bg-green-600 font-black uppercase tracking-widest text-xs h-12 rounded-2xl">
+                    <AlertDialogAction onClick={() => setShowSuccessDialog(false)} className="w-full bg-green-500 text-white hover:bg-green-600 font-black uppercase tracking-widest text-xs h-12 rounded-2xl shadow-lg">
                         Accept Transmission
                     </AlertDialogAction>
                 </AlertDialogFooter>
@@ -366,11 +367,11 @@ export function MiningDashboard() {
 
   return (
     <div className="min-h-screen bg-background p-4 sm:p-6 space-y-6 pb-24">
-      <div className="relative min-h-[480px] w-full rounded-[2.5rem] overflow-hidden glass-card border-border bg-card/40">
+      <div className="relative min-h-[480px] w-full rounded-[2.5rem] overflow-hidden border border-border bg-card shadow-xl">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5" />
         
         <div className="absolute top-8 left-8 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-secondary border border-border flex items-center justify-center backdrop-blur-md">
+          <div className="w-12 h-12 rounded-2xl bg-secondary border border-border flex items-center justify-center shadow-inner">
             <LayoutGrid className="text-primary h-6 w-6" />
           </div>
           <div>
@@ -382,7 +383,7 @@ export function MiningDashboard() {
         {/* Header Mining Rate Pill */}
         <button 
             onClick={() => setIsRateBreakdownOpen(true)}
-            className="absolute top-8 left-1/2 -translate-x-1/2 transition-all hover:scale-105 active:scale-95 z-10 hidden sm:flex items-center gap-2 px-4 py-2 rounded-2xl bg-secondary/80 border border-border backdrop-blur-md hover:border-primary/50"
+            className="absolute top-8 left-1/2 -translate-x-1/2 transition-all hover:scale-105 active:scale-95 z-10 hidden sm:flex items-center gap-2 px-4 py-2 rounded-2xl bg-secondary border border-border shadow-sm hover:border-primary/50"
         >
             <Zap className="text-primary h-4 w-4" />
             <span className="text-[10px] font-black text-foreground uppercase tracking-widest">
@@ -391,7 +392,7 @@ export function MiningDashboard() {
         </button>
 
         <Link href="/wallet" className="absolute top-8 right-8 transition-transform hover:scale-110 active:scale-95 z-10">
-          <div className="w-12 h-12 rounded-2xl bg-secondary border border-border flex items-center justify-center backdrop-blur-md hover:bg-accent">
+          <div className="w-12 h-12 rounded-2xl bg-secondary border border-border flex items-center justify-center shadow-inner hover:bg-accent">
             <Wallet className="text-primary h-6 w-6" />
           </div>
         </Link>
@@ -401,13 +402,13 @@ export function MiningDashboard() {
             <div className="flex flex-col items-center animate-in zoom-in-95 duration-500 w-full max-w-md">
               <span className="text-primary/40 text-[10px] font-black uppercase tracking-[0.5em] mb-3">Live Session Counter</span>
               <div className="relative mb-4">
-                <h2 className="text-foreground text-6xl md:text-8xl font-black tracking-tighter tabular-nums drop-shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                <h2 className="text-foreground text-6xl md:text-8xl font-black tracking-tighter tabular-nums drop-shadow-sm">
                   {liveCoins.toFixed(4)}
                 </h2>
-                <div className="absolute inset-0 border-y border-border animate-scan-line pointer-events-none" />
+                <div className="absolute inset-0 border-y border-border/20 animate-scan-line pointer-events-none" />
               </div>
               
-              <div className="flex items-center gap-3 bg-primary/10 px-4 py-1.5 rounded-full border border-primary/20 backdrop-blur-md">
+              <div className="flex items-center gap-3 bg-primary/10 px-4 py-1.5 rounded-full border border-primary/20">
                 <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_10px_currentColor]" />
                 <span className="text-primary text-[10px] font-black tracking-[0.3em] uppercase italic">Processing HOT Protocol</span>
               </div>
@@ -430,16 +431,16 @@ export function MiningDashboard() {
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <button 
                     onClick={() => setIsClaimDialogOpen(true)}
-                    className="h-16 rounded-2xl bg-secondary border border-border hover:bg-accent text-foreground flex flex-col items-center justify-center gap-1 group transition-all"
+                    className="h-16 rounded-2xl bg-secondary border border-border hover:bg-accent text-foreground flex flex-col items-center justify-center gap-1 group transition-all shadow-sm"
                   >
-                    <Coins className="h-5 w-5 text-amber-400 group-hover:scale-110 transition-transform" />
+                    <Coins className="h-5 w-5 text-amber-500 group-hover:scale-110 transition-transform" />
                     <span className="text-[10px] font-black uppercase tracking-widest">Claim Coins</span>
                   </button>
 
                   <button 
                     onClick={handleTurboBoost}
                     disabled={!!isProcessing}
-                    className="h-16 rounded-2xl bg-secondary border border-border hover:bg-accent text-foreground flex flex-col items-center justify-center gap-1 group disabled:opacity-50 transition-all"
+                    className="h-16 rounded-2xl bg-secondary border border-border hover:bg-accent text-foreground flex flex-col items-center justify-center gap-1 group disabled:opacity-50 transition-all shadow-sm"
                   >
                     {isProcessing === 'turbo' ? (
                         <Loader2 className="animate-spin h-5 w-5" />
@@ -456,7 +457,7 @@ export function MiningDashboard() {
           ) : (
             <div className="flex flex-col items-center animate-in fade-in duration-700 w-full max-w-sm">
               <div className="relative mb-12">
-                <span className="hot-logo-text text-9xl md:text-[10rem] opacity-20 select-none">HOT</span>
+                <span className="hot-logo-text text-9xl md:text-[10rem] opacity-10 select-none">HOT</span>
                 <div className="absolute inset-0 flex items-center justify-center">
                     <Database className="h-12 w-12 text-foreground/5" />
                 </div>
@@ -481,7 +482,7 @@ export function MiningDashboard() {
       <RateBreakdownDialog open={isRateBreakdownOpen} onOpenChange={setIsRateBreakdownOpen} />
 
       <AlertDialog open={showBoostSuccess} onOpenChange={setShowBoostSuccess}>
-        <AlertDialogContent className="text-foreground border-primary/50" style={{ background: 'var(--background)' }}>
+        <AlertDialogContent className="bg-background border-primary/50">
             <AlertDialogHeader className="text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/20 mb-4 border-2 border-primary/50">
                     <Rocket className="h-8 w-8 text-primary" />
@@ -501,7 +502,7 @@ export function MiningDashboard() {
 
       <div 
         onClick={() => setIsRateBreakdownOpen(true)}
-        className="glass-card rounded-[3rem] p-8 glow-border relative overflow-hidden bg-card/20 cursor-pointer transition-all hover:bg-card/30 active:scale-[0.99]"
+        className="rounded-[3rem] p-8 relative overflow-hidden bg-card border border-border cursor-pointer transition-all hover:bg-secondary/20 active:scale-[0.99] shadow-md"
       >
         <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://picsum.photos/seed/cyber/800/800')] mix-blend-overlay" />
 
