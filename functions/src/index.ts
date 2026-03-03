@@ -30,7 +30,6 @@ export const updateTournamentConfig = functions.runWith({ timeoutSeconds: 120 })
             const isStoppingTournament = currentConfig.isActive && config.isActive === false;
             
             if (isStoppingTournament) {
-                // Logic to finalize the tournament and save winners
                 const tournamentId = 'tournament';
 
                 const usersQuery = db.collection('users').where('tournamentId', '==', tournamentId);
@@ -74,10 +73,8 @@ export const updateTournamentConfig = functions.runWith({ timeoutSeconds: 120 })
                 const concludedDocRef = db.collection('concludedTournaments').doc();
                 batch.set(concludedDocRef, concludedTournamentData);
                 
-                // Mark the current tournament as inactive instead of deleting it.
                 batch.update(configDocRef, { isActive: false });
                 
-                // NEW: Update winner documents with their prize
                 winners.forEach(winner => {
                     const userDocRef = db.collection('users').doc(winner.userId);
                     batch.update(userDocRef, {
@@ -89,7 +86,6 @@ export const updateTournamentConfig = functions.runWith({ timeoutSeconds: 120 })
                 return { success: true, message: 'Tournament Stopped. Winner data has been saved.' };
 
             } else {
-                 // Standard config update logic
                 let endDate: Date | null = null;
                 if (config.endDate) {
                     endDate = config.endDate instanceof admin.firestore.Timestamp ? config.endDate.toDate() : new Date(config.endDate);
@@ -109,7 +105,6 @@ export const updateTournamentConfig = functions.runWith({ timeoutSeconds: 120 })
                 return { success: true, message: 'Tournament configuration has been saved.' };
             }
         } else {
-             // Doc doesn't exist, so we are creating a new one
             let endDate: Date | null = null;
             if (config.endDate) {
                 endDate = config.endDate instanceof admin.firestore.Timestamp ? config.endDate.toDate() : new Date(config.endDate);
@@ -134,7 +129,7 @@ export const updateTournamentConfig = functions.runWith({ timeoutSeconds: 120 })
 
 
 export const applyReferralCode = functions
-  .runWith({ timeoutSeconds: 30 }) // Set timeout to 30 seconds
+  .runWith({ timeoutSeconds: 30 })
   .https.onCall(async (data, context) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "You must be logged in to apply a referral code.");
@@ -149,15 +144,11 @@ export const applyReferralCode = functions
     try {
       await db.runTransaction(async (transaction) => {
         const usersRef = db.collection("users");
-        const now = admin.firestore.Timestamp.now(); // Generate timestamp on the server
+        const now = admin.firestore.Timestamp.now();
 
-        // --- All READS must happen first ---
-
-        // 1. Get referee document
         const refereeDocRef = usersRef.doc(refereeUid);
         const refereeDoc = await transaction.get(refereeDocRef);
 
-        // 2. Get referrer document
         const referrerQuery = usersRef.where("profileCode", "==", referrerCode.toUpperCase());
         const referrerSnapshot = await transaction.get(referrerQuery);
         
@@ -168,7 +159,6 @@ export const applyReferralCode = functions
         const referrerId = referrerDoc.id;
         const referrerData = referrerDoc.data() as UserProfile;
         
-        // 3. Conditionally get second-level referrer and tournament documents upfront
         let secondLevelReferrerDoc = null;
         if (referrerData.isPromoter === true && referrerData.referredBy) {
             const secondLevelReferrerDocRef = usersRef.doc(referrerData.referredBy);
@@ -181,8 +171,6 @@ export const applyReferralCode = functions
             tournamentDoc = await transaction.get(tournamentDocRef);
         }
 
-        // --- All VALIDATIONS happen after reads ---
-        
         if (!refereeDoc.exists) {
           throw new functions.https.HttpsError("not-found", "Your user profile was not found.");
         }
@@ -198,9 +186,6 @@ export const applyReferralCode = functions
 
         const rewardAmount = 10;
         
-        // --- All WRITES happen last ---
-
-        // 4. Update Referee's Document
         transaction.update(refereeDocRef, {
             referredBy: referrerId,
             referredByName: referrerData.fullName,
@@ -209,7 +194,6 @@ export const applyReferralCode = functions
             appliedCodeBoost: 0.25,
         });
 
-        // 5. Prepare and update referrer's document
         const referrerUpdateData: { [key: string]: any } = {
             referrals: admin.firestore.FieldValue.arrayUnion(refereeUid),
             minedCoins: admin.firestore.FieldValue.increment(rewardAmount),
@@ -237,7 +221,6 @@ export const applyReferralCode = functions
         }
         transaction.update(referrerDoc.ref, referrerUpdateData);
         
-        // 6. Update second-level referrer document if applicable
         if (secondLevelReferrerDoc && secondLevelReferrerDoc.exists && secondLevelReferrerDoc.data()?.isPromoter === true) {
             const secondLevelData = secondLevelReferrerDoc.data() as UserProfile;
             const currentRewards = secondLevelData.secondLevelPromoterRewards || {};
@@ -254,7 +237,7 @@ export const applyReferralCode = functions
         }
       });
 
-      return { success: true, message: `Success! You and ${referrerCode} both received ${10} BLIT.` };
+      return { success: true, message: `Success! You and ${referrerCode} both received ${10} HOT.` };
 
     } catch (error: any) {
         console.error("Error in applyReferralCode Cloud Function:", error);
@@ -266,124 +249,7 @@ export const applyReferralCode = functions
   });
 
 
-export const finalizeSession = functions.https.onCall(async (data, context) => {
-    // 1. Check for authentication
-    if (!context.auth) {
-        throw new functions.https.HttpsError(
-            "unauthenticated",
-            "The function must be called while authenticated.",
-        );
-    }
-
-    const callerUid = context.auth.uid;
-    // Allow an admin to target a specific user, otherwise target the caller
-    const targetUserId = data.userId || callerUid; 
-
-    const callerDocRef = db.collection("users").doc(callerUid);
-    const targetUserDocRef = db.collection("users").doc(targetUserId);
-
-    try {
-        let sessionEarnings = 0;
-        await db.runTransaction(async (transaction) => {
-            const [callerDoc, targetUserDoc] = await Promise.all([
-                (callerUid === targetUserId) ? Promise.resolve(null) : transaction.get(callerDocRef),
-                transaction.get(targetUserDocRef)
-            ]);
-
-            if (!targetUserDoc.exists) {
-                throw new functions.https.HttpsError("not-found", "Target user document does not exist.");
-            }
-
-            // Authorization: Must be the user themselves or an admin
-            const isSuperAdmin = callerUid === 'obaW90LhdhPDvbvh06wWwBfucTk1' || callerUid === 'ZzOKXow0RlhaK3snDD0BLcbeBL62';
-            const callerIsAdmin = (callerDoc && callerDoc.exists && callerDoc.data()?.isAdmin === true) || isSuperAdmin;
-            if (callerUid !== targetUserId && !callerIsAdmin) {
-                 throw new functions.https.HttpsError(
-                    "permission-denied",
-                    "You do not have permission to perform this action.",
-                );
-            }
-
-            const profile = targetUserDoc.data();
-            if (!profile) {
-                 throw new functions.https.HttpsError("internal", "User profile data is missing.");
-            }
-            
-            const now = Date.now();
-            const isSelfFinalize = callerUid === targetUserId;
-
-            // Check if there is a session to finalize
-            if (!profile.miningStartTime || !profile.sessionEndTime || (isSelfFinalize && now < profile.sessionEndTime)) {
-                 // If called by the user, only run if session is truly over.
-                 // If called by an admin, it can run anytime to terminate early.
-                 if(isSelfFinalize) {
-                    sessionEarnings = 0;
-                    return;
-                 }
-            }
-
-            const sessionStartTime = profile.miningStartTime;
-            const effectiveEndTime = isSelfFinalize ? profile.sessionEndTime : now;
-            const elapsedTimeHours = (effectiveEndTime - sessionStartTime) / (1000 * 60 * 60);
-
-            const baseRate = profile.baseMiningRate || 0.25;
-            const appliedCodeBonus = profile.appliedCodeBoost || 0; 
-            
-            const finalBaseEarnings = (baseRate + appliedCodeBonus) * elapsedTimeHours;
-            let totalEarnings = finalBaseEarnings;
-
-            (profile.activeBoosts || []).forEach((boost: any) => {
-              if (effectiveEndTime > boost.startTime) {
-                const boostEffectiveEndTime = Math.min(effectiveEndTime, boost.endTime);
-                const elapsedBoostTimeMs = boostEffectiveEndTime - boost.startTime;
-                if (elapsedBoostTimeMs > 0) {
-                  const elapsedBoostTimeHours = elapsedBoostTimeMs / (1000 * 60 * 60);
-                  totalEarnings += boost.rate * elapsedBoostTimeHours;
-                }
-              }
-            });
-            
-            totalEarnings += profile.spinWinnings || 0;
-            totalEarnings += profile.sessionMissedCoinEarnings || 0; // THE FIX
-
-            let gBoxPoints = 0;
-            if (profile.kuberBlocks) {
-                profile.kuberBlocks.forEach((block: any) => {
-                    const durationMs = Math.max(0, block.referralSessionEndTime - block.userSessionStartTime);
-                    const durationHours = durationMs / (1000 * 60 * 60);
-                    gBoxPoints += durationHours * 0.25;
-                });
-            }
-            totalEarnings += gBoxPoints;
-            
-            sessionEarnings = totalEarnings;
-
-            transaction.update(targetUserDocRef, {
-              unclaimedCoins: admin.firestore.FieldValue.increment(totalEarnings),
-              miningStartTime: null,
-              sessionEndTime: null,
-              sessionBaseEarnings: 0,
-              sessionReferralEarnings: 0,
-              sessionMissedCoinEarnings: 0, // Reset this field
-              kuberBlocks: [],
-            });
-        });
-
-        return { success: true, earnings: sessionEarnings };
-    } catch (error) {
-        console.error("Error in finalizeSession function:", error);
-        if (error instanceof functions.https.HttpsError) {
-          throw error;
-        }
-        throw new functions.https.HttpsError(
-          "internal",
-          "An error occurred while finalizing the session.",
-        );
-    }
-});
-
 export const claimMinedCoins = functions.runWith({ timeoutSeconds: 30 }).https.onCall(async (data, context) => {
-  // 1. Check for authentication
   if (!context.auth) {
     throw new functions.https.HttpsError(
       "unauthenticated",
@@ -410,14 +276,12 @@ export const claimMinedCoins = functions.runWith({ timeoutSeconds: 30 }).https.o
       const unclaimed = profile?.unclaimedCoins || 0;
 
       if (unclaimed <= 0) {
-        // Nothing to claim, but not an error.
         claimedAmount = 0;
         return;
       }
       
       claimedAmount = unclaimed;
 
-      // Prepare the update payload
       const updatePayload: { [key: string]: any } = {
         minedCoins: admin.firestore.FieldValue.increment(unclaimed),
         unclaimedCoins: 0,
@@ -427,7 +291,7 @@ export const claimMinedCoins = functions.runWith({ timeoutSeconds: 30 }).https.o
         adWatchHistory: [],
         sessionBaseEarnings: 0,
         sessionReferralEarnings: 0,
-        sessionMissedCoinEarnings: 0, // Reset this field
+        sessionMissedCoinEarnings: 0,
         kuberBlocks: [],
       };
       
@@ -447,7 +311,7 @@ export const claimMinedCoins = functions.runWith({ timeoutSeconds: 30 }).https.o
     }
     throw new functions.https.HttpsError(
       "internal",
-      "An error occurred while claiming coins.",
+      "An error occurred while claiming tokens.",
     );
   }
 });
@@ -471,7 +335,7 @@ export const claimDailyCoin = functions.runWith({ timeoutSeconds: 30 }).https.on
     const userDocRef = db.collection("users").doc(uid);
 
     try {
-        const claimedAmount = 1; // Each coin is worth 1
+        const claimedAmount = 1;
 
         await db.runTransaction(async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
@@ -480,7 +344,6 @@ export const claimDailyCoin = functions.runWith({ timeoutSeconds: 30 }).https.on
             }
 
             const profile = userDoc.data() as UserProfile;
-            // Explicitly handle cases where dailyClaimedCoins might not exist for older users
             const claimedCoins: string[] = Array.isArray(profile.dailyClaimedCoins) ? profile.dailyClaimedCoins : [];
 
             if (claimedCoins.includes(coinId)) {
@@ -489,9 +352,8 @@ export const claimDailyCoin = functions.runWith({ timeoutSeconds: 30 }).https.on
 
             claimedCoins.push(coinId);
             
-            // Keep only the last 8
             while (claimedCoins.length > 8) {
-                claimedCoins.shift(); // Remove the oldest
+                claimedCoins.shift();
             }
 
             const updatePayload: { [key: string]: any } = {
@@ -501,7 +363,7 @@ export const claimDailyCoin = functions.runWith({ timeoutSeconds: 30 }).https.on
             
             if (isMissed) {
                 const adEvent = {
-                    id: db.collection('temp').doc().id, // Generate ID on server
+                    id: db.collection('temp').doc().id,
                     element: adElement || `Missed Coin ${coinId}`,
                     timestamp: Date.now(),
                 };
@@ -521,7 +383,7 @@ export const claimDailyCoin = functions.runWith({ timeoutSeconds: 30 }).https.on
         }
         throw new functions.https.HttpsError(
             "internal",
-            "An error occurred while claiming the coin.",
+            "An error occurred while claiming the token.",
         );
     }
 });
@@ -534,10 +396,7 @@ export const sendVerificationEmail = functions.https.onCall(async (data, context
 
     try {
         const link = await admin.auth().generateEmailVerificationLink(email);
-        // Note: You would typically send this link via a transactional email service like SendGrid, Mailgun, etc.
-        // For this example, we are logging it, but in a real app, you would not do this.
         console.log(`Verification link for ${email}: ${link}`);
-        // In a real app, you would return success and the client would show a "email sent" message.
         return { success: true };
     } catch (error) {
         console.error('Error generating email verification link:', error);
@@ -613,7 +472,6 @@ export const unenrollAllUsersFromTournament = functions.runWith({ timeoutSeconds
         const tournamentDoc = await tournamentConfigRef.get();
 
         if (!tournamentDoc.exists) {
-             // No tournament exists, so nothing to do.
             return { success: true, message: "No active tournament found to unenroll users from." };
         }
         const tournamentId = tournamentDoc.id;
@@ -648,12 +506,12 @@ export const leaveTournament = functions.runWith({ timeoutSeconds: 30 }).https.o
         throw new functions.https.HttpsError("unauthenticated", "You must be logged in.");
     }
     const uid = context.auth.uid;
-    const userDocRef = db.collection('users').doc(uid);
+    const userDocRef = db.collection("users").doc(uid);
 
     try {
         await userDocRef.update({
             tournamentId: 'left',
-            tournamentScore: -1 // Use a negative score to filter them out easily
+            tournamentScore: -1
         });
         return { success: true, message: "You have left the league." };
     } catch (error) {
@@ -720,12 +578,10 @@ export const requestUsdcWithdrawal = functions.runWith({secrets: ["SOLANA_FEE_WA
     const userDocRef = db.collection('users').doc(uid);
 
     return db.runTransaction(async (transaction) => {
-        // --- ALL READS FIRST ---
         const userDoc = await transaction.get(userDocRef);
         const concludedTournamentsQuery = db.collection('concludedTournaments').orderBy('concludedAt', 'desc').limit(1);
         const concludedTournamentsSnapshot = await transaction.get(concludedTournamentsQuery);
         
-        // --- VALIDATIONS ---
         if (!userDoc.exists) {
             throw new functions.https.HttpsError('not-found', 'User not found.');
         }
@@ -736,12 +592,9 @@ export const requestUsdcWithdrawal = functions.runWith({secrets: ["SOLANA_FEE_WA
             throw new functions.https.HttpsError('failed-precondition', 'No winnings available to withdraw.');
         }
         
-        // --- EXTERNAL CALL ---
-        // Amount in micro-USDC (6 decimal places)
         const amountMicroUsdc = Math.floor(winningAmount * 1_000_000);
         const transactionSignature = await transferUsdc(usdcAddress, amountMicroUsdc);
 
-        // --- ALL WRITES LAST ---
         transaction.update(userDocRef, {
             usdcAddress: usdcAddress,
             tournamentWinning: 0
@@ -749,7 +602,6 @@ export const requestUsdcWithdrawal = functions.runWith({secrets: ["SOLANA_FEE_WA
 
         if (!concludedTournamentsSnapshot.empty) {
             const concludedDoc = concludedTournamentsSnapshot.docs[0];
-            // Check if the user is in the payouts map before trying to update.
             if (concludedDoc.data().payouts && concludedDoc.data().payouts[uid]) {
                 transaction.update(concludedDoc.ref, {
                     [`payouts.${uid}`]: 'paid'
@@ -760,5 +612,3 @@ export const requestUsdcWithdrawal = functions.runWith({secrets: ["SOLANA_FEE_WA
         return { success: true, transactionId: transactionSignature };
     });
 });
-
-    
