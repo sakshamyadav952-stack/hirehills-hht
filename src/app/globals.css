@@ -56,6 +56,7 @@
     @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
     overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
@@ -86,6 +87,15 @@
     @apply bg-background text-foreground;
     min-height: 100vh;
   }
+  
+  /* Touch responsiveness */
+  .active-scale {
+    @apply active:scale-95 transition-transform duration-100;
+  }
+  
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
 
 /* Custom Scrollbar for Terminal feel */
@@ -107,4 +117,10 @@
 
 .animate-scan-line {
   animation: scan 3s linear infinite;
+}
+
+@media (max-width: 320px) {
+  .text-responsive-base {
+    font-size: 0.75rem;
+  }
 }
