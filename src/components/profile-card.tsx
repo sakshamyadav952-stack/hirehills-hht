@@ -82,7 +82,7 @@ export function ProfileCard() {
   }
 
   const registrationDate = getRegistrationDate();
-  const hasRealEmail = userProfile.email && !userProfile.email.endsWith('@blistree.in');
+  const hasRealEmail = userProfile.email && !userProfile.email.endsWith('@hirehills.in');
 
   return (
     <div className="w-full px-3 sm:px-4">

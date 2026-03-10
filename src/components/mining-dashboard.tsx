@@ -357,7 +357,7 @@ export function MiningDashboard() {
       </header>
 
       <div className="px-2 pt-0 pb-4 sm:px-4 sm:pt-0 space-y-3 sm:space-y-4">
-        <div className="relative min-h-[220px] xs:min-h-[260px] sm:min-h-[300px] w-full rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border border-border bg-card shadow-xl">
+        <div className="relative min-h-[180px] xs:min-h-[220px] sm:min-h-[260px] w-full rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border border-border bg-card shadow-xl">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5" />
           
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full px-4 xs:px-6 flex flex-col items-center">
@@ -413,12 +413,16 @@ export function MiningDashboard() {
               </div>
             ) : (
               <div className="flex flex-col items-center animate-in fade-in duration-700 w-full max-w-sm">
-                <div className="relative mb-4">
-                  <span className="hot-logo-text text-7xl xs:text-8xl sm:text-9xl md:text-[10rem] opacity-10 select-none leading-none">HOT</span>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                      <Database className="h-8 w-8 xs:h-10 sm:h-12 text-foreground/5" />
-                  </div>
+                <div className="text-center mb-4 sm:mb-6">
+                    <p className="text-primary/40 text-[7px] xs:text-[8px] sm:text-[10px] font-black uppercase tracking-[0.5em] mb-1">Available Balance</p>
+                    <div className="flex items-center justify-center gap-2">
+                        <h2 className="text-foreground text-3xl xs:text-4xl sm:text-5xl font-black tracking-tighter tabular-nums">
+                            {(userProfile?.minedCoins || 0).toFixed(4)}
+                        </h2>
+                        <span className="text-primary font-black text-xs sm:text-sm italic uppercase">HOT</span>
+                    </div>
                 </div>
+
                 <Button 
                   onClick={handleStartMining}
                   disabled={isStarting}
