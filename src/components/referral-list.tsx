@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, Loader2, Users } from 'lucide-react';
+import { Loader2, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function ReferralList() {

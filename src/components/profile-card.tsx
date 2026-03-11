@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, Mail, Phone, Calendar, Badge, ShieldCheck, Loader2, Edit, Trash2, LogOut, ChevronRight, Sun, Moon, Globe, UserCheck } from 'lucide-react';
+import { User, Mail, Phone, Calendar, ShieldCheck, Loader2, Edit, Trash2, LogOut, ChevronRight, Sun, Moon, Globe, UserCheck } from 'lucide-react';
 import { Skeleton } from './ui/skeleton';
 import { Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -40,10 +40,6 @@ export function ProfileCard() {
     setIsSending(false);
   };
 
-  const handleLogout = () => {
-    logout();
-  };
-
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
@@ -68,16 +64,10 @@ export function ProfileCard() {
 
   const getRegistrationDate = () => {
     if (!userProfile?.createdAt) return 'N/A';
-    
     let date;
-    if (userProfile.createdAt instanceof Timestamp) {
-      date = userProfile.createdAt.toDate();
-    } else if (typeof userProfile.createdAt === 'object' && 'seconds' in userProfile.createdAt) {
-      date = new Date((userProfile.createdAt as any).seconds * 1000);
-    } else {
-       return 'N/A';
-    }
-    
+    if (userProfile.createdAt instanceof Timestamp) date = userProfile.createdAt.toDate();
+    else if (typeof userProfile.createdAt === 'object' && 'seconds' in userProfile.createdAt) date = new Date((userProfile.createdAt as any).seconds * 1000);
+    else return 'N/A';
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   }
 
@@ -86,7 +76,6 @@ export function ProfileCard() {
 
   return (
     <div className="w-full px-3 sm:px-4">
-      {/* Header Section */}
       <div className="flex flex-col items-center gap-3 sm:gap-4 pt-6 sm:pt-8">
         <Avatar className="h-20 w-20 sm:h-24 sm:w-24 border-4 border-background ring-2 ring-primary">
           {userProfile.profileImageUrl && <AvatarImage src={userProfile.profileImageUrl} alt={userProfile.fullName} />}
@@ -104,7 +93,6 @@ export function ProfileCard() {
         </div>
       </div>
 
-      {/* Details Card */}
       <Card className="mt-8 shadow-md border border-border overflow-hidden rounded-[1.5rem] sm:rounded-[2rem]">
         <CardHeader className="bg-secondary/30 pb-4">
           <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground">Node Identity</CardTitle>
@@ -165,18 +153,6 @@ export function ProfileCard() {
             <div className="flex items-center justify-between p-4 sm:p-5">
                 <div className='flex items-center gap-3 sm:gap-4'>
                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
-                        <Badge className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Gender_Type</p>
-                        <p className="text-xs sm:text-sm font-bold text-foreground uppercase">{userProfile.gender}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 sm:p-5">
-                <div className='flex items-center gap-3 sm:gap-4'>
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
                         <Globe className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     </div>
                     <div>
@@ -201,7 +177,6 @@ export function ProfileCard() {
         </CardContent>
       </Card>
       
-      {/* Actions Card */}
       <Card className="mt-6 sm:mt-8 shadow-md border border-border overflow-hidden rounded-[1.5rem] sm:rounded-[2rem] mb-24 sm:mb-10">
         <CardHeader className="bg-secondary/30 pb-4">
           <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground">Node Config</CardTitle>
@@ -217,11 +192,7 @@ export function ProfileCard() {
                             {theme === 'dark' ? 'Light Spectrum' : 'Dark Matrix'}
                         </Label>
                     </div>
-                    <Switch
-                        id="theme-switch"
-                        checked={theme === 'dark'}
-                        onCheckedChange={toggleTheme}
-                    />
+                    <Switch id="theme-switch" checked={theme === 'dark'} onCheckedChange={toggleTheme} />
                 </div>
 
                  <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
@@ -256,7 +227,7 @@ export function ProfileCard() {
                     </Link>
                 </Button>
                 
-                 <button onClick={handleLogout} className="w-full flex items-center justify-between p-4 sm:p-5 hover:bg-secondary/50 active:bg-secondary/80 transition-colors text-left">
+                 <button onClick={logout} className="w-full flex items-center justify-between p-4 sm:p-5 hover:bg-secondary/50 active:bg-secondary/80 transition-colors text-left">
                     <div className="flex items-center gap-3 sm:gap-4">
                         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
                             <LogOut className="h-4 w-4 sm:h-5 sm:w-5 text-red-400" />

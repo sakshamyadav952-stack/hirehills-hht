@@ -1,7 +1,7 @@
 'use client';
 
 import { ReferralList } from '@/components/referral-list';
-import { ArrowLeft, Shield, Check } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 
@@ -10,7 +10,6 @@ export default function ReferralsPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#000814] text-white">
-      {/* Background decoration */}
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(0,180,216,0.1),transparent_50%)] pointer-events-none" />
       
       <header className="sticky top-0 z-30 flex items-center p-3 sm:p-4 bg-transparent backdrop-blur-md">
@@ -25,8 +24,7 @@ export default function ReferralsPage() {
         <div className="flex-1 flex justify-center pr-9 sm:pr-10">
             <div className="relative flex items-center justify-center">
                 <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full" />
-                <Shield className="relative h-10 w-10 sm:h-14 sm:w-14 text-[#00B4D8] fill-[#00B4D8]/10 drop-shadow-[0_0_10px_rgba(0,180,216,0.5)]" />
-                <Check className="absolute h-5 w-5 sm:h-7 sm:w-7 text-white stroke-[4px]" />
+                <ShieldCheck className="relative h-10 w-10 sm:h-14 sm:w-14 text-[#00B4D8] fill-[#00B4D8]/10 drop-shadow-[0_0_10px_rgba(0,180,216,0.5)]" />
             </div>
         </div>
       </header>
@@ -37,7 +35,7 @@ export default function ReferralsPage() {
                 My Security Circle
             </h1>
             <p className="text-[#90E0EF] text-[8px] xs:text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] opacity-70">
-                Trusted Users in Your Security Circle
+                Trusted Nodes in Your Network
             </p>
         </div>
 
