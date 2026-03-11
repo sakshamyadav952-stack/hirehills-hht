@@ -53,16 +53,6 @@ export function ReferralList() {
                             <div className="font-black text-base xs:text-lg sm:text-2xl text-white tracking-tighter leading-none group-hover:text-[#00B4D8] transition-colors truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none">
                                 {referral.fullName}
                             </div>
-                            <div className={cn(
-                                "flex items-center gap-1.5 sm:gap-2 text-[8px] xs:text-[10px] sm:text-xs font-black uppercase tracking-[0.1em] sm:tracking-[0.2em]",
-                                isActive ? "text-emerald-400" : "text-rose-400"
-                            )}>
-                                <div className={cn(
-                                    "w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full",
-                                    isActive ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_currentColor]" : "bg-rose-400 shadow-[0_0_8px_currentColor]"
-                                )} />
-                                <span>{isActive ? 'Active' : 'Inactive'}</span>
-                            </div>
                         </div>
                     </div>
                     

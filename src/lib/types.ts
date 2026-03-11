@@ -52,6 +52,67 @@ export type ChatMessage = {
   timestamp: Timestamp;
 };
 
+export type Comment = {
+  id: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  timestamp: Timestamp;
+  isRead?: boolean;
+};
+
+export type Note = {
+  id: string;
+  title: string;
+  content: string;
+  status: 'pending' | 'in-progress' | 'resolved';
+  isReadByUser: boolean;
+  isReadByAdmin: boolean;
+  createdAt: Timestamp;
+  comments?: Comment[];
+};
+
+export type SessionConfig = {
+  durationMinutes: number;
+};
+
+export type AirdropConfig = {
+  isActive: boolean;
+  title?: string;
+  description?: string;
+  totalPool?: number;
+  referralBonus?: number;
+  completionBonus?: number;
+  expiryDate?: Timestamp | Date | string;
+  bonusDeadline?: Timestamp | Date | string;
+  headline?: string;
+  tagline?: string;
+  referralLimit?: number;
+  rewardAmount?: number;
+  bonusReferralTarget?: number;
+  bonusReward?: number;
+};
+
+export type WithdrawalRequest = {
+  requestId: string;
+  withdrawalMethod: 'upi' | 'bank';
+  upiId?: string;
+  bankName?: string;
+  accountHolderName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  requestedAmount: number;
+  availableCoins: number;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  createdAt: string;
+  classification?: 'accepted' | 'rejected' | 'unclassified';
+  requestType?: 'coins' | 'funds';
+  rateAmount?: number;
+  rateCurrency?: 'inr' | 'usd';
+  rateBlistreeCoins?: number;
+  rateStatus?: 'proposed' | 'accepted' | 'denied';
+};
+
 export type UserProfile = {
   id: string;
   fullName: string;
@@ -104,22 +165,29 @@ export type UserProfile = {
   tournamentScoreLastUpdated?: Timestamp;
   usdcAddress?: string;
   tournamentWinning?: number;
-};
-
-export type WithdrawalRequest = {
-  requestId: string;
-  withdrawalMethod: 'upi' | 'bank';
-  upiId?: string;
-  bankName?: string;
-  accountHolderName?: string;
-  accountNumber?: string;
-  ifscCode?: string;
-  requestedAmount: number;
-  availableCoins: number;
-  status: 'pending' | 'approved' | 'rejected' | 'completed';
-  createdAt: string;
-  classification?: 'accepted' | 'rejected' | 'unclassified';
-  requestType?: 'coins' | 'funds';
+  sessionBaseEarnings?: number;
+  sessionReferralEarnings?: number;
+  sessionMissedCoinEarnings?: number;
+  hasRatedOnPlayStore?: boolean;
+  airdropReferralsCount?: number;
+  airdropBonusClaimed?: boolean;
+  airdropCompletionBonusClaimed?: boolean;
+  deviceNames?: string[];
+  ipAddresses?: string[];
+  notes?: Note[];
+  chat?: ChatMessage[] | null;
+  unreadSupportRepliesCount?: number;
+  followStatusFacebook?: 'followed' | 'pending' | null;
+  followStatusX?: 'followed' | 'pending' | null;
+  facebookProfileName?: string;
+  xProfileName?: string;
+  crushOracleInstalled?: boolean;
+  miningRate2H?: number;
+  cooldownEnd2H?: number | null;
+  miningRate4H?: number;
+  cooldownEnd4H?: number | null;
+  miningRate8H?: number;
+  cooldownEnd8H?: number | null;
 };
 
 export type KuberBlock = {
@@ -171,4 +239,21 @@ export type Transaction = {
 export type UniversalMessage = {
     text: string;
     updatedAt: Timestamp;
+};
+
+export type TournamentWinner = {
+  userId: string;
+  fullName: string;
+  profileCode: string;
+  rank: number;
+  score: number;
+  prize: number;
+};
+
+export type ConcludedTournament = {
+  id: string;
+  headline: string;
+  concludedAt: Timestamp;
+  winners: TournamentWinner[];
+  payouts: { [userId: string]: 'pending' | 'paid' | 'failed' };
 };
