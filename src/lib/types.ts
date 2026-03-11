@@ -72,6 +72,16 @@ export type Note = {
   comments?: Comment[];
 };
 
+export type Review = {
+  id: string;
+  userId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: Timestamp;
+  status: 'pending' | 'approved' | 'rejected';
+};
+
 export type SessionConfig = {
   durationMinutes: number;
 };

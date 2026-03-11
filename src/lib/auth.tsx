@@ -57,7 +57,6 @@ interface AuthContextType {
   isFinalizing: boolean;
   emailVerified: boolean;
   logout: () => Promise<void>;
-  sendVerificationEmail: () => Promise<void>;
   initializeRecaptcha: (container: HTMLElement) => void;
   signInWithPhoneNumber: (phoneNumber: string) => Promise<ConfirmationResult>;
   signInWithGoogle: () => Promise<void>;
@@ -759,28 +758,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await signOut(auth);
   }, [auth]);
-
-  const sendVerificationEmail = useCallback(async () => {
-    if (!user) {
-        toast({ title: 'Error', description: 'You must be logged in to send a verification email.', variant: 'destructive' });
-        return;
-    }
-    if (!user.email) {
-        toast({ title: 'Error', description: 'No email address is associated with your account.', variant: 'destructive' });
-        return;
-    }
-
-    try {
-        const functions = getFunctions();
-        const sendVerificationEmailFn = httpsCallable(functions, 'sendVerificationEmail');
-        await sendVerificationEmailFn({ email: user.email });
-
-        toast({ title: 'Verification Email Sent', description: `A verification link has been sent to ${user.email}.` });
-    } catch (error) {
-        console.error("Error sending verification email:", error);
-        toast({ title: 'Error', description: 'Failed to send verification email. Please try again.', variant: 'destructive' });
-    }
-}, [user, toast]);
   
   const verifyPhoneNumber = useCallback(async (phoneNumber: string, container: HTMLElement): Promise<ConfirmationResult> => {
     if (!auth) throw new Error("Firebase Auth not initialized.");
@@ -921,13 +898,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userDocRef = doc(firestore, `users/${user.uid}/private/contact`);
         await setDoc(userDocRef, { email: newEmail }, { merge: true });
 
-        const functions = getFunctions();
-        const sendVerificationEmailFn = httpsCallable(functions, 'sendVerificationEmail');
-        await sendVerificationEmailFn({ email: newEmail });
+        // Removed call to sendVerificationEmailFn
 
         toast({
-            title: 'Verification Email Sent',
-            description: `A verification link has been sent to ${newEmail}. Please check your inbox.`,
+            title: 'Email Updated',
+            description: `Your email address has been updated to ${newEmail}.`,
         });
     } catch (error: any) {
         console.error("Error updating email:", error);
@@ -2657,7 +2632,6 @@ const creditCrushOracleInstall = useCallback(async () => {
     isFinalizing,
     emailVerified,
     logout,
-    sendVerificationEmail,
     initializeRecaptcha,
     signInWithPhoneNumber,
     signInWithGoogle,
